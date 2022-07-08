@@ -17,11 +17,15 @@ let package = Package(
         // .package(url: /* package url */, from: "1.0.0"),
         .package(url: "https://github.com/realm/realm-swift.git", from: "10.28.1"),
         .package(path: "../BigSyncKit"),
-        .package(url: "https://github.com/getsentry/sentry-cocoa", from: "7.18.0"),
+        .package(url: "https://github.com/getsentry/sentry-cocoa.git", from: "7.18.0"),
         .package(url: "https://github.com/lake-of-fire/AsyncView.git", branch: "main"),
         .package(url: "https://github.com/NuPlay/ExpandableText.git", branch: "main"),
-        .package(url: "https://github.com/globulus/swiftui-webview.git", branch: "main"),
-        .package(url: "https://github.com/lorenzofiamingo/swiftui-cached-async-image.git", branch: "main")
+//        .package(url: "https://github.com/lake-of-fire/swiftui-webview.git", branch: "main"),
+        .package(path: "../swiftui-webview"),
+        .package(url: "https://github.com/onevcat/Kingfisher.git", branch: "master"),
+        .package(url: "https://github.com/karwa/swift-url.git", .upToNextMinor(from: "0.3.1")),
+//        .package(url: "https://github.com/demharusnam/SwiftUIDrag.git", branch: "main"),
+        .package(path: "../SwiftUIDrag"),
     ],
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.
@@ -34,7 +38,10 @@ let package = Package(
                 .product(name: "Sentry", package: "sentry-cocoa"),
                 .product(name: "AsyncView", package: "AsyncView"),
                 .product(name: "SwiftUIWebView", package: "swiftui-webview"),
-                .product(name: "CachedAsyncImage", package: "swiftui-cached-async-image"),
+                .product(name: "Kingfisher", package: "Kingfisher"),
+                .product(name: "WebURL", package: "swift-url"),
+                .product(name: "WebURLFoundationExtras", package: "swift-url"),
+                .product(name: "SwiftUIDrag", package: "SwiftUIDrag"),
             ]
         ),
         .testTarget(
