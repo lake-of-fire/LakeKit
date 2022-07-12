@@ -22,10 +22,13 @@ let package = Package(
         .package(url: "https://github.com/NuPlay/ExpandableText.git", branch: "main"),
 //        .package(url: "https://github.com/lake-of-fire/swiftui-webview.git", branch: "main"),
         .package(path: "../swiftui-webview"),
-        .package(url: "https://github.com/onevcat/Kingfisher.git", branch: "master"),
+        .package(url: "https://github.com/onevcat/Kingfisher", branch: "master"),
         .package(url: "https://github.com/karwa/swift-url.git", .upToNextMinor(from: "0.3.1")),
 //        .package(url: "https://github.com/demharusnam/SwiftUIDrag.git", branch: "main"),
         .package(path: "../SwiftUIDrag"),
+//        .package(url: "https://github.com/aheze/Popovers.git", branch: "main"),
+        .package(path: "../Popovers"),
+//        .package(url: "https://github.com/apple/swift-async-algorithms", branch: "main"),
     ],
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.
@@ -42,6 +45,8 @@ let package = Package(
                 .product(name: "WebURL", package: "swift-url"),
                 .product(name: "WebURLFoundationExtras", package: "swift-url"),
                 .product(name: "SwiftUIDrag", package: "SwiftUIDrag"),
+                .product(name: "Popovers", package: "Popovers"),
+//                .product(name: "AsyncAlgorithms", package: "swift-async-algorithms"),
             ]
         ),
         .testTarget(
