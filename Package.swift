@@ -28,6 +28,9 @@ let package = Package(
         .package(path: "../SwiftUIDrag"),
 //        .package(url: "https://github.com/aheze/Popovers.git", branch: "main"),
         .package(path: "../Popovers"),
+        .package(url: "https://github.com/apple/swift-collections.git", branch: "main"),
+        .package(url: "https://github.com/ldstreet/BetterSafariView.git", branch: "main"),
+        .package(url: "https://github.com/evgenyneu/keychain-swift.git", branch: "master"),
 //        .package(url: "https://github.com/apple/swift-async-algorithms", branch: "main"),
     ],
     targets: [
@@ -46,6 +49,9 @@ let package = Package(
                 .product(name: "WebURLFoundationExtras", package: "swift-url"),
                 .product(name: "SwiftUIDrag", package: "SwiftUIDrag"),
                 .product(name: "Popovers", package: "Popovers"),
+                .product(name: "Collections", package: "swift-collections"),
+                .product(name: "BetterSafariView", package: "BetterSafariView"),
+                .product(name: "KeychainSwift", package: "keychain-swift"),
 //                .product(name: "AsyncAlgorithms", package: "swift-async-algorithms"),
             ]
         ),
