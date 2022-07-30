@@ -31,6 +31,7 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-collections.git", branch: "main"),
         .package(url: "https://github.com/ldstreet/BetterSafariView.git", branch: "main"),
         .package(url: "https://github.com/evgenyneu/keychain-swift.git", branch: "master"),
+        .package(url: "https://github.com/dagronf/DSFStepperView.git", branch: "main"),
 //        .package(url: "https://github.com/apple/swift-async-algorithms", branch: "main"),
     ],
     targets: [
@@ -52,6 +53,7 @@ let package = Package(
                 .product(name: "Collections", package: "swift-collections"),
                 .product(name: "BetterSafariView", package: "BetterSafariView"),
                 .product(name: "KeychainSwift", package: "keychain-swift"),
+                .product(name: "DSFStepperView", package: "DSFStepperView"),
 //                .product(name: "AsyncAlgorithms", package: "swift-async-algorithms"),
             ]
         ),
