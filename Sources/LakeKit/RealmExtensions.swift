@@ -1,4 +1,4 @@
-import Foundation
+import SwiftUI
 import RealmSwift
 
 /// Forked from: https://github.com/realm/realm-swift/blob/9f7a605dfcf6a60e019a296dc8d91c3b23837a82/RealmSwift/SwiftUI.swift
@@ -14,15 +14,19 @@ private func safeWrite<Value>(_ value: Value, _ block: (Realm?, Value) -> Void) 
 }
 
 extension URL: FailableCustomPersistable {
-  public typealias PersistedType = String
-
-  public init?(persistedValue: String) {
-      self.init(string: persistedValue)
-  }
-
-  public var persistableValue: String {
-    absoluteString
-  }
+    public typealias PersistedType = String
+    
+    public init?(persistedValue: String) {
+        self.init(string: persistedValue)
+    }
+    
+    public var persistableValue: String {
+        absoluteString
+    }
+    
+    public static func _rlmDefaultValue() -> Self {
+        .init(string: "about:blank")!
+    }
 }
 
 public extension Object {
@@ -46,12 +50,40 @@ public extension Object {
     }
 }
 
+public extension Results where Element: Object & Decodable {
+    func replace<O>(with objects: [O]) throws where O: Encodable {
+        let encodedObjects = try objects.map { try JSONEncoder().encode($0) }
+        let realmObjects = try encodedObjects.map { try JSONDecoder().decode(Element.self, from: $0) }
+        
+        safeWrite(self) { realm, results in
+            guard let realm = realm else {
+                print("No realm?")
+                return
+            }
+            
+            realm.add(realmObjects, update: .modified)
+            let addedPKs = Set(realmObjects.compactMap { $0.primaryKeyValue })
+            
+            for existingObject in self {
+                guard let existingPK = existingObject.primaryKeyValue else { continue }
+                if !addedPKs.contains(existingPK) {
+                    if existingObject.objectSchema.properties.contains(where: { $0.name == "isDeleted" }) {
+                        existingObject.setValue(true, forKey: "isDeleted")
+                    } else {
+                        realm.delete(existingObject)
+                    }
+                }
+            }
+        }
+    }
+}
+
 public extension BoundCollection where Value == Results<Element>, Element: Object & Decodable {
     func replace<O>(with objects: [O]) throws where O: Encodable {
         let encodedObjects = try objects.map { try JSONEncoder().encode($0) }
         let realmObjects = try encodedObjects.map { try JSONDecoder().decode(Element.self, from: $0) }
         
-        safeWrite(wrappedValue) { realm, list in
+        safeWrite(wrappedValue) { realm, results in
             guard let realm = realm else {
                 print("No realm?")
                 return
@@ -63,10 +95,46 @@ public extension BoundCollection where Value == Results<Element>, Element: Objec
             for existingObject in self.wrappedValue {
                 guard let existingPK = existingObject.primaryKeyValue else { continue }
                 if !addedPKs.contains(existingPK) {
-                    remove(existingObject)
+                    if existingObject.objectSchema.properties.contains(where: { $0.name == "isDeleted" }) {
+                        existingObject.setValue(true, forKey: "isDeleted")
+                    } else {
+                        remove(existingObject)
+                    }
                 }
             }
         }
+    }
+}
+
+/// See: https://github.com/realm/realm-swift/issues/7889
+@propertyWrapper
+public struct ObservedRealmCollection<Collection>: DynamicProperty where Collection: RealmCollection {
+    final private class Storage: ObservableObject {
+        var objects: Collection
+        var notificationToken:NotificationToken?
+
+        init(_ objects: Collection) {
+            self.objects = objects
+            self.notificationToken = objects.thaw()?.observe { changes in
+                switch changes {
+                case .initial:
+                    break;
+                case .update(let results, _, _, _):
+                    self.objects = results.freeze()
+                    self.objectWillChange.send()
+                case .error(let error):
+                    print(error.localizedDescription)
+                }
+            }
+        }
+    }
+    
+    @StateObject private var storage: Storage
+
+    public var wrappedValue: Collection { storage.objects }
+    
+    public init(wrappedValue: Collection) {
+        self._storage = .init(wrappedValue: Storage(wrappedValue))
     }
 }
 

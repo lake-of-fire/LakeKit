@@ -25,6 +25,13 @@ public struct LakeImage: View {
     @State var url: URL
     
     public var body: some View {
+//        AsyncImage(url: url) { image in
+//           image
+//            .resizable()
+//            .aspectRatio(contentMode: .fit)
+//        } placeholder: {
+//            Color.gray
+//        }
         KFImage(url)
             .retry(maxCount: 10, interval: .seconds(1))
             .cacheOriginalImage()
