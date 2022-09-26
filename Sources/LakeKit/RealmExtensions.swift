@@ -111,7 +111,7 @@ public extension BoundCollection where Value == Results<Element>, Element: Objec
 public struct ObservedRealmCollection<Collection>: DynamicProperty where Collection: RealmCollection {
     final private class Storage: ObservableObject {
         var objects: Collection
-        var notificationToken:NotificationToken?
+        var notificationToken: NotificationToken?
 
         init(_ objects: Collection) {
             self.objects = objects
