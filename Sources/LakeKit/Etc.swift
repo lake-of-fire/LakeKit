@@ -14,7 +14,6 @@ import WebURLFoundationExtras
 
 private let requestModifier = AnyModifier { request in
     var r = request
-    r.setValue("abc", forHTTPHeaderField: "Access-Token")
     if let url = r.url, let webURL = WebURL(url) {
         r.url = URL(webURL) // Standardize safely.
     }
