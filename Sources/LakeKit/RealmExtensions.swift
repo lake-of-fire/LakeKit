@@ -1,12 +1,21 @@
 import SwiftUI
 import RealmSwift
 
-/// Forked from: https://github.com/realm/realm-swift/blob/9f7a605dfcf6a60e019a296dc8d91c3b23837a82/RealmSwift/SwiftUI.swift
-private func safeWrite<Value>(_ value: Value, _ block: (Realm?, Value) -> Void) where Value: ThreadConfined {
+/// Forked from:
+/// https://github.com/realm/realm-swift/blob/9f7a605dfcf6a60e019a296dc8d91c3b23837a82/RealmSwift/SwiftUI.swift
+/// and https://github.com/realm/realm-swift/issues/4818
+public func safeWrite<Value>(_ value: Value, _ block: (Realm?, Value) -> Void) where Value: ThreadConfined {
     let thawed = value.realm == nil ? value : value.thaw() ?? value
-    if let realm = thawed.realm, !realm.isInWriteTransaction {
-        try! realm.write {
+    if let realm = thawed.realm {
+        if realm.isInWriteTransaction {
             block(realm, thawed)
+        } else {
+            try! realm.write {
+                block(realm, thawed)
+            }
+            // Needed to avoid err "Cannot register notifcaiton block from within write tranasaction"
+            // See @Brandon's comment: https://github.com/realm/realm-swift/issues/4818
+            realm.refresh()
         }
     } else {
         block(nil, thawed)
