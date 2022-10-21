@@ -57,6 +57,7 @@ let package = Package(
                 .product(name: "DSFSearchField", package: "DSFSearchField"),
 //                .product(name: "AsyncAlgorithms", package: "swift-async-algorithms"),
                 .product(name: "Introspect", package: "SwiftUI-Introspect"),
+                .product(name: "BigSyncKit", package: "BigSyncKit"),
             ]
         ),
         .testTarget(
