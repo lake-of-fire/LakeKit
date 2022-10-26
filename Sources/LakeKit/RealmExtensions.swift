@@ -4,9 +4,13 @@ import RealmSwift
 /// Forked from:
 /// https://github.com/realm/realm-swift/blob/9f7a605dfcf6a60e019a296dc8d91c3b23837a82/RealmSwift/SwiftUI.swift
 /// and https://github.com/realm/realm-swift/issues/4818
-public func safeWrite<Value>(_ value: Value, _ block: (Realm?, Value) -> Void) where Value: ThreadConfined {
+public func safeWrite<Value>(_ value: Value, configuration: Realm.Configuration? = nil, _ block: (Realm?, Value) -> Void) where Value: ThreadConfined {
     let thawed = value.realm == nil ? value : value.thaw() ?? value
-    if let realm = thawed.realm {
+    var realm = thawed.realm
+    if realm == nil, let configuration = configuration {
+        realm = try! Realm(configuration: configuration)
+    }
+    if let realm = realm {
         if realm.isInWriteTransaction {
             block(realm, thawed)
         } else {
