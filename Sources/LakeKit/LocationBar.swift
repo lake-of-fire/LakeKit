@@ -31,8 +31,8 @@ private struct LocationTextFieldModifier: ViewModifier {
     }
 }
 
-public struct LocationBar: View {
-    @Binding var loadLocation: String?
+public struct LocationBar: View, Equatable {
+//    let loadLocation: String?
     @State private var locationText = ""
     private let onSubmit: ((URL?, String) -> Void)
     @EnvironmentObject private var locationController: LocationController
@@ -47,17 +47,7 @@ public struct LocationBar: View {
     }
     
     public var body: some View {
-        //        ZStack {
-        //            HStack {
-        //                Text("blah blah blah hello >> \(isFocused.description)")
-        //                    .focused($isFocused)
-        //                    .transition(.slide)
-        //                    .transition(.scale)
-        //                    .opacity(isFocused ? 0 : 0.5)
-        //                Spacer()
-        //            }
-        //            .animation(.easeIn(duration: 0.1), value: isFocused)
-        TextField("Search or enter website address", text: $locationText)
+        return TextField("Search or enter website address", text: $locationText)
             .truncationMode(.tail)
             .textFieldStyle(.roundedBorder)
             .submitLabel(.go)
@@ -84,11 +74,11 @@ public struct LocationBar: View {
                     textField.resignFirstResponder()
                 }
             }
-            .onChange(of: loadLocation) { newLocation in
-                guard let loadLocation = loadLocation else { return }
-                locationText = loadLocation
-                onSubmit(url, locationText)
-            }
+//            .onChange(of: loadLocation) { newLocation in
+//                guard let loadLocation = loadLocation else { return }
+//                locationText = loadLocation
+//                onSubmit(url, locationText)
+//            }
             .onChange(of: locationController.isPresentingLocationOpening) { isPresentingLocationOpening in
             }
         //                .focused($isFocused)
@@ -105,8 +95,12 @@ public struct LocationBar: View {
         //                    .fixedSize(horizontal: true, vertical: false)
     }
     
-    public init(loadLocation: Binding<String?>, onSubmit: @escaping ((URL?, String) -> Void)) {
-        _loadLocation = loadLocation
+    public init(loadLocation: String?, onSubmit: @escaping ((URL?, String) -> Void)) {
+        _locationText = State(initialValue: loadLocation ?? "")
         self.onSubmit = onSubmit
+    }
+    
+    public static func == (lhs: LocationBar, rhs: LocationBar) -> Bool {
+        return  lhs.locationText == rhs.locationText
     }
 }

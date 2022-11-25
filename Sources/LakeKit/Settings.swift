@@ -8,7 +8,7 @@ public struct SettingsView<Content>: View where Content: View {
         TabView {
             tabItems
         }
-        .frame(minWidth: 450, minHeight: 250)
+        .frame(idealWidth: 450, maxWidth: 550, minHeight: 250, idealHeight: 300)
     }
     
     public init(@ViewBuilder tabItems: () -> Content) {
@@ -16,4 +16,3 @@ public struct SettingsView<Content>: View where Content: View {
     }
         
 }
- 
