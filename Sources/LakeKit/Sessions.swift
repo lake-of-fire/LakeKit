@@ -3,18 +3,20 @@ import KeychainSwift
 import BetterSafariView
 
 public class Session: ObservableObject {
-    public var keychain: KeychainSwift?
+    public var keychain: KeychainSwift
     @MainActor @Published public var isPresentingWebAuthentication = false
     @Published public var userID: Int?
     
     @MainActor private var authenticationContinuations = [CheckedContinuation<Void, Error>]()
     
     public var isAuthenticated: Bool {
-        guard let keychain = keychain else { return false }
+//        guard let keychain = keychain else { return false }
+        print("is auth? \(keychain.get("authToken")) \(keychain.get("userID"))")
         return !(keychain.get("authToken") ?? "").isEmpty && !(keychain.get("userID") ?? "").isEmpty
     }
     
     public init(keychain: KeychainSwift) {
+        print("auth inited with keychain \(keychain)")
         self.keychain = keychain
         Task { @MainActor in
             if let userIDString = keychain.get("userID"), let userID = Int(userIDString) {
@@ -41,8 +43,10 @@ public class Session: ObservableObject {
     }
     
     public func authenticated(authToken: String, userID: Int) {
-        keychain?.set(authToken, forKey: "authToken")
-        keychain?.set(String(userID), forKey: "userID")
+        print("authed! \(keychain)")
+        keychain.set(authToken, forKey: "authToken", withAccess: .accessibleAfterFirstUnlock)
+        keychain.set(String(userID), forKey: "userID", withAccess: .accessibleAfterFirstUnlock)
+        print("is auth? \(authToken) \(userID) \(keychain.get("authToken") ?? "n") \(keychain.get("userID") ?? "n")")
         
         Task { @MainActor in
             self.userID = userID
@@ -65,8 +69,8 @@ public class Session: ObservableObject {
     }
     
     public func logout() {
-        keychain?.delete("authToken")
-        keychain?.delete("userID")
+        keychain.delete("authToken")
+        keychain.delete("userID")
         Task { @MainActor in
             userID = nil
         }
@@ -85,7 +89,7 @@ public extension View {
 }
 
 public struct LakeAuthenticationSessionModifier: ViewModifier {
-    @MainActor @StateObject public var session: Session
+    @MainActor @ObservedObject public var session: Session
 
     public func body(content: Content) -> some View {
         content
