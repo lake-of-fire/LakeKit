@@ -5,18 +5,17 @@ import BetterSafariView
 public class Session: ObservableObject {
     public var keychain: KeychainSwift
     @MainActor @Published public var isPresentingWebAuthentication = false
-    @Published public var userID: Int?
+    
+    /// -1 means logged out.
+    @Published public var userID: Int = -1
     
     @MainActor private var authenticationContinuations = [CheckedContinuation<Void, Error>]()
     
     public var isAuthenticated: Bool {
-//        guard let keychain = keychain else { return false }
-        print("is auth? \(keychain.get("authToken")) \(keychain.get("userID"))")
         return !(keychain.get("authToken") ?? "").isEmpty && !(keychain.get("userID") ?? "").isEmpty
     }
     
     public init(keychain: KeychainSwift) {
-        print("auth inited with keychain \(keychain)")
         self.keychain = keychain
         Task { @MainActor in
             if let userIDString = keychain.get("userID"), let userID = Int(userIDString) {
@@ -43,14 +42,11 @@ public class Session: ObservableObject {
     }
     
     public func authenticated(authToken: String, userID: Int) {
-        print("authed! \(keychain)")
         keychain.set(authToken, forKey: "authToken", withAccess: .accessibleAfterFirstUnlock)
         keychain.set(String(userID), forKey: "userID", withAccess: .accessibleAfterFirstUnlock)
-        print("is auth? \(authToken) \(userID) \(keychain.get("authToken") ?? "n") \(keychain.get("userID") ?? "n")")
+        self.userID = userID
         
         Task { @MainActor in
-            self.userID = userID
-            
             for continuation in authenticationContinuations {
                 continuation.resume()
             }
@@ -72,7 +68,7 @@ public class Session: ObservableObject {
         keychain.delete("authToken")
         keychain.delete("userID")
         Task { @MainActor in
-            userID = nil
+            userID = -1
         }
     }
 }
