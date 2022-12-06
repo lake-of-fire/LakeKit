@@ -9,7 +9,7 @@ public class LocationController: ObservableObject {
 
 //private struct LocationTextFieldModifier: ViewModifier {
 //    var text: String
-//    
+//
 //    func body(content: Content) -> some View {
 //        content
 //        // Clear color for the TextField
@@ -64,6 +64,9 @@ public struct LocationBar: View, Equatable {
     public var body: some View {
         TextField("Search or enter website address", text: $locationText)
             .truncationMode(.tail)
+            .textContentType(.URL)
+            .keyboardType(.URL)
+            .textInputAutocapitalization(.never)
         #if os(macOS)
             .textFieldStyle(.roundedBorder)
         #else
