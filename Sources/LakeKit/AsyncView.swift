@@ -5,22 +5,18 @@ import AsyncView
 public struct AsyncView<Success, Content: View>: View {
     @StateObject private var model: AsyncModel<Success>
     //@Binding private var showInitialContent: Bool
-    @State private var hasShownContent = false
     private var showInitialContent: Bool
     private let content: (_ item: Success?) -> Content
     
     public var body: some View {
-        switch (model.result, showInitialContent, hasShownContent) {
-        case (.empty, true, false), (.inProgress, true, false):
+        switch (model.result, showInitialContent) {
+//        case (.empty, true, false), (.inProgress, true, false):
+        case (.empty, true), (.inProgress, true):
             content(nil)
         default:
             EmptyView()
         }
         AsyncModelView(model: self.model, content: self.content)
-            .task {
-                // TODO: Revisit this logic... not sure about this
-                hasShownContent = true
-            }
     }
 }
 
