@@ -33,6 +33,7 @@ let package = Package(
         .package(url: "https://github.com/siteline/SwiftUI-Introspect.git", branch: "master"),
         .package(url: "https://github.com/elai950/AlertToast.git", branch: "master"),
         .package(url: "https://github.com/lake-of-fire/SwiftySegmentedPicker.git", branch: "main"),
+        .package(url: "https://github.com/tgrapperon/swiftui-layout-guides.git", branch: "main"),
 //        .package(url: "https://github.com/apple/swift-async-algorithms", branch: "main"),
     ],
     targets: [
@@ -59,6 +60,7 @@ let package = Package(
                 .product(name: "BigSyncKit", package: "BigSyncKit"),
                 .product(name: "AlertToast", package: "AlertToast"),
                 .product(name: "SegmentedPicker", package: "SwiftySegmentedPicker"),
+                .product(name: "SwiftUILayoutGuides", package: "swiftui-layout-guides")
             ]
         ),
         .testTarget(
