@@ -1,6 +1,7 @@
 // Forked from https://github.com/lake-of-fire/swiftui-layout-guides/blob/main/Sources/SwiftUILayoutGuides/SwiftUILayoutGuides.swift
 import SwiftUI
 
+/*
 //#if os(iOS)
 //import UIKit
 //
@@ -302,3 +303,4 @@ struct SwiftUILayoutGuides_Previews: PreviewProvider {
     }
 }
 #endif
+*/

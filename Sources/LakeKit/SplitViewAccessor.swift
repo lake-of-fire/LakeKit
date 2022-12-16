@@ -4,6 +4,7 @@ import AppKit
 #else
 import UIKit
 #endif
+import Introspect
 
 #if os(macOS)
 /// See: https://github.com/Asperi-Demo/4SwiftUI/blob/master/Answers/Get_sidebar_isCollapsed.md
@@ -75,7 +76,7 @@ public struct SplitViewAccessor: UIViewRepresentable {
         override func didMoveToWindow() {
             super.didMoveToWindow()
             var sview = self.superview
-            
+            // FIXME this doesn't find the controller
             controller = sview?.window?.rootViewController as? UISplitViewController
             if let controller = controller {
                 observer = controller.observe(\.isCollapsed, options: [.new]) { [weak self] _, change in
