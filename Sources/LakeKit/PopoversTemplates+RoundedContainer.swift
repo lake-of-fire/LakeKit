@@ -16,7 +16,12 @@ public extension Templates {
         public var backgroundColor = Color(.systemBackground)
 
         /// The shadow around the content view.
-        public var shadow: Shadow? = .system
+        public var shadow: Shadow? = {
+            // See: https://github.com/aheze/Popovers/issues/36#issuecomment-1159931126
+            var shadow = Templates.Shadow.system
+            shadow.color = Color(.black.withAlphaComponent(0.3))
+            return shadow
+        }()
 
         /// The padding around the content view.
         public var padding = CGFloat(16)
@@ -28,20 +33,19 @@ public extension Templates {
          A standard container for popovers, complete with arrow.
          - parameter arrowSide: Which side to place the arrow on.
          - parameter cornerRadius: The container's corner radius.
-         - parameter backgroundColor: The container's background/fill color.
          - parameter padding: The padding around the content view.
          - parameter view: The content view.
          */
         public init(
             cornerRadius: CGFloat = CGFloat(12),
-            backgroundColor: Color = Color(.systemBackground),
-            shadow: Shadow? = .system,
+            shadow: Shadow? = nil,
             padding: CGFloat = CGFloat(16),
             @ViewBuilder view: () -> Content
         ) {
             self.cornerRadius = cornerRadius
-            self.backgroundColor = backgroundColor
-            self.shadow = shadow
+            if let shadow = shadow {
+                self.shadow = shadow
+            }
             self.padding = padding
             self.view = view()
         }
@@ -54,7 +58,7 @@ public extension Templates {
                         RoundedBackground(
                             cornerRadius: cornerRadius
                         )
-                        .fill(backgroundColor)
+                        .fill(.ultraThickMaterial)
                         .popoverShadowIfNeeded(shadow: shadow)
                     )
             }
