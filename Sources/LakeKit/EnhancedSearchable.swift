@@ -3,7 +3,13 @@ import DSFSearchField
 
 public struct EnhancedSearchableModifier: ViewModifier {
     let autosaveName: String
+    let prompt: String?
     let searchAction: ((String) -> Void)
+    
+    private var promptText: Text? {
+        guard let prompt = prompt else { return nil }
+        return Text(prompt)
+    }
     
     @State private var temporarySearchText = ""
     @State private var searchTask: Task<Void, Never>?
@@ -20,7 +26,7 @@ public struct EnhancedSearchableModifier: ViewModifier {
         }
 #else
         content
-            .searchable(text: $temporarySearchText, placement: .automatic)
+            .searchable(text: $temporarySearchText, placement: .automatic, prompt: promptText)
             .onChange(of: temporarySearchText) { temporarySearchText in
                 onSearchTextChange(searchText: temporarySearchText)
             }
@@ -40,7 +46,7 @@ public struct EnhancedSearchableModifier: ViewModifier {
 }
 
 public extension View {
-    func enhancedSearchable(autosaveName: String, searchAction: @escaping ((String) -> Void)) -> some View {
-        self.modifier(EnhancedSearchableModifier(autosaveName: autosaveName, searchAction: searchAction))
+    func enhancedSearchable(autosaveName: String, prompt: String? = nil, searchAction: @escaping ((String) -> Void)) -> some View {
+        self.modifier(EnhancedSearchableModifier(autosaveName: autosaveName, prompt: prompt, searchAction: searchAction))
     }
 }
