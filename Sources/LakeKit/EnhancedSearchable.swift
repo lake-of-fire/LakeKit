@@ -4,6 +4,7 @@ import DSFSearchField
 public struct EnhancedSearchableModifier: ViewModifier {
     let autosaveName: String
     let prompt: String?
+    let placement: SearchFieldPlacement
     let searchAction: ((String) -> Void)
     
     private var promptText: Text? {
@@ -26,7 +27,7 @@ public struct EnhancedSearchableModifier: ViewModifier {
         }
 #else
         content
-            .searchable(text: $temporarySearchText, placement: .automatic, prompt: promptText)
+            .searchable(text: $temporarySearchText, placement: placement, prompt: promptText)
             .onChange(of: temporarySearchText) { temporarySearchText in
                 onSearchTextChange(searchText: temporarySearchText)
             }
@@ -46,7 +47,7 @@ public struct EnhancedSearchableModifier: ViewModifier {
 }
 
 public extension View {
-    func enhancedSearchable(autosaveName: String, prompt: String? = nil, searchAction: @escaping ((String) -> Void)) -> some View {
-        self.modifier(EnhancedSearchableModifier(autosaveName: autosaveName, prompt: prompt, searchAction: searchAction))
+    func enhancedSearchable(autosaveName: String, prompt: String? = nil, placement: SearchFieldPlacement = .automatic, searchAction: @escaping ((String) -> Void)) -> some View {
+        self.modifier(EnhancedSearchableModifier(autosaveName: autosaveName, prompt: prompt, placement: placement, searchAction: searchAction))
     }
 }

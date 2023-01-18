@@ -51,7 +51,8 @@ public struct LocationBar: View, Equatable {
     @State private var locationText = ""
     private let onSubmit: ((URL?, String) -> Void)
     @EnvironmentObject private var locationController: LocationController
-    
+    @Environment(\.colorScheme) private var colorScheme
+
     var url: URL? {
         get {
             guard let url = URL(string: locationText) else { return nil }
@@ -62,7 +63,7 @@ public struct LocationBar: View, Equatable {
     }
     
     public var body: some View {
-        TextField("Search or enter website address", text: $locationText)
+        TextField("", text: $locationText, prompt: Text("Search or enter website address").foregroundColor(.secondary))
             .truncationMode(.tail)
             .textContentType(.URL)
             .keyboardType(.URL)
@@ -71,8 +72,8 @@ public struct LocationBar: View, Equatable {
             .textFieldStyle(.roundedBorder)
         #else
             .textFieldStyle(.plain)
-            .padding(EdgeInsets(top: 10, leading: 10, bottom: 9, trailing: 10))
-            .background(Color.secondary.opacity(0.2232))
+            .padding(EdgeInsets(top: 8, leading: 10, bottom: 8, trailing: 10))
+            .background(colorScheme == .dark ? Color.secondary.opacity(0.2232) : Color(white: 239.0 / 255.0))
             .cornerRadius(8)
         #endif
             .submitLabel(.go)
