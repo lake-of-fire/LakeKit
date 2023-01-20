@@ -34,7 +34,10 @@ public class Session: ObservableObject {
                     return
                 }
                 authenticationContinuations.append(continuation)
-                if !isPresentingWebAuthentication {
+                if isPresentingWebAuthentication {
+                    isPresentingWebAuthentication = false
+                }
+                Task { @MainActor in
                     isPresentingWebAuthentication = true
                 }
             }
