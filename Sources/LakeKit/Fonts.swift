@@ -2,6 +2,27 @@ import SwiftUI
 #if canImport(AppKit)
 import AppKit
 
+public extension NSFont {
+  class func preferredFont(from font: Font) -> NSFont {
+      let style: NSFont.TextStyle
+      switch font {
+        case .largeTitle:  style = .largeTitle
+        case .title:       style = .title1
+        case .title2:      style = .title2
+        case .title3:      style = .title3
+        case .headline:    style = .headline
+        case .subheadline: style = .subheadline
+        case .callout:     style = .callout
+        case .caption:     style = .caption1
+        case .caption2:    style = .caption2
+        case .footnote:    style = .footnote
+        case .body: fallthrough
+        default:           style = .body
+     }
+     return  NSFont.preferredFont(forTextStyle: style)
+   }
+}
+
 extension NSFont.TextStyle {
     internal init(
         fromSwiftUIFontTextStyle textStyle: Font.TextStyle
@@ -46,6 +67,27 @@ public extension Font {
 
 #elseif canImport(UIKit)
 import UIKit
+
+public extension UIFont {
+  class func preferredFont(from font: Font) -> UIFont {
+      let style: UIFont.TextStyle
+      switch font {
+        case .largeTitle:  style = .largeTitle
+        case .title:       style = .title1
+        case .title2:      style = .title2
+        case .title3:      style = .title3
+        case .headline:    style = .headline
+        case .subheadline: style = .subheadline
+        case .callout:     style = .callout
+        case .caption:     style = .caption1
+        case .caption2:    style = .caption2
+        case .footnote:    style = .footnote
+        case .body: fallthrough
+        default:           style = .body
+     }
+     return  UIFont.preferredFont(forTextStyle: style)
+   }
+}
 
 extension UIFont.TextStyle {
     
