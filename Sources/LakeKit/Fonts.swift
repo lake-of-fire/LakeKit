@@ -133,3 +133,24 @@ extension Font {
 }
 
 #endif
+
+struct SerifFontModifier: ViewModifier {
+    let font: Font
+    
+    func body(content: Content) -> some View {
+        if #available(iOS 16.1, macOS 13.0, *) {
+            content
+                .font(font)
+                .fontDesign(.serif)
+        } else {
+            content
+                .font(font)
+        }
+    }
+}
+
+public extension View {
+    func serifFont(_ font: Font) -> some View {
+        modifier(SerifFontModifier(font: font))
+    }
+}

@@ -34,7 +34,14 @@ let package = Package(
         .package(url: "https://github.com/elai950/AlertToast.git", branch: "master"),
         .package(url: "https://github.com/lake-of-fire/SwiftySegmentedPicker.git", branch: "main"),
         .package(url: "https://github.com/lake-of-fire/swiftui-layout-guides.git", branch: "main"),
+        .package(url: "https://github.com/malcommac/SwiftDate.git", branch: "master"),
+        .package(url: "https://github.com/apple/swift-algorithms.git", branch: "main"),
+//        .package(url: "https://github.com/exyte/Grid.git", branch: "master"),
 //        .package(url: "https://github.com/apple/swift-async-algorithms", branch: "main"),
+//        .package(url: "https://github.com/JiHoonAHN/XcodeSnippet.git", branch: "main"),
+        .package(url: "https://github.com/russell-archer/StoreHelper", branch: "main"),
+        .package(url: "https://github.com/ggruen/CloudKitSyncMonitor.git", branch: "main"),
+
     ],
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.
@@ -60,7 +67,13 @@ let package = Package(
                 .product(name: "BigSyncKit", package: "BigSyncKit"),
                 .product(name: "AlertToast", package: "AlertToast"),
                 .product(name: "SegmentedPicker", package: "SwiftySegmentedPicker"),
-                .product(name: "SwiftUILayoutGuides", package: "swiftui-layout-guides")
+                .product(name: "SwiftUILayoutGuides", package: "swiftui-layout-guides"),
+                .product(name: "SwiftDate", package: "SwiftDate"),
+                .product(name: "Algorithms", package: "swift-algorithms"),
+//                .product(name: "ExyteGrid", package: "Grid"),
+//                .product(name: "XcodeSnippet", package: "XcodeSnippet"),
+                .product(name: "StoreHelper", package: "StoreHelper"),
+                .product(name: "CloudKitSyncMonitor", package: "CloudKitSyncMonitor")
             ]
         ),
         .testTarget(

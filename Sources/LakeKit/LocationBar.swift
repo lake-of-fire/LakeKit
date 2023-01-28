@@ -63,20 +63,21 @@ public struct LocationBar: View, Equatable {
     }
     
     public var body: some View {
-        TextField("", text: $locationText, prompt: Text("Search or enter website address").foregroundColor(.secondary))
+        TextField("", text: $locationText, prompt: Text("Search or enter website address")
+            .foregroundColor(.secondary))
             .truncationMode(.tail)
-            .textContentType(.URL)
-            .keyboardType(.URL)
-            .textInputAutocapitalization(.never)
         #if os(macOS)
             .textFieldStyle(.roundedBorder)
         #else
+            .textContentType(.URL)
+            .keyboardType(.URL)
+            .textInputAutocapitalization(.never)
             .textFieldStyle(.plain)
             .padding(EdgeInsets(top: 8, leading: 10, bottom: 8, trailing: 10))
             .background(colorScheme == .dark ? Color.secondary.opacity(0.2232) : Color(white: 239.0 / 255.0))
             .cornerRadius(8)
-        #endif
             .submitLabel(.go)
+        #endif
             .onSubmit {
                 onSubmit(url, locationText)
             }

@@ -93,7 +93,7 @@ public struct LakeAuthenticationSessionModifier: ViewModifier {
     public func body(content: Content) -> some View {
         content
             .webAuthenticationSession(isPresented: $session.isPresentingWebAuthentication) {
-                WebAuthenticationSession(url: URL(string: "https://manabi.io/accounts/login/?next=/accounts/native-app-login-redirect/manabireader/")!, callbackURLScheme: "manabireader") { callbackURL, error in
+                WebAuthenticationSession(url: URL(string: "https://manabi.io/accounts/signup/?next=/accounts/native-app-login-redirect/manabireader/")!, callbackURLScheme: "manabireader") { callbackURL, error in
                     if let error = error {
                         print(error)
                         if !session.isAuthenticated {
