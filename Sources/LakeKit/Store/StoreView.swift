@@ -19,7 +19,7 @@ struct FAQDisclosureGroup: View {
                 .font(.headline)
                 .bold()
         }
-        .onTapGesture {
+        .onTapGesture(count: 1) {
             withAnimation { isExpanded.toggle() }
         }
     }
