@@ -201,9 +201,14 @@ public struct PurchaseOptionView: View {
             }
         }
         .alert("iCloud Sign-in Required for Pay As You Go", isPresented: $isPresentingICloudIssue, actions: {
-            Button("OK") { }
+            Button("I'll Verify iCloud Sign-in") { }
+            Button("I'll Wait for iCloud Sync") { }
         }, message: {
-            Text("Please sign into iCloud, or try a Monthly Savings subscription to get tokens without needing iCloud.\n\n(iCloud issue description: \(iCloudSyncStateSummary.description). \(displayICloudMessage))")
+            if iCloudSyncStateSummary == .notStarted {
+                Text("You may be signed into iCloud, but iCloud synchronization has not started yet. Please verify that you are signed into iCloud, otherwise your Pay As You Go tokens purchase may be lost in the event of a device issue without a backup.\n\nIf you do not want to use iCloud, you may instead purchase a subscription which does not require iCloud.")
+            } else {
+                Text("Please sign into iCloud, or try a Monthly Savings subscription to get tokens without needing iCloud.\n\n(iCloud issue description: \(iCloudSyncStateSummary.description). \(displayICloudMessage))")
+            }
         })
     }
     
@@ -219,7 +224,7 @@ public struct PurchaseOptionView: View {
     }
     
     func submitAction() {
-        isPresentingICloudIssue = (product.type == .consumable) && !isICloudSyncActive
+        isPresentingICloudIssue = (product.type == .consumable) && !isICloudSyncActive && iCloudSyncStateSummary != .notStarted && iCloudSyncStateSummary != .succeeded
         if (product.type == .autoRenewable) || isICloudSyncActive {
             action()
         }

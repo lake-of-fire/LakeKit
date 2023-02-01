@@ -33,7 +33,7 @@ public enum URLResourceDownloadTaskProgress { //}: Equatable, CustomStringConver
     case uninitiated
     case waitingForResponse
     case downloading(progress: Progress)
-    case completed(destinationLocation: URL?, urlError: URLError?)
+    case completed(destinationLocation: URL?, error: Error?)
 }
 
 public protocol URLResourceDownloadTaskProtocol {
@@ -96,7 +96,7 @@ extension URLResourceDownloadTask: URLSessionDownloadDelegate {
             return
         }
 
-        subject.send(.completed(destinationLocation: location, urlError: nil))
+        subject.send(.completed(destinationLocation: location, error: nil))
         subject.send(completion: .finished)
     }
 
@@ -132,7 +132,7 @@ extension URLResourceDownloadTask: URLSessionTaskDelegate {
         }
 
         if let urlError: URLError = error as? URLError {
-            subject.send(.completed(destinationLocation: nil, urlError: urlError))
+            subject.send(.completed(destinationLocation: nil, error: urlError))
             subject.send(completion: .failure(urlError))
         }
     }

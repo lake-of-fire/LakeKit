@@ -14,7 +14,11 @@ struct DownloadProgress: View {
             if let urlError = urlError {
                 return "Error: \(urlError.localizedDescription)"
             } else if destinationLocation != nil {
-                return "Finished downloading"
+                if download.isFinishedProcessing {
+                    return "Finished"
+                } else {
+                    return "Installing..."
+                }
             }
         default:
             break
@@ -42,8 +46,14 @@ struct DownloadProgress: View {
     
     var body: some View {
         HStack {
+            if download.isFinishedProcessing {
+                
+            } else {
+                ProgressView()
+                    .progressViewStyle(.circular)
+            }
             VStack {
-                Text("Setting up... Downloading \(download.name)")
+                Text("Downloading \(download.name)")
                 ProgressView(value: fractionCompleted)
                     .progressViewStyle(.linear)
                     .frame(height: 5)
