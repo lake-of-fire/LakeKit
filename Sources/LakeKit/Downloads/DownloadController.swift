@@ -58,10 +58,13 @@ public class Downloadable: ObservableObject, Identifiable, Hashable {
     
     func download() -> URLResourceDownloadTask {
         let task = URLResourceDownloadTask(session: URLSession.shared, url: url)
-        task.publisher.sink(receiveCompletion: { _ in
+        task.publisher.receive(on: DispatchQueue.main).sink(receiveCompletion: { _ in
         }, receiveValue: { [weak self] progress in
             self?.downloadProgress = progress
+            print("new progresss:")
+            print(progress)
         }).store(in: &cancellables)
+        task.resume()
         return task
     }
     
@@ -97,9 +100,11 @@ public extension Downloadable {
 public class DownloadController: NSObject, ObservableObject {
     public static var shared: DownloadController = {
         let controller = DownloadController()
-        if #available(macOS 13.0, iOS 16.1, *) {
-            BADownloadManager.shared.delegate = controller
-        } else { }
+        Task.detached { [weak controller] in
+            if #available(macOS 13.0, iOS 16.1, *) {
+                BADownloadManager.shared.delegate = controller
+            } else { }
+        }
         return controller
     }()
     
@@ -143,7 +148,7 @@ extension DownloadController {
     }
     
     func download(_ download: Downloadable) {
-        Task {
+        Task.detached { [weak self] in
             let allTasks = await URLSession.shared.allTasks
             if allTasks.first(where: { $0.taskDescription == download.url.absoluteString }) != nil {
                 // Task exists.
@@ -151,14 +156,17 @@ extension DownloadController {
             }
             
             if #available(macOS 13, iOS 16.1, *) {
-                do {
-                    if let baDL = download.backgroundAssetDownload(applicationGroupIdentifier: "group.io.manabi.shared"), try await BADownloadManager.shared.currentDownloads.contains(baDL) {
-                        try BADownloadManager.shared.startForegroundDownload(baDL)
-                        return
+                Task.detached {
+                    do {
+                        if let baDL = download.backgroundAssetDownload(applicationGroupIdentifier: "group.io.manabi.shared"), try await BADownloadManager.shared.currentDownloads.contains(baDL) {
+                            try BADownloadManager.shared.startForegroundDownload(baDL)
+                            return
+                        }
+                    } catch {
+                        print("Unable to download background asset...")
                     }
-                } catch { }
-            } else {
-            }
+                }
+            } else { }
             
             let task = download.download()
             Task { @MainActor [weak self] in
@@ -166,12 +174,16 @@ extension DownloadController {
                 self?.finishedDownloads.remove(download)
                 let sink = task.publisher.sink { [weak self] completion in
                     switch completion {
-                    case .failure(_):
+                    case .failure(let error):
                         self?.failedDownloads.insert(download)
                         self?.activeDownloads.remove(download)
+                        download.downloadProgress = .completed(destinationLocation: nil, error: error)
                     case .finished:
-                        self?.finishedDownloads.insert(download)
-                        self?.activeDownloads.remove(download)
+                        download.lastDownloaded = Date()
+                        self?.finishDownload(download)
+                        Task { @MainActor in
+                            try? await self?.cancelInProgressDownloads(inDownloadExtension: true)
+                        }
                     }
                 } receiveValue: { progress in
                     switch progress {
@@ -190,7 +202,25 @@ extension DownloadController {
                         break
                     }
                 }
-                sink.store(in: &cancellables)
+                if var cancellables = self?.cancellables {
+                    sink.store(in: &cancellables)
+                }
+            }
+        }
+    }
+    
+    func cancelInProgressDownloads(inApp: Bool = false, inDownloadExtension: Bool = false) async throws {
+        if inApp {
+            let allTasks = await URLSession.shared.allTasks
+            for task in allTasks.filter({ task in assuredDownloads.contains(where: { $0.localDestination.absoluteString == (task.taskDescription ?? "") }) }) {
+                task.cancel()
+            }
+        }
+        if inDownloadExtension {
+            if #available(iOS 16.1, macOS 13, *) {
+                for download in try await BADownloadManager.shared.currentDownloads {
+                    try BADownloadManager.shared.cancel(download)
+                }
             }
         }
     }
@@ -200,6 +230,17 @@ extension DownloadController {
             try FileManager.default.createDirectory(at: download.localDestination.deletingLastPathComponent(), withIntermediateDirectories: true)
             try download.moveToDestination()
             try download.decompressIfNeeded()
+
+            // Confirm non-empty
+            let resourceValues = try download.localDestination.resourceValues(forKeys: [.fileSizeKey])
+            guard let fileSize = resourceValues.fileSize, fileSize > 0 else {
+                activeDownloads.remove(download)
+                finishedDownloads.remove(download)
+                failedDownloads.insert(download)
+                return
+            }
+//              print("File size = " + ByteCountFormatter().string(fromByteCount: Int64(fileSize)))
+            
             download.isFinishedProcessing = true
             Task { @MainActor [weak self] in
                 self?.failedDownloads.remove(download)
@@ -210,12 +251,13 @@ extension DownloadController {
             Task { @MainActor [weak self] in
                 self?.failedDownloads.insert(download)
                 self?.activeDownloads.remove(download)
+                self?.finishedDownloads.remove(download)
             }
-            do {
-                if let tempLocation = download.tempLocation {
-                    try FileManager.default.removeItem(at: tempLocation)
-                }
-            } catch { }
+            if let tempLocation = download.tempLocation {
+                try? FileManager.default.removeItem(at: tempLocation)
+            }
+            try? FileManager.default.removeItem(at: download.compressedFileURL)
+            try? FileManager.default.removeItem(at: download.localDestination)
         }
     }
     
@@ -259,6 +301,12 @@ extension DownloadController: BADownloadManagerDelegate {
         finishedDownloads.remove(downloadable)
         failedDownloads.remove(downloadable)
         activeDownloads.insert(downloadable)
+        Task { @MainActor in
+            do {
+                try await cancelInProgressDownloads(inApp: true)
+            } catch {
+            }
+        }
     }
     
     public func downloadDidBegin(_ download: BADownload) {
@@ -276,6 +324,9 @@ extension DownloadController: BADownloadManagerDelegate {
                 downloadable.tempLocation = fileURL
                 Task.detached { [weak self] in
                     self?.finishDownload(downloadable)
+                    Task { @MainActor [weak self] in
+                        try await self?.cancelInProgressDownloads(inApp: true)
+                    }
                 }
             }
         }

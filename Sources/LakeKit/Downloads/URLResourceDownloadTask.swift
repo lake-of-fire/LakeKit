@@ -96,8 +96,14 @@ extension URLResourceDownloadTask: URLSessionDownloadDelegate {
             return
         }
 
-        subject.send(.completed(destinationLocation: location, error: nil))
-        subject.send(completion: .finished)
+        if let httpResponse = downloadTask.response as? HTTPURLResponse, httpResponse.statusCode < 200 || httpResponse.statusCode > 299 {
+            let error = URLError(.fileDoesNotExist)
+            subject.send(.completed(destinationLocation: location, error: error))
+            subject.send(completion: .failure(error))
+        } else {
+            subject.send(.completed(destinationLocation: location, error: nil))
+            subject.send(completion: .finished)
+        }
     }
 
     /// Periodically informs the delegate about the download’s progress.
@@ -134,6 +140,10 @@ extension URLResourceDownloadTask: URLSessionTaskDelegate {
         if let urlError: URLError = error as? URLError {
             subject.send(.completed(destinationLocation: nil, error: urlError))
             subject.send(completion: .failure(urlError))
+        } else if let httpResponse = task.response as? HTTPURLResponse, httpResponse.statusCode < 200 || httpResponse.statusCode > 299 {
+            let error = URLError(.fileDoesNotExist)
+            subject.send(.completed(destinationLocation: nil, error: error))
+            subject.send(completion: .failure(error))
         }
     }
 }
