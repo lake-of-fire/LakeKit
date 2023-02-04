@@ -51,6 +51,7 @@ public class URLResourceDownloadTask: NSObject, URLResourceDownloadTaskProtocol 
 
     private let session: URLSession
     private let url: URL
+    private let destination: URL
 
     private let downloadTask: URLSessionDownloadTask
 
@@ -66,9 +67,10 @@ public class URLResourceDownloadTask: NSObject, URLResourceDownloadTaskProtocol 
         self.subject.eraseToAnyPublisher()
     }
 
-    public init(session: URLSession, url: URL) {
+    public init(session: URLSession, url: URL, destination: URL) {
         self.session = session
         self.url = url
+        self.destination = destination
 
         self.subject = PassthroughSubject<PublisherType.Output, PublisherType.Failure>()
 
@@ -101,6 +103,9 @@ extension URLResourceDownloadTask: URLSessionDownloadDelegate {
             subject.send(.completed(destinationLocation: location, error: error))
             subject.send(completion: .failure(error))
         } else {
+            do {
+                try FileManager.default.moveItem(at: location, to: destination)
+            } catch { }
             subject.send(.completed(destinationLocation: location, error: nil))
             subject.send(completion: .finished)
         }

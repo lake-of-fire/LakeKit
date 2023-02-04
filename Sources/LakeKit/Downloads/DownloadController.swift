@@ -5,14 +5,17 @@ import Compression
 import BackgroundAssets
 
 public class Downloadable: ObservableObject, Identifiable, Hashable {
-    let url: URL
+    public let url: URL
     let mirrorURL: URL?
     public let name: String
     public let localDestination: URL
-    public var tempLocation: URL?
+    var isFromBackgroundAssetsDownloader: Bool? = nil
 
-    @Published public var downloadProgress: URLResourceDownloadTaskProgress = .uninitiated
-    @Published var isFinishedProcessing = false
+    @Published internal var downloadProgress: URLResourceDownloadTaskProgress = .uninitiated
+    @Published public var isFailed = false
+    @Published public var isActive = false
+    @Published public var isFinishedDownloading = false
+    @Published public var isFinishedProcessing = false
     
     private var cancellables = Set<AnyCancellable>()
     
@@ -37,33 +40,64 @@ public class Downloadable: ObservableObject, Identifiable, Hashable {
         }
     }
     
-    public init(url: URL, mirrorURL: URL?, name: String, localDestination: URL) {
+    public init(url: URL, mirrorURL: URL?, name: String, localDestination: URL, isFromBackgroundAssetsDownloader: Bool? = nil) {
         self.url = url
         self.mirrorURL = mirrorURL
         self.name = name
         self.localDestination = localDestination
+        self.isFromBackgroundAssetsDownloader = isFromBackgroundAssetsDownloader
     }
     
     public static func == (lhs: Downloadable, rhs: Downloadable) -> Bool {
         return lhs.url == rhs.url && lhs.mirrorURL == rhs.mirrorURL && lhs.name == rhs.name && lhs.localDestination == rhs.localDestination
     }
     
-    var compressedFileURL: URL {
-        return localDestination.appendingPathExtension(".br")
+    public var compressedFileURL: URL {
+        return localDestination.appendingPathExtension("br")
     }
     
     func existsLocally() -> Bool {
         return FileManager.default.fileExists(atPath: localDestination.path) || FileManager.default.fileExists(atPath: compressedFileURL.path)
     }
     
+    func downloadTask() -> URLResourceDownloadTask {
+        let destination = url.pathExtension == "br" ? compressedFileURL : localDestination
+        return URLResourceDownloadTask(session: URLSession.shared, url: url, destination: destination)
+    }
     func download() -> URLResourceDownloadTask {
-        let task = URLResourceDownloadTask(session: URLSession.shared, url: url)
-        task.publisher.receive(on: DispatchQueue.main).sink(receiveCompletion: { _ in
+        let task = URLResourceDownloadTask(session: URLSession.shared, url: url, destination: localDestination)
+        task.publisher.receive(on: DispatchQueue.main).sink(receiveCompletion: { [weak self] completion in
+            switch completion {
+            case .failure(let error):
+                self?.isFailed = true
+                self?.isFinishedDownloading = false
+                self?.isActive = false
+                self?.downloadProgress = .completed(destinationLocation: nil, error: error)
+            case .finished:
+                self?.lastDownloaded = Date()
+                self?.isFailed = false
+                self?.isActive = false
+                self?.isFinishedDownloading = true
+            }
         }, receiveValue: { [weak self] progress in
             self?.downloadProgress = progress
-            print("new progresss:")
-            print(progress)
+            switch progress {
+            case .completed(let destinationLocation, let urlError):
+                guard urlError == nil, let destinationLocation = destinationLocation else {
+                    self?.isFailed = true
+                    self?.isFinishedDownloading = false
+                    self?.isActive = false
+                    return
+                }
+                self?.lastDownloaded = Date()
+                self?.isFinishedDownloading = true
+                self?.isActive = false
+                self?.isFailed = false
+            default:
+                break
+            }
         }).store(in: &cancellables)
+        isActive = true
         task.resume()
         return task
     }
@@ -77,16 +111,6 @@ public class Downloadable: ObservableObject, Identifiable, Hashable {
                 try FileManager.default.removeItem(at: compressedFileURL)
             } catch { }
         }
-    }
-    
-    func moveToDestination() throws {
-        guard let tempLocation = tempLocation else { return }
-        if tempLocation.pathExtension == "br" {
-            try FileManager.default.moveItem(at: tempLocation, to: compressedFileURL)
-        } else {
-            try FileManager.default.moveItem(at: tempLocation, to: localDestination)
-        }
-        self.tempLocation = nil
     }
 }
 
@@ -120,6 +144,12 @@ public class DownloadController: NSObject, ObservableObject {
     
     private var observation: NSKeyValueObservation?
     private var cancellables = Set<AnyCancellable>()
+    
+    public override init() {
+        super.init()
+        
+        
+    }
 }
 
 public extension DownloadController {
@@ -148,6 +178,39 @@ extension DownloadController {
     }
     
     func download(_ download: Downloadable) {
+        download.$isActive.removeDuplicates().receive(on: DispatchQueue.main).sink { [weak self] isActive in
+            if isActive {
+                self?.activeDownloads.insert(download)
+            } else {
+                self?.activeDownloads.remove(download)
+            }
+        }.store(in: &cancellables)
+        download.$isFailed.removeDuplicates().receive(on: DispatchQueue.main).sink { [weak self] isFailed in
+            if isFailed {
+                self?.failedDownloads.insert(download)
+                self?.activeDownloads.remove(download)
+                self?.finishedDownloads.remove(download)
+            } else {
+                self?.failedDownloads.remove(download)
+            }
+        }.store(in: &cancellables)
+        download.$isFinishedDownloading.removeDuplicates().receive(on: DispatchQueue.main).sink { [weak self] isFinishedDownloading in
+            if isFinishedDownloading {
+                self?.finishedDownloads.insert(download)
+                self?.activeDownloads.remove(download)
+                self?.failedDownloads.remove(download)
+                download.lastDownloaded = Date()
+                if !(download.isFromBackgroundAssetsDownloader ?? true) {
+                    Task { @MainActor [weak self] in
+                        try? await self?.cancelInProgressDownloads(inDownloadExtension: true)
+                    }
+                }
+                self?.finishDownload(download)
+            } else {
+                self?.finishedDownloads.remove(download)
+            }
+        }.store(in: &cancellables)
+
         Task.detached { [weak self] in
             let allTasks = await URLSession.shared.allTasks
             if allTasks.first(where: { $0.taskDescription == download.url.absoluteString }) != nil {
@@ -168,44 +231,8 @@ extension DownloadController {
                 }
             } else { }
             
-            let task = download.download()
-            Task { @MainActor [weak self] in
-                self?.activeDownloads.insert(download)
-                self?.finishedDownloads.remove(download)
-                let sink = task.publisher.sink { [weak self] completion in
-                    switch completion {
-                    case .failure(let error):
-                        self?.failedDownloads.insert(download)
-                        self?.activeDownloads.remove(download)
-                        download.downloadProgress = .completed(destinationLocation: nil, error: error)
-                    case .finished:
-                        download.lastDownloaded = Date()
-                        self?.finishDownload(download)
-                        Task { @MainActor in
-                            try? await self?.cancelInProgressDownloads(inDownloadExtension: true)
-                        }
-                    }
-                } receiveValue: { progress in
-                    switch progress {
-                    case .completed(let destinationLocation, let urlError):
-                        guard urlError == nil, let destinationLocation = destinationLocation else {
-                            self?.failedDownloads.insert(download)
-                            self?.activeDownloads.remove(download)
-                            return
-                        }
-                        download.tempLocation = destinationLocation
-                        Task.detached { [weak self] in
-                            download.lastDownloaded = Date()
-                            self?.finishDownload(download)
-                        }
-                    default:
-                        break
-                    }
-                }
-                if var cancellables = self?.cancellables {
-                    sink.store(in: &cancellables)
-                }
-            }
+            download.isFromBackgroundAssetsDownloader = false
+            _ = download.download()
         }
     }
     
@@ -228,7 +255,6 @@ extension DownloadController {
     public func finishDownload(_ download: Downloadable) {
         do {
             try FileManager.default.createDirectory(at: download.localDestination.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try download.moveToDestination()
             try download.decompressIfNeeded()
 
             // Confirm non-empty
@@ -252,9 +278,6 @@ extension DownloadController {
                 self?.failedDownloads.insert(download)
                 self?.activeDownloads.remove(download)
                 self?.finishedDownloads.remove(download)
-            }
-            if let tempLocation = download.tempLocation {
-                try? FileManager.default.removeItem(at: tempLocation)
             }
             try? FileManager.default.removeItem(at: download.compressedFileURL)
             try? FileManager.default.removeItem(at: download.localDestination)
@@ -298,6 +321,7 @@ extension DownloadController: BADownloadManagerDelegate {
         let progress = Progress(totalUnitCount: totalExpectedBytes)
         progress.completedUnitCount = totalBytesWritten
         downloadable.downloadProgress = .downloading(progress: progress)
+        downloadable.isFromBackgroundAssetsDownloader = true
         finishedDownloads.remove(downloadable)
         failedDownloads.remove(downloadable)
         activeDownloads.insert(downloadable)
@@ -312,6 +336,7 @@ extension DownloadController: BADownloadManagerDelegate {
     public func downloadDidBegin(_ download: BADownload) {
         guard let downloadable = assuredDownloads.downloadable(forDownload: download) else { return }
         downloadable.downloadProgress = .downloading(progress: Progress())
+        downloadable.isFromBackgroundAssetsDownloader = true
         finishedDownloads.remove(downloadable)
         failedDownloads.remove(downloadable)
         activeDownloads.insert(downloadable)
@@ -321,7 +346,11 @@ extension DownloadController: BADownloadManagerDelegate {
         BADownloadManager.shared.withExclusiveControl { [weak self] acquiredLock, error in
             guard acquiredLock, error == nil else { return }
             if let downloadable = self?.assuredDownloads.downloadable(forDownload: download) {
-                downloadable.tempLocation = fileURL
+                downloadable.isFromBackgroundAssetsDownloader = true
+                let destination = downloadable.url.pathExtension == "br" ? downloadable.compressedFileURL : downloadable.localDestination
+                do {
+                    try FileManager.default.moveItem(at: fileURL, to: destination)
+                } catch { }
                 Task.detached { [weak self] in
                     self?.finishDownload(downloadable)
                     Task { @MainActor [weak self] in

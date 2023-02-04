@@ -7,7 +7,12 @@ public struct DownloadProgress: View {
     private var statusText: String {
         switch download.downloadProgress {
         case .downloading(let progress):
-            return "\(progress.completedUnitCount) of \(progress.totalUnitCount)"
+            var str = "\(round((Double(progress.completedUnitCount) / 1_000_000) * 10) / 10)MB of \(round((Double(progress.totalUnitCount) / 1_000_000) * 10) / 10)MB"
+//              TODO: print("File size = " + ByteCountFormatter().string(fromByteCount: Int64(fileSize)))
+            if let throughput = progress.throughput {
+                str += " at \(round((Double(throughput) / 1_000_000) * 10) / 10)MB/s"
+            }
+            return str
         case .waitingForResponse:
             return "Waiting for response from server..."
         case .completed(let destinationLocation, let error):
@@ -40,6 +45,7 @@ public struct DownloadProgress: View {
         case .downloading(let progress):
             return progress.fractionCompleted
         case .completed(let destinationLocation, let error):
+            print("complete, \(destinationLocation) \(error)")
             return destinationLocation != nil && error == nil ? 1.0 : 0
         default:
             return 0
@@ -51,24 +57,27 @@ public struct DownloadProgress: View {
             if download.isFinishedProcessing {
                 Image(systemName: "checkmark.circle")
                     .foregroundColor(.green)
+                    .font(.title)
             } else {
                 if isFailed {
                     Image(systemName: "exclamationmark.circle")
                         .foregroundColor(.red)
+                        .font(.title)
                 } else {
                     ProgressView()
                         .progressViewStyle(.circular)
-                        .scaleEffect(1.0, anchor: .center)
+                        .scaleEffect(0.5, anchor: .center)
                 }
             }
-            VStack(alignment: .leading) {
-                Text("Downloading \(download.name)")
+            VStack(alignment: .leading, spacing: 0) {
+                Text("\(download.isActive ? "Downloading " : "")\(download.name)")
                 ProgressView(value: fractionCompleted)
                     .progressViewStyle(.linear)
                     .frame(height: 5)
                     .clipShape(Capsule())
                 Text(statusText)
                     .font(.callout)
+                    .monospacedDigit()
                     .foregroundColor(isFailed ? .red : .secondary)
             }
             .font(.callout)
@@ -95,7 +104,7 @@ public struct ActiveDownloadsList: View {
                     DownloadProgress(download: download, retryAction: {
                         DownloadController.shared.ensureDownloaded([download])
                     })
-                    .padding(.horizontal, 6)
+                    .padding(.horizontal, 12)
                     Divider()
                         .padding(.horizontal, 6)
                 }
