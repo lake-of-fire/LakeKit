@@ -5,6 +5,9 @@ public struct DownloadProgress: View {
     let retryAction: (() -> Void)
     
     private var statusText: String {
+        if download.isFinishedProcessing {
+            return "Finished"
+        }
         switch download.downloadProgress {
         case .downloading(let progress):
             var str = "\(round((Double(progress.completedUnitCount) / 1_000_000) * 10) / 10)MB of \(round((Double(progress.totalUnitCount) / 1_000_000) * 10) / 10)MB"
@@ -41,11 +44,13 @@ public struct DownloadProgress: View {
     }
     
     private var fractionCompleted: Double {
+        if download.isFinishedProcessing {
+            return 1.0
+        }
         switch download.downloadProgress {
         case .downloading(let progress):
             return progress.fractionCompleted
         case .completed(let destinationLocation, let error):
-            print("complete, \(destinationLocation) \(error)")
             return destinationLocation != nil && error == nil ? 1.0 : 0
         default:
             return 0
@@ -69,7 +74,7 @@ public struct DownloadProgress: View {
                         .scaleEffect(0.5, anchor: .center)
                 }
             }
-            VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text("\(download.isActive ? "Downloading " : "")\(download.name)")
                 ProgressView(value: fractionCompleted)
                     .progressViewStyle(.linear)
@@ -97,12 +102,14 @@ public struct DownloadProgress: View {
 }
 
 public struct ActiveDownloadsList: View {
+    @ObservedObject private var downloadController = DownloadController.shared
+    
     public var body: some View {
         ScrollView {
             LazyVStack {
-                ForEach(DownloadController.shared.unfinishedDownloads) { download in
+                ForEach(downloadController.unfinishedDownloads) { download in
                     DownloadProgress(download: download, retryAction: {
-                        DownloadController.shared.ensureDownloaded([download])
+                        downloadController.ensureDownloaded([download])
                     })
                     .padding(.horizontal, 12)
                     Divider()

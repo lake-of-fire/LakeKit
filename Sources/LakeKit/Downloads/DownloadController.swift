@@ -60,12 +60,9 @@ public class Downloadable: ObservableObject, Identifiable, Hashable {
         return FileManager.default.fileExists(atPath: localDestination.path) || FileManager.default.fileExists(atPath: compressedFileURL.path)
     }
     
-    func downloadTask() -> URLResourceDownloadTask {
-        let destination = url.pathExtension == "br" ? compressedFileURL : localDestination
-        return URLResourceDownloadTask(session: URLSession.shared, url: url, destination: destination)
-    }
     func download() -> URLResourceDownloadTask {
-        let task = URLResourceDownloadTask(session: URLSession.shared, url: url, destination: localDestination)
+        let destination = url.pathExtension == "br" ? compressedFileURL : localDestination
+        let task = URLResourceDownloadTask(session: URLSession.shared, url: url, destination: destination)
         task.publisher.receive(on: DispatchQueue.main).sink(receiveCompletion: { [weak self] completion in
             switch completion {
             case .failure(let error):
@@ -80,6 +77,7 @@ public class Downloadable: ObservableObject, Identifiable, Hashable {
                 self?.isFinishedDownloading = true
             }
         }, receiveValue: { [weak self] progress in
+            self?.isActive = true
             self?.downloadProgress = progress
             switch progress {
             case .completed(let destinationLocation, let urlError):
@@ -97,7 +95,6 @@ public class Downloadable: ObservableObject, Identifiable, Hashable {
                 break
             }
         }).store(in: &cancellables)
-        isActive = true
         task.resume()
         return task
     }
@@ -109,7 +106,11 @@ public class Downloadable: ObservableObject, Identifiable, Hashable {
             try decompressed.write(to: localDestination, options: .atomic)
             do {
                 try FileManager.default.removeItem(at: compressedFileURL)
-            } catch { }
+            } catch {
+                print("Error removing compressedFileURL \(compressedFileURL)")
+            }
+        } else {
+            print("No file exists to decompress at \(compressedFileURL)")
         }
     }
 }
@@ -211,7 +212,7 @@ extension DownloadController {
             }
         }.store(in: &cancellables)
 
-        Task.detached { [weak self] in
+        Task.detached {
             let allTasks = await URLSession.shared.allTasks
             if allTasks.first(where: { $0.taskDescription == download.url.absoluteString }) != nil {
                 // Task exists.
@@ -254,7 +255,6 @@ extension DownloadController {
     
     public func finishDownload(_ download: Downloadable) {
         do {
-            try FileManager.default.createDirectory(at: download.localDestination.deletingLastPathComponent(), withIntermediateDirectories: true)
             try download.decompressIfNeeded()
 
             // Confirm non-empty
@@ -349,6 +349,7 @@ extension DownloadController: BADownloadManagerDelegate {
                 downloadable.isFromBackgroundAssetsDownloader = true
                 let destination = downloadable.url.pathExtension == "br" ? downloadable.compressedFileURL : downloadable.localDestination
                 do {
+                    try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
                     try FileManager.default.moveItem(at: fileURL, to: destination)
                 } catch { }
                 Task.detached { [weak self] in

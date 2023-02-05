@@ -104,8 +104,11 @@ extension URLResourceDownloadTask: URLSessionDownloadDelegate {
             subject.send(completion: .failure(error))
         } else {
             do {
+                try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
                 try FileManager.default.moveItem(at: location, to: destination)
-            } catch { }
+            } catch {
+                print("Error moving: \(error)")
+            }
             subject.send(.completed(destinationLocation: location, error: nil))
             subject.send(completion: .finished)
         }
