@@ -298,6 +298,9 @@ extension DownloadController {
                 return
             }
             let dateFormatter = DateFormatter()
+            dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+            dateFormatter.dateStyle = .medium
+            dateFormatter.timeStyle = .long
             dateFormatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
             guard let modifiedDate = dateFormatter.date(from: modifiedDateString) else {
                 completion(false, nil)

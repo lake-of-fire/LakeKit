@@ -41,7 +41,8 @@ let package = Package(
 //        .package(url: "https://github.com/JiHoonAHN/XcodeSnippet.git", branch: "main"),
         .package(url: "https://github.com/russell-archer/StoreHelper", branch: "main"),
         .package(url: "https://github.com/ggruen/CloudKitSyncMonitor.git", branch: "main"),
-
+//        .package(url: "https://github.com/shaps80/SwiftUIBackports.git", branch: "main"),
+//        .package(url: "https://github.com/ryanlintott/FrameUp.git", branch: "main"),
     ],
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.
@@ -73,7 +74,9 @@ let package = Package(
 //                .product(name: "ExyteGrid", package: "Grid"),
 //                .product(name: "XcodeSnippet", package: "XcodeSnippet"),
                 .product(name: "StoreHelper", package: "StoreHelper"),
-                .product(name: "CloudKitSyncMonitor", package: "CloudKitSyncMonitor")
+                .product(name: "CloudKitSyncMonitor", package: "CloudKitSyncMonitor"),
+//                .product(name: "SwiftUIBackports", package: "SwiftUIBackports"),
+//                .product(name: "FrameUp", package: "FrameUp"),
             ]
         ),
         .testTarget(
