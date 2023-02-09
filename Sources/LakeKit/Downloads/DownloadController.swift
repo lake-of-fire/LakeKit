@@ -267,11 +267,11 @@ extension DownloadController {
             }
 //              print("File size = " + ByteCountFormatter().string(fromByteCount: Int64(fileSize)))
             
-            download.isFinishedProcessing = true
             Task { @MainActor [weak self] in
                 self?.failedDownloads.remove(download)
                 self?.activeDownloads.remove(download)
                 self?.finishedDownloads.insert(download)
+                download.isFinishedProcessing = true
             }
         } catch {
             Task { @MainActor [weak self] in
