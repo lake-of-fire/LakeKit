@@ -94,16 +94,24 @@ public struct LocationBar: View, Equatable {
                         textField.becomeFirstResponder()
                     } else {
                         locationController.isPresentingLocationOpening = false
+                        textField.resignFirstResponder()
                     }
 #else
                     if textField.isFirstResponder {
                         locationController.isPresentingLocationOpening = false
+                        textField.resignFirstResponder()
                     } else {
                         textField.becomeFirstResponder()
                     }
 #endif
-                } else if !locationController.isPresentingLocationOpening {
-                    textField.resignFirstResponder()
+                }
+            }
+            // See: https://stackoverflow.com/a/67502495/89373
+            .onReceive(NotificationCenter.default.publisher(for: UITextField.textDidBeginEditingNotification)) { obj in
+                Task { @MainActor in
+                    if let textField = obj.object as? UITextField {
+                        textField.selectedTextRange = textField.textRange(from: textField.beginningOfDocument, to: textField.endOfDocument)
+                    }
                 }
             }
             .onChange(of: action) { action in
