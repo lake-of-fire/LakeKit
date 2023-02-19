@@ -109,8 +109,8 @@ public class Downloadable: ObservableObject, Identifiable, Hashable {
             } catch {
                 print("Error removing compressedFileURL \(compressedFileURL)")
             }
-        } else {
-            print("No file exists to decompress at \(compressedFileURL)")
+//        } else {
+//            print("No file exists to decompress at \(compressedFileURL)")
         }
     }
 }

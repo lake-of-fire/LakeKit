@@ -48,7 +48,7 @@ public enum LocationBarAction: Equatable {
 
 public struct LocationBar: View, Equatable {
     @Binding var action: LocationBarAction
-    @State private var locationText = ""
+    @Binding var locationText: String
     private let onSubmit: ((URL?, String) -> Void)
     @EnvironmentObject private var locationController: LocationController
     @Environment(\.colorScheme) private var colorScheme
@@ -59,16 +59,21 @@ public struct LocationBar: View, Equatable {
             guard url.scheme != nil && (url.host != nil || url.scheme == "about") else { return nil }
             return url
         }
-        set { locationText = newValue?.absoluteString ?? "" }
+        set {
+                                    print("update loc")
+
+            locationText = newValue?.absoluteString ?? ""
+        }
     }
     
     public var body: some View {
-        TextField("", text: $locationText, prompt: Text("Search or enter website address")
-            .foregroundColor(.secondary))
+        HStack{
+            TextField("", text: $locationText, prompt: Text("Search or enter website address")
+                .foregroundColor(.secondary))
             .truncationMode(.tail)
-        #if os(macOS)
+#if os(macOS)
             .textFieldStyle(.roundedBorder)
-        #else
+#else
             .textContentType(.URL)
             .keyboardType(.URL)
             .textInputAutocapitalization(.never)
@@ -77,7 +82,7 @@ public struct LocationBar: View, Equatable {
             .background(colorScheme == .dark ? Color.secondary.opacity(0.2232) : Color(white: 239.0 / 255.0))
             .cornerRadius(8)
             .submitLabel(.go)
-        #endif
+#endif
             .onSubmit {
                 onSubmit(url, locationText)
             }
@@ -112,14 +117,16 @@ public struct LocationBar: View, Equatable {
                     }
                 }
             }
+        }
     }
     
-    public init(action: Binding<LocationBarAction>, onSubmit: @escaping ((URL?, String) -> Void)) {
+    public init(action: Binding<LocationBarAction>, locationText: Binding<String>, onSubmit: @escaping ((URL?, String) -> Void)) {
         _action = action
+        _locationText = locationText
         self.onSubmit = onSubmit
     }
     
     public static func == (lhs: LocationBar, rhs: LocationBar) -> Bool {
-        return  lhs.locationText == rhs.locationText
+        return lhs.locationText == rhs.locationText && lhs.action == rhs.action
     }
 }

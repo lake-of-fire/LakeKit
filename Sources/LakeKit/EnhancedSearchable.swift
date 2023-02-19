@@ -1,11 +1,27 @@
 import SwiftUI
 import DSFSearchField
 
+struct IsEnhancedlySearchingKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+public extension EnvironmentValues {
+    var isEnhancedlySearching: Bool {
+        get { self[IsEnhancedlySearchingKey.self] }
+        set { self[IsEnhancedlySearchingKey.self] = newValue }
+    }
+}
+
 public struct EnhancedSearchableModifier: ViewModifier {
     let autosaveName: String
     let prompt: String?
     let placement: SearchFieldPlacement
     let searchAction: ((String) -> Void)
+    
+    @State private var isEnhancedlySearching = false
+#if os(iOS)
+    @Environment(\.isSearching) private var isSearching
+#endif
     
     private var promptText: Text? {
         guard let prompt = prompt else { return nil }
@@ -18,12 +34,15 @@ public struct EnhancedSearchableModifier: ViewModifier {
     public func body(content: Content) -> some View {
 #if os(macOS)
         VStack {
-            DSFSearchField.SwiftUI(text: $temporarySearchText, autosaveName: autosaveName)
-                .padding(.horizontal, 5)
-                .onChange(of: temporarySearchText) { temporarySearchText in
-                    onSearchTextChange(searchText: temporarySearchText)
+            DSFSearchField.SwiftUI(text: $temporarySearchText, placeholderText: prompt, autosaveName: autosaveName, onSearchTermChange: { searchTerm in
+                onSearchTextChange(searchText: searchTerm)
+                Task { @MainActor in
+                    isEnhancedlySearching = !searchTerm.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 }
+            })
+                .padding(.horizontal, 5)
             content
+                .environment(\.isEnhancedlySearching, isEnhancedlySearching)
         }
 #else
         content
@@ -31,6 +50,10 @@ public struct EnhancedSearchableModifier: ViewModifier {
             .onChange(of: temporarySearchText) { temporarySearchText in
                 onSearchTextChange(searchText: temporarySearchText)
             }
+            .onChange(of: isSearching) { isSearching in
+                self.isEnhancedlySearching = isSearching
+            }
+            .environment(\.isEnhancedlySearching, isEnhancedlySearching)
 #endif
     }
     
