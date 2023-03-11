@@ -1,5 +1,6 @@
 import SwiftUI
 import DSFSearchField
+import SwiftUILayoutGuides
 
 struct IsEnhancedlySearchingKey: EnvironmentKey {
     static let defaultValue = false
@@ -16,6 +17,7 @@ public struct EnhancedSearchableModifier: ViewModifier {
     let autosaveName: String
     let prompt: String?
     let placement: SearchFieldPlacement
+    var prefersToolbarPlacement = true
     let searchAction: ((String) -> Void)
     
     @State private var isEnhancedlySearching = false
@@ -30,6 +32,7 @@ public struct EnhancedSearchableModifier: ViewModifier {
     
     @State private var temporarySearchText = ""
     @State private var searchTask: Task<Void, Never>?
+    @FocusState private var focusedField: String?
 
     public func body(content: Content) -> some View {
 #if os(macOS)
@@ -45,23 +48,62 @@ public struct EnhancedSearchableModifier: ViewModifier {
                 .environment(\.isEnhancedlySearching, isEnhancedlySearching)
         }
 #else
-        content
-            .searchable(text: $temporarySearchText, placement: placement, prompt: promptText)
-            .onChange(of: temporarySearchText) { temporarySearchText in
-                onSearchTextChange(searchText: temporarySearchText)
+        Group {
+            if prefersToolbarPlacement {
+                content
+                    .searchable(text: $temporarySearchText, placement: placement, prompt: promptText)
+            } else {
+                VStack {
+                    HStack(spacing: 5) {
+                        TextField(prompt ?? "Search", text: $temporarySearchText, prompt: promptText)
+                            .textFieldStyle(.roundedBorder)
+                        //                    DSFSearchField.SwiftUI(text: $temporarySearchText, placeholderText: prompt, autosaveName: autosaveName, onSearchTermChange: { searchTerm in
+                        //                        onSearchTextChange(searchText: searchTerm)
+                        //                        Task { @MainActor in
+                        //                            isEnhancedlySearching = !searchTerm.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        //                        }
+                        //                    })
+                        //                    .padding(.horizontal, 5)
+                        if isEnhancedlySearching {
+                                Button {
+                                    withAnimation {
+                                        isEnhancedlySearching = false
+                                        focusedField = nil
+                                    }
+                                    temporarySearchText = ""
+#warning("no focus here")
+                                } label: {
+                                    Text("Done")
+                                        .bold()
+                                        .padding(.horizontal, 5)
+                                        .fixedSize()
+                                }
+                        }
+                    }
+                    .fitToReadableContentWidth()
+                    content
+                        .environment(\.isEnhancedlySearching, isEnhancedlySearching)
+                }
             }
-            .onChange(of: isSearching) { isSearching in
-                self.isEnhancedlySearching = isSearching
-            }
-            .environment(\.isEnhancedlySearching, isEnhancedlySearching)
+        }
+        .onChange(of: temporarySearchText) { temporarySearchText in
+            onSearchTextChange(searchText: temporarySearchText)
+        }
+        .onChange(of: isSearching) { isSearching in
+            self.isEnhancedlySearching = isSearching
+        }
+        .environment(\.isEnhancedlySearching, isEnhancedlySearching)
 #endif
     }
     
     private func onSearchTextChange(searchText: String) {
+        Task { @MainActor in
+            isEnhancedlySearching = !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+
         searchTask?.cancel()
         searchTask = Task.detached {
             do {
-                try await Task.sleep(nanoseconds: 100_000_000)
                 try Task.checkCancellation()
                 searchAction(searchText)
             } catch { }
@@ -70,7 +112,7 @@ public struct EnhancedSearchableModifier: ViewModifier {
 }
 
 public extension View {
-    func enhancedSearchable(autosaveName: String, prompt: String? = nil, placement: SearchFieldPlacement = .automatic, searchAction: @escaping ((String) -> Void)) -> some View {
-        self.modifier(EnhancedSearchableModifier(autosaveName: autosaveName, prompt: prompt, placement: placement, searchAction: searchAction))
+    func enhancedSearchable(autosaveName: String, prompt: String? = nil, placement: SearchFieldPlacement = .automatic, prefersToolbarPlacement: Bool = true, searchAction: @escaping ((String) -> Void)) -> some View {
+        self.modifier(EnhancedSearchableModifier(autosaveName: autosaveName, prompt: prompt, placement: placement, prefersToolbarPlacement: prefersToolbarPlacement, searchAction: searchAction))
     }
 }

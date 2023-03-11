@@ -115,7 +115,7 @@ public struct StoreView: View {
                 GroupBox {
                     VStack(spacing: 12) {
                         HStack {
-                            Text("Questions & Answers")
+                            Text("Q&A")
                                 .font(.title2)
                                 .foregroundColor(.secondary)
                             Spacer()

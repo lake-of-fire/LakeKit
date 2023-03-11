@@ -19,6 +19,7 @@ public struct BlurBackground: UIViewRepresentable {
             
             blurEffectView.frame = container.bounds
             blurEffectView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+//            blurEffectView.insetsLayoutMarginsFromSafeArea = false
             container.superview?.addSubview(blurEffectView)
             container.removeFromSuperview()
             container.willMove(toSuperview: blurEffectView.contentView)

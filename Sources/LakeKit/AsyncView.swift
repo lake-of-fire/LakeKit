@@ -14,9 +14,8 @@ public struct AsyncView<Success, Content: View>: View {
         case (.empty, true), (.inProgress, true):
             content(nil)
         default:
-            EmptyView()
+            AsyncModelView(model: self.model, content: self.content)
         }
-        AsyncModelView(model: self.model, content: self.content)
     }
 }
 

@@ -14,6 +14,8 @@ public struct DismissButtonView: View {
                 .scaleEffect(0.416)
                 .foregroundColor(Color(white: colorScheme == .dark ? 0.62 : 0.51))
         }
+        .frame(width: 30, height: 30)
+        .padding(1)
     }
     
     public init() { }

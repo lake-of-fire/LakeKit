@@ -60,8 +60,6 @@ public struct LocationBar: View, Equatable {
             return url
         }
         set {
-                                    print("update loc")
-
             locationText = newValue?.absoluteString ?? ""
         }
     }
@@ -77,10 +75,17 @@ public struct LocationBar: View, Equatable {
             .textContentType(.URL)
             .keyboardType(.URL)
             .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
             .textFieldStyle(.plain)
             .padding(EdgeInsets(top: 8, leading: 10, bottom: 8, trailing: 10))
-            .background(colorScheme == .dark ? Color.secondary.opacity(0.2232) : Color(white: 239.0 / 255.0))
-            .cornerRadius(8)
+//            .padding(EdgeInsets(top: 6, leading: 8, bottom: 6, trailing: 8))
+            .background(colorScheme == .dark ? Color.secondary.opacity(0.2232) : Color.white) //(white: 239.0 / 255.0))
+//            .textFieldStyle(.roundedBorder)
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(.secondary.opacity(0.1), lineWidth: 1)
+            )
             .submitLabel(.go)
 #endif
             .onSubmit {
@@ -106,6 +111,7 @@ public struct LocationBar: View, Equatable {
 #endif
                 }
             }
+#if os(iOS)
             // See: https://stackoverflow.com/a/67502495/89373
             .onReceive(NotificationCenter.default.publisher(for: UITextField.textDidBeginEditingNotification)) { obj in
                 Task { @MainActor in
@@ -114,11 +120,16 @@ public struct LocationBar: View, Equatable {
                     }
                 }
             }
+#endif
             .onChange(of: action) { action in
                 DispatchQueue.main.async {
                     switch action {
                     case .update(let newLocationTexts):
-                        locationText = newLocationTexts
+                        if newLocationTexts == "about:blank" {
+                            locationText = ""
+                        } else {
+                            locationText = newLocationTexts
+                        }
                         self.action = .idle
                     case .idle:
                         break
