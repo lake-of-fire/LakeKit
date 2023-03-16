@@ -80,7 +80,9 @@ public struct EnhancedSearchableModifier: ViewModifier {
                                 }
                         }
                     }
-                    .fitToReadableContentWidth()
+//                    .fitToReadableContentWidth()
+                    .padding(.horizontal, 10)
+                    .frame(maxWidth: 672)
                     content
                         .environment(\.isEnhancedlySearching, isEnhancedlySearching)
                 }
