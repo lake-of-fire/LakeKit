@@ -13,6 +13,12 @@ public struct AsyncView<Success, Content: View>: View {
 //        case (.empty, true, false), (.inProgress, true, false):
         case (.empty, true), (.inProgress, true):
             content(nil)
+            .task {
+                await model.loadIfNeeded()
+            }
+            .refreshable {
+                await model.load()
+            }
         default:
             AsyncModelView(model: self.model, content: self.content)
         }

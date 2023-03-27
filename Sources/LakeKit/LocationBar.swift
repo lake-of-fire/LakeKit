@@ -122,19 +122,10 @@ public struct LocationBar: View, Equatable {
             }
 #endif
             .onChange(of: action) { action in
-                DispatchQueue.main.async {
-                    switch action {
-                    case .update(let newLocationTexts):
-                        if newLocationTexts == "about:blank" {
-                            locationText = ""
-                        } else {
-                            locationText = newLocationTexts
-                        }
-                        self.action = .idle
-                    case .idle:
-                        break
-                    }
-                }
+                refreshAction(action: action)
+            }
+            .task {
+                refreshAction()
             }
         }
     }
@@ -147,5 +138,22 @@ public struct LocationBar: View, Equatable {
     
     public static func == (lhs: LocationBar, rhs: LocationBar) -> Bool {
         return lhs.locationText == rhs.locationText && lhs.action == rhs.action
+    }
+    
+    private func refreshAction(action: LocationBarAction? = nil) {
+        let action = action ?? self.action
+        Task { @MainActor in
+            switch action {
+            case .update(let newLocationTexts):
+                if newLocationTexts == "about:blank" {
+                    locationText = ""
+                } else {
+                    locationText = newLocationTexts
+                }
+                self.action = .idle
+            case .idle:
+                break
+            }
+        }
     }
 }
