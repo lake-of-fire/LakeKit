@@ -3,6 +3,32 @@ import StoreHelper
 import StoreKit
 import Collections
 
+public extension View {
+    func storeSheet(storeViewModel: StoreViewModel) -> some View {
+        self.modifier(StoreSheetModifier(storeViewModel: storeViewModel))
+    }
+}
+
+public struct StoreSheetModifier: ViewModifier {
+    @ObservedObject public var storeViewModel: StoreViewModel
+
+    public func body(content: Content) -> some View {
+        content
+            .sheet(isPresented: $storeViewModel.isPresentingStoreSheet) {
+                NavigationView {
+                    StoreView(storeViewModel: storeViewModel)
+                        .toolbar {
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button("Cancel", role: .cancel) {
+                                    storeViewModel.isPresentingStoreSheet = false
+                                }
+                            }
+                        }
+                }
+            }
+    }
+}
+
 struct FAQDisclosureGroup: View {
     let question: String
     let answer: String
@@ -53,13 +79,7 @@ public struct StoreProduct: Identifiable {
 }
 
 public struct StoreView: View {
-    public let products: [StoreProduct]
-    public let appAccountToken: UUID?
-    public let headline: String
-    public let subheadline: String
-    public let productGroupHeading: String
-    public var productGroupSubtitle: String = ""
-    public var faq = OrderedDictionary<String, String>()
+    @ObservedObject public var storeViewModel: StoreViewModel
     
     @ScaledMetric(relativeTo: .title2) private var storeWidth = 666
     @ScaledMetric(relativeTo: .title2) private var storeHeight = 590
@@ -74,29 +94,30 @@ public struct StoreView: View {
         ScrollView {
             VStack(spacing: 12) {
                 VStack(spacing: 16) {
-                    Text(headline)
+                    Text(storeViewModel.headline)
                         .font(.largeTitle)
                         .bold()
                         .foregroundColor(.primary)
-                    Text(subheadline)
-                        .foregroundColor(.secondary)
-                        .font(.footnote)
                         .multilineTextAlignment(.center)
-                    Text(productGroupHeading)
+                    Text(storeViewModel.subheadline)
+                        .foregroundColor(.secondary)
+                        .font(.subheadline)
+                        .multilineTextAlignment(.center)
+                    Text(storeViewModel.productGroupHeading)
                         .foregroundColor(.secondary)
                         .bold()
                         .multilineTextAlignment(.center)
                 }
                 
                 HStack(alignment: .top, spacing: 12) {
-                    ForEach(products) { (product: StoreProduct) in
+                    ForEach(storeViewModel.products) { (product: StoreProduct) in
                         if let storeProduct = product.product(storeHelper: storeHelper) {
                             PurchaseOptionView(product: storeProduct, purchaseState: $purchaseState, unitsRemaining: product.unitsRemaining, unitsPurchased: product.unitsPurchased, unitsName: product.unitsName, symbolName: product.iconSymbolName, buyTitle: product.buyButtonTitle) {
                                 guard product.filterPurchase(product) else { return }
                                 
                                 purchaseState = .inProgress
                                 Task {
-                                    if let appAccountToken = appAccountToken {
+                                    if let appAccountToken = storeViewModel.appAccountToken {
                                         await priceViewModel.purchase(product: storeProduct, options: [.appAccountToken(appAccountToken)])
                                     } else {
                                         await priceViewModel.purchase(product: storeProduct, options: [])
@@ -108,7 +129,7 @@ public struct StoreView: View {
                     }
                 }
                 .padding(.horizontal, 42)
-                Text(productGroupSubtitle)
+                Text(storeViewModel.productGroupSubtitle)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
                     .font(.caption)
@@ -120,7 +141,7 @@ public struct StoreView: View {
                                 .foregroundColor(.secondary)
                             Spacer()
                         }
-                        ForEach(faq.elements, id: \.key) { q, a in
+                        ForEach(storeViewModel.faq.elements, id: \.key) { q, a in
                             FAQDisclosureGroup(question: q, answer: a)
                         }
                     }
@@ -134,13 +155,7 @@ public struct StoreView: View {
         }
     }
     
-    public init(products: [StoreProduct], appAccountToken: UUID? = nil, headline: String, subheadline: String, productGroupHeading: String, productGroupSubtitle: String = "", faq: OrderedDictionary<String, String> = OrderedDictionary<String, String>()) {
-        self.products = products
-        self.appAccountToken = appAccountToken
-        self.headline = headline
-        self.subheadline = subheadline
-        self.productGroupHeading = productGroupHeading
-        self.productGroupSubtitle = productGroupSubtitle
-        self.faq = faq
+    public init(storeViewModel: StoreViewModel) {
+        self.storeViewModel = storeViewModel
     }
 }
