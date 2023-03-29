@@ -16,13 +16,14 @@ fileprivate struct BuyButtonStyle: ButtonStyle {
 }
 
 public struct PurchaseOptionView: View {
+    public let storeViewModel: StoreViewModel
     public let product: Product
     @Binding public var purchaseState: PurchaseState
     public let unitsRemaining: Int?
     public let unitsPurchased: Int?
     public let unitsName: String?
     public let symbolName: String
-    public let buyTitle: String
+    public let buyTitle: String?
     public let action: (() -> Void)
     
     @ScaledMetric(relativeTo: .caption) private var subtitleHeight = 50
@@ -73,6 +74,10 @@ public struct PurchaseOptionView: View {
         return ""
     }
     
+    private var isUnitsLabelVisible: Bool {
+        return storeViewModel.products.contains(where: { !$0.isSubscription })
+    }
+    
     public var body: some View {
         let priceViewModel = PriceViewModel(storeHelper: storeHelper, purchaseState: $purchaseState)
 
@@ -81,17 +86,17 @@ public struct PurchaseOptionView: View {
                 submitAction()
             } label: {
                 VStack {
-                    HStack(spacing: 20) {
-                        Image(systemName: symbolName)
-                            .font(.largeTitle)
-                            .foregroundColor(.white)
-                            .clipShape(Circle())
-                            .fixedSize()
-                            .padding(12)
-                            .background {
-                                Circle()
-                                    .foregroundColor(.accentColor)
+                    HStack(spacing: 25) {
+                        Circle()
+                            .foregroundColor(.accentColor)
+                            .frame(height: 60)
+                            .overlay {
+                                Image(systemName: symbolName)
+                                    .font(.system(size: 22))
+                                    .foregroundColor(.white)
+                                    .fixedSize()
                             }
+                            .clipShape(Circle())
                             .scaleEffect(1.2)
                         VStack {
                             Text(displayPrice)
@@ -103,12 +108,14 @@ public struct PurchaseOptionView: View {
                                 .font(.caption)
                         }
                     }
-                    .padding(.vertical, 20)
+                    .padding(.vertical, 10)
                     Group {
-                        Text(product.displayName)
-                            .font(.headline)
-                            .padding(.horizontal)
-                            .foregroundColor(.primary)
+                        if buyTitle != nil {
+                            Text(product.displayName)
+                                .font(.headline)
+                                .padding(.horizontal)
+                                .foregroundColor(.primary)
+                        }
                         VStack {
                             Text(product.description)
                                 .font(.caption)
@@ -120,20 +127,22 @@ public struct PurchaseOptionView: View {
                         .frame(minHeight: subtitleHeight)
                         .fixedSize(horizontal: false, vertical: true)
                     }
-                    switch (purchaseState, product.type) {
-                    case (.unknown, .autoRenewable):
-                        ProgressView()
-                            .padding()
-                    case (.purchased, .autoRenewable):
-                        Text("Purchased")
+                    
+                    if product.type == .autoRenewable, [PurchaseState.purchased, .pending, .inProgress].contains(purchaseState) {
+                        if purchaseState == .inProgress {
+                            ProgressView()
+                                .padding()
+                        } else {
+                            Text(purchaseState.shortDescription())
                             .bold()
                             .italic()
                             .foregroundColor(.primary)
                             .padding()
-                    default:
+                        }
+                    } else {
                         VStack {
 #if os(iOS)
-                            Text(buyTitle)
+                            Text(buyTitle ?? product.displayName)
                                 .font(.callout)
                                 .bold()
                                 .foregroundColor(.accentColor)
@@ -144,7 +153,7 @@ public struct PurchaseOptionView: View {
                                     RoundedRectangle(cornerRadius: 12, style: .continuous)
                                         .stroke(Color.accentColor, lineWidth: 1)
                                 )
-                                .padding()
+                                .padding(10)
 #else
                             Button {
                                 submitAction()
@@ -157,18 +166,18 @@ public struct PurchaseOptionView: View {
                             .disabled(!canMakePayments)
                             .padding(.bottom, unitsLabel.isEmpty ? 4 : 0)
 #endif
-                            Text(unitsLabel)
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .frame(minHeight: 24)
-                            .padding(.bottom, unitsLabel.isEmpty ? 4 : 6)
+                            if isUnitsLabelVisible {
+                                Text(unitsLabel)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .frame(minHeight: 24)
+                                    .padding(.bottom, unitsLabel.isEmpty ? 4 : 6)
+                            }
                         }
                     }
                 }
             }
-//            .clipShape(RoundedRectangle(cornerRadius: 12))
             .buttonStyle(BuyButtonStyle())
-//            .buttonBorderShape(.roundedRectangle)
 //            .border(Color.accentColor, width: 2)
 
         }
@@ -212,7 +221,8 @@ public struct PurchaseOptionView: View {
         })
     }
     
-    public init(product: Product, purchaseState: Binding<PurchaseState>, unitsRemaining: Int? = nil, unitsPurchased: Int? = nil, unitsName: String? = nil, symbolName: String, buyTitle: String, action: @escaping (() -> Void)) {
+    public init(storeViewModel: StoreViewModel, product: Product, purchaseState: Binding<PurchaseState>, unitsRemaining: Int? = nil, unitsPurchased: Int? = nil, unitsName: String? = nil, symbolName: String, buyTitle: String?, action: @escaping (() -> Void)) {
+        self.storeViewModel = storeViewModel
         self.product = product
         self._purchaseState = purchaseState
         self.unitsRemaining = unitsRemaining
