@@ -150,7 +150,7 @@ public struct StoreView: View {
                         + Text(" ") + Text(.init(benefit))
                     }
                 }
-                .font(.caption)
+                .font(.callout)
                 .padding(.horizontal, 40)
                 
                 GroupBox {
@@ -170,7 +170,7 @@ public struct StoreView: View {
                 .padding(.top, 10)
                 Spacer()
             }
-            .padding()
+            .padding([.leading, .trailing, .bottom])
             .frame(idealWidth: storeWidth, minHeight: storeHeight)
             .fixedSize(horizontal: true, vertical: true)
         }
