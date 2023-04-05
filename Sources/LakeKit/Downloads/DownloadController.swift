@@ -40,7 +40,7 @@ public class Downloadable: ObservableObject, Identifiable, Hashable {
         }
     }
     
-    public init(url: URL, mirrorURL: URL?, name: String, localDestination: URL, isFromBackgroundAssetsDownloader: Bool? = nil) {
+    public init(url: URL, mirrorURL: URL? = nil, name: String, localDestination: URL, isFromBackgroundAssetsDownloader: Bool? = nil) {
         self.url = url
         self.mirrorURL = mirrorURL
         self.name = name
@@ -54,6 +54,10 @@ public class Downloadable: ObservableObject, Identifiable, Hashable {
     
     public var compressedFileURL: URL {
         return localDestination.appendingPathExtension("br")
+    }
+    
+    public var stringContent: String? {
+        return try? String(contentsOf: localDestination)
     }
     
     func existsLocally() -> Bool {
@@ -112,6 +116,19 @@ public class Downloadable: ObservableObject, Identifiable, Hashable {
 //        } else {
 //            print("No file exists to decompress at \(compressedFileURL)")
         }
+    }
+}
+
+public extension Downloadable {
+    convenience init?(name: String, groupIdentifier: String, parentDirectoryName: String, filename: String? = nil, downloadMirrors: [URL]) {
+        guard let url = downloadMirrors.first else { return nil }
+        let filename = filename ?? url.absoluteString.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed) ?? url.lastPathComponent
+        guard let sharedContainerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: groupIdentifier) else { return nil }
+
+        let folderURL = sharedContainerURL
+            .appendingPathComponent(parentDirectoryName, isDirectory: true)
+        // TODO: macos 13+:   Downloadable(url: URL(string: "https://manabi.io/static/dictionaries/furigana.realm.br")!, mirrorURL: nil, name: "Furigana Data", localDestination: folderURL.appending(component: "furigana.realm")),
+        self.init(url: url, mirrorURL: downloadMirrors.dropFirst().first, name: name, localDestination: folderURL.appendingPathComponent(filename))
     }
 }
 

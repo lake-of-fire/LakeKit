@@ -79,13 +79,12 @@ public struct PurchaseOptionView: View {
     }
     
     public var body: some View {
-        let priceViewModel = PriceViewModel(storeHelper: storeHelper, purchaseState: $purchaseState)
 
         GroupBox {
             Button {
                 submitAction()
             } label: {
-                VStack {
+                VStack(spacing: 0) {
                     HStack(spacing: 25) {
                         Circle()
                             .foregroundColor(.accentColor)
@@ -109,24 +108,24 @@ public struct PurchaseOptionView: View {
                         }
                     }
                     .padding(.vertical, 10)
-                    Group {
-                        if buyTitle != nil {
-                            Text(product.displayName)
-                                .font(.headline)
-                                .padding(.horizontal)
-                                .foregroundColor(.primary)
-                        }
-                        VStack {
-                            Text(product.description)
-                                .font(.caption)
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal)
-                                .foregroundColor(.secondary)
-                            Spacer(minLength: 0)
-                        }
-                        .frame(minHeight: subtitleHeight)
-                        .fixedSize(horizontal: false, vertical: true)
-                    }
+//                    Group {
+//                        if buyTitle != nil {
+//                            Text(product.displayName)
+//                                .font(.headline)
+//                                .padding(.horizontal)
+//                                .foregroundColor(.primary)
+//                        }
+//                        VStack {
+//                            Text(product.description)
+//                                .font(.caption)
+//                                .multilineTextAlignment(.center)
+//                                .padding(.horizontal)
+//                                .foregroundColor(.secondary)
+//                            Spacer(minLength: 0)
+//                        }
+//                        .frame(minHeight: subtitleHeight)
+//                        .fixedSize(horizontal: false, vertical: true)
+//                    }
                     
                     if product.type == .autoRenewable, [PurchaseState.purchased, .pending, .inProgress].contains(purchaseState) {
                         if purchaseState == .inProgress {
@@ -200,6 +199,7 @@ public struct PurchaseOptionView: View {
             purchaseState = isPurchased ? .purchased : .notPurchased
            
             if purchaseState != .purchased {
+                let priceViewModel = PriceViewModel(storeHelper: storeHelper, purchaseState: $purchaseState)
                 prePurchaseSubInfo = await priceViewModel.getPrePurchaseSubscriptionInfo(productId: product.id)
             }
         }

@@ -51,6 +51,41 @@ struct FAQDisclosureGroup: View {
     }
 }
 
+struct StudentDiscountDisclosureGroup<Content: View>: View {
+    let discountView: Content
+    
+    @State private var isExpanded = false
+    
+    var body: some View {
+        DisclosureGroup(isExpanded: $isExpanded) {
+            discountView
+        } label: {
+            HStack(alignment: .center, spacing: 10) {
+                Text(Image(systemName: "info.circle"))
+                    .font(.title)
+                    .padding(.trailing, 5)
+                
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("Are you a student or educator? A special discount is available to you.")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    Text("Student and educator discount")
+                        .font(.headline)
+                        .bold()
+                }
+            }
+        }
+        .onTapGesture(count: 1) {
+            withAnimation { isExpanded.toggle() }
+        }
+    }
+    
+    public init(discountView contentBuilder: () -> Content) {
+        discountView = contentBuilder()
+    }
+
+}
+
 public struct StoreProduct: Identifiable {
     public let id: String
     
@@ -91,8 +126,6 @@ public struct StoreView: View {
     @State private var isPresentingTokenLimitError = false
 
     public var body: some View {
-        let priceViewModel = PriceViewModel(storeHelper: storeHelper, purchaseState: $purchaseState)
-        
         ScrollView {
             VStack(spacing: 12) {
                 VStack(spacing: 16) {
@@ -113,21 +146,8 @@ public struct StoreView: View {
                 
                 LazyHGrid(rows: storeViewModel.productGridRows, spacing: 20) {
                     ForEach(storeViewModel.products) { (storeProduct: StoreProduct) in
-//                        Rectangle().background(.teal)
-//                            .frame(height: 90)
-                        
                         if let product = storeProduct.product(storeHelper: storeHelper) {
-                            PurchaseOptionView(storeViewModel: storeViewModel, product: product, purchaseState: $purchaseState, unitsRemaining: storeProduct.unitsRemaining, unitsPurchased: storeProduct.unitsPurchased, unitsName: storeProduct.unitsName, symbolName: storeProduct.iconSymbolName, buyTitle: storeProduct.buyButtonTitle) {
-                                guard storeProduct.filterPurchase(storeProduct) else { return }
-                                purchaseState = .inProgress
-                                Task {
-                                    if let appAccountToken = storeViewModel.appAccountToken {
-                                        await priceViewModel.purchase(product: product, options: [.appAccountToken(appAccountToken)])
-                                    } else {
-                                        await priceViewModel.purchase(product: product, options: [])
-                                    }
-                                }
-                            }
+                            productOptionView(storeProduct: storeProduct, product: product)
                             .frame(maxHeight: .infinity)
 //                            .fixedSize(horizontal: false, vertical: true)
 //                            .frame(maxWidth: .infinity)
@@ -136,6 +156,27 @@ public struct StoreView: View {
                 }
                 .fixedSize()
                 .padding(.horizontal, 40)
+                
+                GroupBox {
+                    StudentDiscountDisclosureGroup(discountView: {
+                        VStack {
+                            Text("Students and educators already have enough expenses to manage. These discounted rates can help ease the burden. If you're not eligible, please use the regular rate options to provide support to the developers for ongoing improvements.")
+                                .font(.subheadline)
+                                .padding()
+                            
+                            LazyHGrid(rows: storeViewModel.productGridRows, spacing: 20) {
+                                ForEach(storeViewModel.studentProducts) { (storeProduct: StoreProduct) in
+                                    if let product = storeProduct.product(storeHelper: storeHelper) {
+                                        productOptionView(storeProduct: storeProduct, product: product)
+                                            .frame(maxHeight: .infinity)
+                                    }
+                                }
+                            }
+//                            .fixedSize(horizontal: true, vertical: false)
+                        }
+                        .padding(.top, 5)
+                    })
+                }
                 
                 Text(storeViewModel.productGroupSubtitle)
                     .foregroundColor(.secondary)
@@ -152,6 +193,14 @@ public struct StoreView: View {
                 }
                 .font(.callout)
                 .padding(.horizontal, 40)
+                
+                HStack(spacing: 20) {
+                    Link("Terms of Service", destination: storeViewModel.termsOfService)
+                    Divider()
+                    Link("Privacy Policy", destination: storeViewModel.privacyPolicy)
+                }
+                .font(.footnote)
+                .fixedSize(horizontal: false, vertical: true)
                 
                 GroupBox {
                     VStack(spacing: 12) {
@@ -179,4 +228,22 @@ public struct StoreView: View {
     public init(storeViewModel: StoreViewModel) {
         self.storeViewModel = storeViewModel
     }
-}
+    
+    func productOptionView(storeProduct: StoreProduct, product: Product) -> some View {
+        let priceViewModel = PriceViewModel(storeHelper: storeHelper, purchaseState: $purchaseState)
+        return PurchaseOptionView(storeViewModel: storeViewModel, product: product, purchaseState: $purchaseState, unitsRemaining: storeProduct.unitsRemaining, unitsPurchased: storeProduct.unitsPurchased, unitsName: storeProduct.unitsName, symbolName: storeProduct.iconSymbolName, buyTitle: storeProduct.buyButtonTitle) {
+                guard storeProduct.filterPurchase(storeProduct) else { return }
+                purchaseState = .inProgress
+                Task {
+                    if let appAccountToken = storeViewModel.appAccountToken {
+                        await priceViewModel.purchase(product: product, options: [.appAccountToken(appAccountToken)])
+                    } else {
+                        await priceViewModel.purchase(product: product, options: [])
+                    }
+                }
+            }
+//            .frame(maxHeight: .infinity)
+            //                            .fixedSize(horizontal: false, vertical: true)
+            //                            .frame(maxWidth: .infinity)
+        }
+    }
