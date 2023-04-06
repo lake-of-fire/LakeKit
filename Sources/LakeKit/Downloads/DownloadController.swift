@@ -171,6 +171,7 @@ public class DownloadController: NSObject, ObservableObject {
 }
 
 public extension DownloadController {
+    @MainActor
     func ensureDownloaded(_ downloads: Set<Downloadable>) {
         for download in downloads {
             assuredDownloads.insert(download)
@@ -250,7 +251,9 @@ extension DownloadController {
             } else { }
             
             download.isFromBackgroundAssetsDownloader = false
-            _ = download.download()
+            Task { @MainActor in
+                _ = download.download()
+            }
         }
     }
     
