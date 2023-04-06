@@ -48,6 +48,7 @@ let package = Package(
 //        .package(path: "../SwiftUI-Flow"),
         .package(url: "https://github.com/CodeSlicing/pure-swift-ui.git", branch: "develop"),
         .package(url: "https://github.com/danielsaidi/SwiftUIKit.git", branch: "master"),
+        .package(url: "https://github.com/markrenaud/FilePicker.git", branch: "main"),
         .package(path: "../PagerTabStripView"),
         .package(path: "../navigation-stack-backport"),
         .package(path: "../VisionLiveText_SwiftUICompatible"),
@@ -91,6 +92,7 @@ let package = Package(
                 .product(name: "PagerTabStripView", package: "PagerTabStripView"),
                 .product(name: "NavigationStackBackport", package: "navigation-stack-backport"),
                 .product(name: "VisionLiveText_SwiftUICompatible", package: "VisionLiveText_SwiftUICompatible"),
+                .product(name: "FilePicker", package: "FilePicker"),
             ]
         ),
         .testTarget(
