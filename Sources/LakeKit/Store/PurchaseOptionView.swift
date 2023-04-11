@@ -79,7 +79,6 @@ public struct PurchaseOptionView: View {
     }
     
     public var body: some View {
-
         GroupBox {
             Button {
                 submitAction()
@@ -88,7 +87,7 @@ public struct PurchaseOptionView: View {
                     HStack(spacing: 25) {
                         Circle()
                             .foregroundColor(.accentColor)
-                            .frame(height: 60)
+                            .frame(width: 60, height: 60)
                             .overlay {
                                 Image(systemName: symbolName)
                                     .font(.system(size: 22))
@@ -97,35 +96,40 @@ public struct PurchaseOptionView: View {
                             }
                             .clipShape(Circle())
                             .scaleEffect(1.2)
+                            .fixedSize()
                         VStack {
                             Text(displayPrice)
                                 .font(.headline)
                                 .bold()
+                                .fixedSize(horizontal: true, vertical: false)
                             Text(displayPriceType)
                                 .foregroundColor(.primary)
                                 .foregroundColor(.secondary)
                                 .font(.caption)
+                                .fixedSize(horizontal: true, vertical: false)
                         }
                     }
+                    .fixedSize(horizontal: true, vertical: false)
                     .padding(.vertical, 10)
-//                    Group {
-//                        if buyTitle != nil {
-//                            Text(product.displayName)
-//                                .font(.headline)
-//                                .padding(.horizontal)
-//                                .foregroundColor(.primary)
-//                        }
-//                        VStack {
-//                            Text(product.description)
-//                                .font(.caption)
-//                                .multilineTextAlignment(.center)
-//                                .padding(.horizontal)
-//                                .foregroundColor(.secondary)
-//                            Spacer(minLength: 0)
-//                        }
-//                        .frame(minHeight: subtitleHeight)
-//                        .fixedSize(horizontal: false, vertical: true)
-//                    }
+                    Group {
+                        if buyTitle != nil {
+                            Text(product.displayName)
+                                .font(.headline)
+                                .padding(.horizontal)
+                                .foregroundColor(.primary)
+                        }
+                        VStack(alignment: .center) {
+                            HStack(alignment: .center) {
+                                Text(product.description)
+                                    .font(.caption)
+                                    .multilineTextAlignment(.center)
+                                    .padding(.horizontal)
+                                    .foregroundColor(.secondary)
+                            }
+                            .frame(minHeight: subtitleHeight)
+                            Spacer(minLength: 0)
+                        }
+                    }
                     
                     if product.type == .autoRenewable, [PurchaseState.purchased, .pending, .inProgress].contains(purchaseState) {
                         if purchaseState == .inProgress {
@@ -157,7 +161,7 @@ public struct PurchaseOptionView: View {
                             Button {
                                 submitAction()
                             } label: {
-                                Text(buyTitle)
+                                Text(buyTitle ?? product.displayName)
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 4)
                             }
@@ -234,9 +238,14 @@ public struct PurchaseOptionView: View {
     }
     
     func submitAction() {
-        isPresentingICloudIssue = (product.type == .consumable) && !isICloudSyncActive && iCloudSyncStateSummary != .notStarted && iCloudSyncStateSummary != .succeeded
-        if (product.type == .autoRenewable) || isICloudSyncActive {
-            action()
+        Task.detached {
+            guard await storeViewModel.satisfyingPrerequisite() else { return }
+            Task { @MainActor in
+                isPresentingICloudIssue = (product.type == .consumable) && !isICloudSyncActive && iCloudSyncStateSummary != .notStarted && iCloudSyncStateSummary != .succeeded
+                if (product.type == .autoRenewable) || isICloudSyncActive {
+                    action()
+                }
+            }
         }
     }
 }

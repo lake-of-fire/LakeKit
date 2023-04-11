@@ -3,6 +3,7 @@ import SwiftUI
 import Combine
 import Compression
 import BackgroundAssets
+import SwiftBrotli
 
 public class Downloadable: ObservableObject, Identifiable, Hashable {
     public let url: URL
@@ -106,7 +107,9 @@ public class Downloadable: ObservableObject, Identifiable, Hashable {
     func decompressIfNeeded() throws {
         if FileManager.default.fileExists(atPath: compressedFileURL.path) {
             let data = try Data(contentsOf: compressedFileURL)
-            let decompressed = try data.decompressed(from: COMPRESSION_BROTLI)
+            // TODO: When dropping iOS 15, switch to native Apple Brotli
+            //            let decompressed = try data.decompressed(from: COMPRESSION_BROTLI)
+            let decompressed = try Brotli().decompress(data, maximumDecompressedSize: (1 << 20) * 1000).get()
             try decompressed.write(to: localDestination, options: .atomic)
             do {
                 try FileManager.default.removeItem(at: compressedFileURL)
@@ -183,19 +186,26 @@ public extension DownloadController {
 extension DownloadController {
     func ensureDownloaded() {
         for download in assuredDownloads {
-            if download.existsLocally() {
-                finishDownload(download)
-                checkFileModifiedAt(download: download) { [weak self] modified, _ in
-                    if modified {
+            Task.detached { [weak self] in
+                if download.existsLocally() {
+                    self?.finishDownload(download)
+                    self?.checkFileModifiedAt(download: download) { [weak self] modified, _ in
+                        if modified {
+                            Task { @MainActor [weak self] in
+                                self?.download(download)
+                            }
+                        }
+                    }
+                } else {
+                    Task { @MainActor [weak self] in
                         self?.download(download)
                     }
                 }
-            } else {
-                self.download(download)
             }
         }
     }
     
+    @MainActor
     func download(_ download: Downloadable) {
         download.$isActive.removeDuplicates().receive(on: DispatchQueue.main).sink { [weak self] isActive in
             if isActive {
@@ -213,20 +223,28 @@ extension DownloadController {
                 self?.failedDownloads.remove(download)
             }
         }.store(in: &cancellables)
-        download.$isFinishedDownloading.removeDuplicates().receive(on: DispatchQueue.main).sink { [weak self] isFinishedDownloading in
+        download.$isFinishedDownloading.removeDuplicates().receive(on: DispatchQueue.main).sink { [weak self, weak download] isFinishedDownloading in
             if isFinishedDownloading {
-                self?.finishedDownloads.insert(download)
-                self?.activeDownloads.remove(download)
-                self?.failedDownloads.remove(download)
-                download.lastDownloaded = Date()
-                if !(download.isFromBackgroundAssetsDownloader ?? true) {
+                if let download = download {
+                    self?.finishedDownloads.insert(download)
+                    self?.activeDownloads.remove(download)
+                    self?.failedDownloads.remove(download)
+                    download.lastDownloaded = Date()
+                }
+                if !(download?.isFromBackgroundAssetsDownloader ?? true) {
                     Task { @MainActor [weak self] in
                         try? await self?.cancelInProgressDownloads(inDownloadExtension: true)
                     }
                 }
-                self?.finishDownload(download)
+                if let download = download {
+                    Task.detached { [weak self] in
+                        self?.finishDownload(download)
+                    }
+                }
             } else {
-                self?.finishedDownloads.remove(download)
+                if let download = download {
+                    self?.finishedDownloads.remove(download)
+                }
             }
         }.store(in: &cancellables)
 
@@ -280,9 +298,11 @@ extension DownloadController {
             // Confirm non-empty
             let resourceValues = try download.localDestination.resourceValues(forKeys: [.fileSizeKey])
             guard let fileSize = resourceValues.fileSize, fileSize > 0 else {
-                activeDownloads.remove(download)
-                finishedDownloads.remove(download)
-                failedDownloads.insert(download)
+                Task { @MainActor [weak self] in
+                    self?.activeDownloads.remove(download)
+                    self?.finishedDownloads.remove(download)
+                    self?.failedDownloads.insert(download)
+                }
                 return
             }
 //              print("File size = " + ByteCountFormatter().string(fromByteCount: Int64(fileSize)))

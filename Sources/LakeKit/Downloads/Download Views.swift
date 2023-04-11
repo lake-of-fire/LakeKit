@@ -76,12 +76,13 @@ public struct DownloadProgress: View {
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text("\(download.isActive ? "Downloading " : "")\(download.name)")
+                    .font(.callout)
                 ProgressView(value: fractionCompleted)
                     .progressViewStyle(.linear)
                     .frame(height: 5)
                     .clipShape(Capsule())
                 Text(statusText)
-                    .font(.callout)
+                    .font(.caption)
                     .monospacedDigit()
                     .foregroundColor(isFailed ? .red : .secondary)
             }

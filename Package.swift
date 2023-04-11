@@ -33,8 +33,8 @@ let package = Package(
         .package(url: "https://github.com/siteline/SwiftUI-Introspect.git", branch: "master"),
         .package(url: "https://github.com/elai950/AlertToast.git", branch: "master"),
         .package(url: "https://github.com/lake-of-fire/SwiftySegmentedPicker.git", branch: "main"),
-//        .package(url: "https://github.com/lake-of-fire/swiftui-layout-guides.git", branch: "main"),
-        .package(path: "../swiftui-layout-guides"),
+        .package(url: "https://github.com/lake-of-fire/swiftui-layout-guides.git", branch: "main"),
+//        .package(path: "../swiftui-layout-guides"),
         .package(url: "https://github.com/malcommac/SwiftDate.git", branch: "master"),
         .package(url: "https://github.com/apple/swift-algorithms.git", branch: "main"),
 //        .package(url: "https://github.com/exyte/Grid.git", branch: "master"),
@@ -49,6 +49,7 @@ let package = Package(
         .package(url: "https://github.com/CodeSlicing/pure-swift-ui.git", branch: "develop"),
 //        .package(url: "https://github.com/danielsaidi/SwiftUIKit.git", branch: "master"),
         .package(url: "https://github.com/markrenaud/FilePicker.git", branch: "main"),
+        .package(url: "https://github.com/f-meloni/SwiftBrotli.git", branch: "master"),
         .package(path: "../PagerTabStripView"),
         .package(path: "../navigation-stack-backport"),
         .package(path: "../VisionLiveText_SwiftUICompatible"),
@@ -93,6 +94,7 @@ let package = Package(
                 .product(name: "NavigationStackBackport", package: "navigation-stack-backport"),
                 .product(name: "VisionLiveText_SwiftUICompatible", package: "VisionLiveText_SwiftUICompatible"),
                 .product(name: "FilePicker", package: "FilePicker"),
+                .product(name: "SwiftBrotli", package: "SwiftBrotli"), // Only needed for iOS 15 Brotli (somehow missing in simulator at least)
             ]
         ),
         .testTarget(

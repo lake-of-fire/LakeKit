@@ -3,12 +3,11 @@ import Collections
 import StoreHelper
 
 public class StoreViewModel: NSObject, ObservableObject {
-    @Published public var isPresentingStoreSheet = false
-    
     /// For server overrides, other apps, etc.
     @Published public var isSubscribed = false
     @Published public var isSubscribedFromElsewhere = false
     
+    let satisfyingPrerequisite: () async -> Bool
     @Published public var products: [StoreProduct]
     @Published public var studentProducts: [StoreProduct]
     @Published public var appAccountToken: UUID?
@@ -21,7 +20,8 @@ public class StoreViewModel: NSObject, ObservableObject {
     @Published public var privacyPolicy: URL
     @Published public var faq = OrderedDictionary<String, String>()
     
-    public init(products: [StoreProduct], studentProducts: [StoreProduct], appAccountToken: UUID? = nil, headline: String, subheadline: String, productGroupHeading: String, productGroupSubtitle: String = "", benefits: [String], termsOfService: URL, privacyPolicy: URL, faq: OrderedDictionary<String, String>) {
+    public init(satisfyingPrerequisite: @escaping () async -> Bool = { true }, products: [StoreProduct], studentProducts: [StoreProduct], appAccountToken: UUID? = nil, headline: String, subheadline: String, productGroupHeading: String, productGroupSubtitle: String = "", benefits: [String], termsOfService: URL, privacyPolicy: URL, faq: OrderedDictionary<String, String>) {
+        self.satisfyingPrerequisite = satisfyingPrerequisite
         self.products = products
         self.studentProducts = studentProducts
         self.appAccountToken = appAccountToken
@@ -35,7 +35,7 @@ public class StoreViewModel: NSObject, ObservableObject {
         self.faq = faq
     }
     
-    public var productGridRows: [GridItem] {
+    public var productGridColumns: [GridItem] {
         return [GridItem(.adaptive(minimum: 200), spacing: 20)]
     }
     

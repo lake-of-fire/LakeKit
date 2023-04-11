@@ -43,7 +43,8 @@ public struct EnhancedSearchableModifier: ViewModifier {
                     isEnhancedlySearching = !searchTerm.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 }
             })
-                .padding(.horizontal, 5)
+            .padding(.horizontal, 5)
+            .frame(maxWidth: 850)
             content
                 .environment(\.isEnhancedlySearching, isEnhancedlySearching)
         }
@@ -82,7 +83,7 @@ public struct EnhancedSearchableModifier: ViewModifier {
                     }
 //                    .fitToReadableContentWidth()
                     .padding(.horizontal, 10)
-                    .frame(maxWidth: 672)
+                    .frame(maxWidth: 850)
                     content
                         .environment(\.isEnhancedlySearching, isEnhancedlySearching)
                 }

@@ -8,6 +8,7 @@ public extension View {
 
 public struct StorePrompt: View {
     @ObservedObject public var storeViewModel: StoreViewModel
+    @Binding public var isPresented: Bool
     public let headlineText: String
     public let bodyText: String
     public let storeButtonText: String
@@ -32,14 +33,14 @@ public struct StorePrompt: View {
                     }
                     Button {
                         if !toDismissFirst {
-                            storeViewModel.isPresentingStoreSheet = true
+                            isPresented = true
                         } else {
                             toDismissFirst = false
                             Task {
                                 do {
                                     try await Task.sleep(nanoseconds: UInt64(round(0.05 * 1_000_000_000)))
                                     Task { @MainActor in
-                                        storeViewModel.isPresentingStoreSheet = true
+                                        isPresented = true
                                     }
                                 }
                             }
@@ -89,6 +90,7 @@ public struct StorePromptOverlayModifier: ViewModifier {
     
     @Environment(\.colorScheme) private var colorScheme
     
+    @State private var isStoreSheetPresented = false
     private var isPresented: Bool {
         return !storeViewModel.isSubscribed
     }
@@ -125,7 +127,7 @@ public struct StorePromptOverlayModifier: ViewModifier {
                         VStack(spacing: 0) {
                             Spacer()
                                 .frame(height: geometry.size.height * 0.25)
-                            StorePrompt(storeViewModel: storeViewModel, headlineText: headlineText, bodyText: bodyText, storeButtonText: storeButtonText, alternativeButtonText: alternativeButtonText, alternativeButtonAction: alternativeButtonAction, toDismissFirst: toDismissFirst ?? .constant(false))
+                            StorePrompt(storeViewModel: storeViewModel, isPresented: $isStoreSheetPresented, headlineText: headlineText, bodyText: bodyText, storeButtonText: storeButtonText, alternativeButtonText: alternativeButtonText, alternativeButtonAction: alternativeButtonAction, toDismissFirst: toDismissFirst ?? .constant(false))
                                 .groupBoxShadow()
                                 .padding([.leading, .trailing])
                                 .padding([.leading, .trailing, .bottom])
