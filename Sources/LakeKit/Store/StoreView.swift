@@ -219,6 +219,28 @@ public struct StoreView: View {
                     })
                 }
                 
+                
+                GroupBox {
+                    StudentDiscountDisclosureGroup(discountView: {
+                        VStack {
+                            Text("Students and educators already have enough expenses to manage for which we'd like to help ease the burden. If you're not eligible, please use the regular rate options to provide support to the developers for ongoing app improvements.")
+                                .font(.subheadline)
+                                .padding()
+                            
+                            LazyVGrid(columns: productGridColumns, spacing: 10) {
+                                ForEach(storeViewModel.studentProducts) { (storeProduct: StoreProduct) in
+                                    if let product = storeProduct.product(storeHelper: storeHelper) {
+                                        productOptionView(storeProduct: storeProduct, product: product)
+                                            .frame(maxHeight: .infinity)
+                                    }
+                                }
+                            }
+                            //                            .fixedSize(horizontal: true, vertical: false)
+                        }
+                        .padding(.top, 5)
+                    })
+                }
+                
                 Text(storeViewModel.productGroupSubtitle)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)

@@ -51,6 +51,7 @@ enum UndimmedSheetPresentation {
 //        }
 
         func update(largestUndimmedDetent: UISheetPresentationController.Detent.Identifier) {
+            print("UPDATE")
             self.largestUndimmedDetent = largestUndimmedDetent
 
             if let controller = parent?.sheetPresentationController {

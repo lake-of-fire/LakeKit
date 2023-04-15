@@ -159,7 +159,7 @@ public class DownloadController: NSObject, ObservableObject {
     @Published public var failedDownloads = Set<Downloadable>()
     
     public var unfinishedDownloads: [Downloadable] {
-        let downloads: [Downloadable] = Array(activeDownloads) + Array(failedDownloads)
+        let downloads: [Downloadable] = Array(Set(activeDownloads).union(Set(failedDownloads)))
         return downloads.sorted(by: { $0.name > $1.name })
     }
     
