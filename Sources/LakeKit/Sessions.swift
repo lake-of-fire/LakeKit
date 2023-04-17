@@ -26,7 +26,7 @@ public class Session: ObservableObject {
         }
     }
     
-    public func requireAuthentication() async throws {
+    public func requireAuthentication(beforePresentation: @escaping () async -> Void = { }) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             Task { @MainActor in
                 if isAuthenticated {
@@ -38,6 +38,7 @@ public class Session: ObservableObject {
                     isPresentingWebAuthentication = false
                 }
                 Task { @MainActor in
+                    await beforePresentation()
                     isPresentingWebAuthentication = true
                 }
             }

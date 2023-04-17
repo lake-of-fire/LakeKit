@@ -36,9 +36,9 @@ public struct StorePrompt: View {
                         isPresented = true
                     } else {
                         toDismissFirst = false
-                        Task {
+                        Task.detached {
                             do {
-                                try await Task.sleep(nanoseconds: UInt64(round(0.05 * 400_000_000)))
+                                try await Task.sleep(nanoseconds: UInt64(round(0.05 * 1_000_000_000)))
                                 Task { @MainActor in
                                     isPresented = true
                                 }
@@ -69,7 +69,7 @@ public struct StorePrompt: View {
         }
         .fixedSize(horizontal: false, vertical: true)
         .background(.ultraThinMaterial)
-        .cornerRadius(6)
+        .cornerRadius(12)
     }
 }
     
@@ -120,7 +120,7 @@ public struct StorePromptOverlayModifier: ViewModifier {
             }
             .overlay(alignment: .center) {
                 StorePrompt(storeViewModel: storeViewModel, isPresented: $isStoreSheetPresented, headlineText: headlineText, bodyText: bodyText, storeButtonText: storeButtonText, alternativeButtonText: alternativeButtonText, alternativeButtonAction: alternativeButtonAction, toDismissFirst: toDismissFirst ?? .constant(false))
-                    .groupBoxShadow()
+                    .groupBoxShadow(cornerRadius: 12)
                     .padding([.leading, .trailing])
                     .padding([.leading, .trailing])
             }

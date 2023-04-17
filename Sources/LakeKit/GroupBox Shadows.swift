@@ -2,18 +2,19 @@ import SwiftUI
 
 
 public extension View {
-    func groupBoxShadow() -> some View {
-        self.modifier(GroupBoxShadowModifier())
+    func groupBoxShadow(cornerRadius: CGFloat = 6) -> some View {
+        self.modifier(GroupBoxShadowModifier(cornerRadius: cornerRadius))
     }
 }
 
 public struct GroupBoxShadowModifier: ViewModifier {
+    let cornerRadius: CGFloat
     @Environment(\.colorScheme) private var colorScheme
     
     public func body(content: Content) -> some View {
         content
             .background(
-                RoundedRectangle(cornerRadius: 6)
+                RoundedRectangle(cornerRadius: cornerRadius)
                     .foregroundColor(.clear)
                     .shadow(
                         color: colorScheme == .dark ? Color.black.opacity(0.8) : Color.black.opacity(0.6),
@@ -22,5 +23,9 @@ public struct GroupBoxShadowModifier: ViewModifier {
                         y: 0
                     )
             )
+    }
+    
+    public init(cornerRadius: CGFloat = 6) {
+        self.cornerRadius = cornerRadius
     }
 }
