@@ -104,6 +104,42 @@ struct StudentDiscountDisclosureGroup<Content: View>: View {
     }
 }
 
+struct FreeTierDisclosureGroup<Content: View>: View {
+    let content: Content
+    
+    @State private var isExpanded = false
+    
+    var body: some View {
+        DisclosureGroup(isExpanded: $isExpanded) {
+            content
+        } label: {
+            HStack(alignment: .center, spacing: 10) {
+                Text(Image(systemName: "info.circle"))
+                    .font(.title)
+                    .padding(.trailing, 5)
+                
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("Use without payment")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    Text("Free Tier \(Image(systemName: "chevron.right"))")
+                    .font(.headline)
+                    .bold()
+                }
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .onTapGesture(count: 1) {
+            withAnimation { isExpanded.toggle() }
+        }
+    }
+    
+    public init(content contentBuilder: () -> Content) {
+        content = contentBuilder()
+    }
+}
+
 public struct StoreProduct: Identifiable {
     public let id: String
     
@@ -219,26 +255,17 @@ public struct StoreView: View {
                     })
                 }
                 
-                
-                GroupBox {
-                    StudentDiscountDisclosureGroup(discountView: {
-                        VStack {
-                            Text("Students and educators already have enough expenses to manage for which we'd like to help ease the burden. If you're not eligible, please use the regular rate options to provide support to the developers for ongoing app improvements.")
-                                .font(.subheadline)
-                                .padding()
-                            
-                            LazyVGrid(columns: productGridColumns, spacing: 10) {
-                                ForEach(storeViewModel.studentProducts) { (storeProduct: StoreProduct) in
-                                    if let product = storeProduct.product(storeHelper: storeHelper) {
-                                        productOptionView(storeProduct: storeProduct, product: product)
-                                            .frame(maxHeight: .infinity)
-                                    }
-                                }
+                if let freeTierExplanation = storeViewModel.freeTierExplanation {
+                    GroupBox {
+                        FreeTierDisclosureGroup {
+                            VStack {
+                                Text(freeTierExplanation)
+                                    .font(.subheadline)
+                                    .padding()
+                                // TODO: show links to other apps here too
                             }
-                            //                            .fixedSize(horizontal: true, vertical: false)
                         }
-                        .padding(.top, 5)
-                    })
+                    }
                 }
                 
                 Text(storeViewModel.productGroupSubtitle)
