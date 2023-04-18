@@ -5,9 +5,9 @@ import UIKit
 public extension View {
     @available(iOS 16, *)
     @ViewBuilder
-    func largestUndimmedDetent(identifier: UISheetPresentationController.Detent.Identifier) -> some View {
+    func largestUndimmedDetent(identifier: UISheetPresentationController.Detent.Identifier, selection: PresentationDetent) -> some View {
 //        let detentIdentifier = UISheetPresentationController.Detent.Identifier(identifier)
-        background(UndimmedSheetPresentation.Representable(largestUndimmedDetent: identifier))
+        background(UndimmedSheetPresentation.Representable(largestUndimmedDetent: identifier, selection: selection))
     }
 }
 
@@ -15,9 +15,10 @@ public extension View {
 enum UndimmedSheetPresentation {
     struct Representable: UIViewControllerRepresentable {
         let largestUndimmedDetent: UISheetPresentationController.Detent.Identifier
+        let selection: PresentationDetent
 
         func makeUIViewController(context: Context) -> Controller {
-            Controller(largestUndimmedDetent: largestUndimmedDetent)
+            return Controller(largestUndimmedDetent: largestUndimmedDetent)
         }
 
         func updateUIViewController(_ controller: Controller, context: Context) {
@@ -54,10 +55,11 @@ enum UndimmedSheetPresentation {
             super.viewWillAppear(animated)
             update(largestUndimmedDetent: largestUndimmedDetent)
         }
-//        override func viewDidAppear(_ animated: Bool) {
-//            super.viewDidAppear(animated)
-//            update(largestUndimmedDetent: largestUndimmedDetent)
-//        }
+        
+        override func viewDidAppear(_ animated: Bool) {
+            super.viewDidAppear(animated)
+            update(largestUndimmedDetent: largestUndimmedDetent)
+        }
         
 //        override func viewDidLayoutSubviews() {
 //            super.viewDidLayoutSubviews()
@@ -67,21 +69,26 @@ enum UndimmedSheetPresentation {
         func update(largestUndimmedDetent: UISheetPresentationController.Detent.Identifier) {
             self.largestUndimmedDetent = largestUndimmedDetent
             
-            if let controller = parent?.sheetPresentationController {
-                controller.prefersScrollingExpandsWhenScrolledToEdge = true
-                controller.prefersEdgeAttachedInCompactHeight = true
-                controller.largestUndimmedDetentIdentifier = largestUndimmedDetent
-            }
-            if let controller = parent?.popoverPresentationController?.adaptiveSheetPresentationController {
-                controller.prefersScrollingExpandsWhenScrolledToEdge = true
-                controller.prefersEdgeAttachedInCompactHeight = true
-                controller.largestUndimmedDetentIdentifier = largestUndimmedDetent
-            }
-            // From: https://github.com/igashev/teslawesome-ios/blob/d692fd90f35033453c300740b6afa9d1664c50a1/Teslawesome/Extensions/ViewExtensions.swift#L8
-            if let controller = (UIApplication.shared.connectedScenes.first as? UIWindowScene)?.windows.first?.rootViewController?.presentedViewController?.presentationController as? UISheetPresentationController {
-                controller.prefersScrollingExpandsWhenScrolledToEdge = true
-                controller.prefersEdgeAttachedInCompactHeight = true
-                controller.largestUndimmedDetentIdentifier = largestUndimmedDetent
+            Task { @MainActor in
+                if let controller = parent?.sheetPresentationController {
+                    controller.prefersScrollingExpandsWhenScrolledToEdge = true
+                    controller.prefersEdgeAttachedInCompactHeight = true
+                    controller.largestUndimmedDetentIdentifier = .medium
+                    controller.largestUndimmedDetentIdentifier = largestUndimmedDetent
+                }
+                if let controller = parent?.popoverPresentationController?.adaptiveSheetPresentationController {
+                    controller.prefersScrollingExpandsWhenScrolledToEdge = true
+                    controller.prefersEdgeAttachedInCompactHeight = true
+                    controller.largestUndimmedDetentIdentifier = .medium
+                    controller.largestUndimmedDetentIdentifier = largestUndimmedDetent
+                }
+                // From: https://github.com/igashev/teslawesome-ios/blob/d692fd90f35033453c300740b6afa9d1664c50a1/Teslawesome/Extensions/ViewExtensions.swift#L8
+                if let controller = (UIApplication.shared.connectedScenes.first as? UIWindowScene)?.windows.first?.rootViewController?.presentedViewController?.presentationController as? UISheetPresentationController {
+                    controller.prefersScrollingExpandsWhenScrolledToEdge = true
+                    controller.prefersEdgeAttachedInCompactHeight = true
+                    controller.largestUndimmedDetentIdentifier = .medium
+                    controller.largestUndimmedDetentIdentifier = largestUndimmedDetent
+                }
             }
         }
 

@@ -56,12 +56,13 @@ struct FAQDisclosureGroup: View {
             Text(answer)
                 .font(.body)
                 .foregroundColor(.secondary)
+                .multilineTextAlignment(.leading)
         } label: {
             Text("\(question)")
                 .font(.headline)
                 .bold()
+                .multilineTextAlignment(.leading)
         }
-        .multilineTextAlignment(.leading)
         .onTapGesture(count: 1) {
             withAnimation { isExpanded.toggle() }
         }
