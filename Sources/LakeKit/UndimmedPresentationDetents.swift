@@ -45,19 +45,33 @@ enum UndimmedSheetPresentation {
             update(largestUndimmedDetent: largestUndimmedDetent)
         }
         
+        override func didMove(toParent parent: UIViewController?) {
+            super.didMove(toParent: parent)
+            update(largestUndimmedDetent: largestUndimmedDetent)
+        }
+        
+        override func viewDidAppear(_ animated: Bool) {
+            super.viewDidAppear(animated)
+            update(largestUndimmedDetent: largestUndimmedDetent)
+        }
+        
 //        override func viewDidLayoutSubviews() {
 //            super.viewDidLayoutSubviews()
 //            update(largestUndimmedDetent: largestUndimmedDetent)
 //        }
 
         func update(largestUndimmedDetent: UISheetPresentationController.Detent.Identifier) {
-            print("UPDATE")
             self.largestUndimmedDetent = largestUndimmedDetent
 
             if let controller = parent?.sheetPresentationController {
-                controller.largestUndimmedDetentIdentifier = largestUndimmedDetent
                 controller.prefersScrollingExpandsWhenScrolledToEdge = true
                 controller.prefersEdgeAttachedInCompactHeight = true
+                controller.largestUndimmedDetentIdentifier = largestUndimmedDetent
+            }
+            if let controller = parent?.popoverPresentationController?.adaptiveSheetPresentationController {
+                controller.prefersScrollingExpandsWhenScrolledToEdge = true
+                controller.prefersEdgeAttachedInCompactHeight = true
+                controller.largestUndimmedDetentIdentifier = largestUndimmedDetent
             }
         }
 
