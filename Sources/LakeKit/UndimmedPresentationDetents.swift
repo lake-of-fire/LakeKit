@@ -1,13 +1,14 @@
 #if os(iOS)
 import SwiftUI
 import UIKit
+import Combine
 
 public extension View {
     @available(iOS 16, *)
     @ViewBuilder
-    func largestUndimmedDetent(identifier: UISheetPresentationController.Detent.Identifier, selection: PresentationDetent) -> some View {
+    func largestUndimmedDetent(identifier: UISheetPresentationController.Detent.Identifier, selection: PresentationDetent, needsDetentDimmingRefresh: Binding<Bool> = .constant(false)) -> some View {
 //        let detentIdentifier = UISheetPresentationController.Detent.Identifier(identifier)
-        background(UndimmedSheetPresentation.Representable(largestUndimmedDetent: identifier, selection: selection))
+        background(UndimmedSheetPresentation.Representable(largestUndimmedDetent: identifier, selection: selection, needsDetentDimmingRefresh: needsDetentDimmingRefresh))
     }
 }
 
@@ -16,6 +17,7 @@ enum UndimmedSheetPresentation {
     struct Representable: UIViewControllerRepresentable {
         let largestUndimmedDetent: UISheetPresentationController.Detent.Identifier
         let selection: PresentationDetent
+        @Binding var needsDetentDimmingRefresh: Bool
 
         func makeUIViewController(context: Context) -> Controller {
             return Controller(largestUndimmedDetent: largestUndimmedDetent)
@@ -23,6 +25,11 @@ enum UndimmedSheetPresentation {
 
         func updateUIViewController(_ controller: Controller, context: Context) {
             controller.update(largestUndimmedDetent: largestUndimmedDetent)
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: UInt64(round(0.02 * 1_000_000_000)))
+                controller.update(largestUndimmedDetent: largestUndimmedDetent)
+            }
+            needsDetentDimmingRefresh = false
         }
     }
 
@@ -41,6 +48,11 @@ enum UndimmedSheetPresentation {
             fatalError("init(coder:) has not been implemented")
         }
 
+        override func viewDidLoad() {
+            super.viewDidLoad()
+            update(largestUndimmedDetent: largestUndimmedDetent)
+        }
+        
         override func willMove(toParent parent: UIViewController?) {
             super.willMove(toParent: parent)
             update(largestUndimmedDetent: largestUndimmedDetent)
@@ -61,35 +73,45 @@ enum UndimmedSheetPresentation {
             update(largestUndimmedDetent: largestUndimmedDetent)
         }
         
-//        override func viewDidLayoutSubviews() {
-//            super.viewDidLayoutSubviews()
-//            update(largestUndimmedDetent: largestUndimmedDetent)
-//        }
-
+        override func viewSafeAreaInsetsDidChange() {
+            super.viewSafeAreaInsetsDidChange()
+            update(largestUndimmedDetent: largestUndimmedDetent)
+        }
+        
+        override func viewDidLayoutSubviews() {
+            super.viewDidLayoutSubviews()
+            update(largestUndimmedDetent: largestUndimmedDetent)
+        }
+        
         func update(largestUndimmedDetent: UISheetPresentationController.Detent.Identifier) {
             self.largestUndimmedDetent = largestUndimmedDetent
             
             Task { @MainActor in
                 if let controller = parent?.sheetPresentationController {
-                    controller.prefersScrollingExpandsWhenScrolledToEdge = true
-                    controller.prefersEdgeAttachedInCompactHeight = true
-                    controller.largestUndimmedDetentIdentifier = .medium
-                    controller.largestUndimmedDetentIdentifier = largestUndimmedDetent
+                    apply(largestUndimmedDetent: largestUndimmedDetent, to: controller)
                 }
                 if let controller = parent?.popoverPresentationController?.adaptiveSheetPresentationController {
-                    controller.prefersScrollingExpandsWhenScrolledToEdge = true
-                    controller.prefersEdgeAttachedInCompactHeight = true
-                    controller.largestUndimmedDetentIdentifier = .medium
-                    controller.largestUndimmedDetentIdentifier = largestUndimmedDetent
+                    apply(largestUndimmedDetent: largestUndimmedDetent, to: controller)
                 }
                 // From: https://github.com/igashev/teslawesome-ios/blob/d692fd90f35033453c300740b6afa9d1664c50a1/Teslawesome/Extensions/ViewExtensions.swift#L8
-                if let controller = (UIApplication.shared.connectedScenes.first as? UIWindowScene)?.windows.first?.rootViewController?.presentedViewController?.presentationController as? UISheetPresentationController {
-                    controller.prefersScrollingExpandsWhenScrolledToEdge = true
-                    controller.prefersEdgeAttachedInCompactHeight = true
-                    controller.largestUndimmedDetentIdentifier = .medium
-                    controller.largestUndimmedDetentIdentifier = largestUndimmedDetent
+//                if let controller = (UIApplication.shared.connectedScenes.first as? UIWindowScene)?.windows.first?.rootViewController?.presentedViewController?.presentationController as? UISheetPresentationController {
+//                    apply(largestUndimmedDetent: largestUndimmedDetent, to: controller)
+//                }
+                for scene in (UIApplication.shared.connectedScenes as? [UIWindowScene]) ?? [] {
+                    for window in scene.windows {
+                        if let controller = window.rootViewController?.presentedViewController as? UISheetPresentationController {
+                            apply(largestUndimmedDetent: largestUndimmedDetent, to: controller)
+                        }
+                    }
                 }
             }
+        }
+        
+        func apply(largestUndimmedDetent: UISheetPresentationController.Detent.Identifier, to controller: UISheetPresentationController) {
+            controller.prefersScrollingExpandsWhenScrolledToEdge = true
+            controller.prefersEdgeAttachedInCompactHeight = true
+//            controller.largestUndimmedDetentIdentifier = .large
+            controller.largestUndimmedDetentIdentifier = largestUndimmedDetent
         }
 
         // Not called when changed programmatically

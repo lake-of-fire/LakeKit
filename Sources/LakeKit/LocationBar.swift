@@ -73,7 +73,7 @@ public struct LocationBar: View, Equatable {
             .textFieldStyle(.roundedBorder)
 #else
             .textContentType(.URL)
-            .keyboardType(.URL)
+//            .keyboardType(.URL)
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
             .textFieldStyle(.plain)

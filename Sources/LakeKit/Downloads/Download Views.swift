@@ -123,3 +123,35 @@ public struct ActiveDownloadsList: View {
     public init() {
     }
 }
+
+public struct ActiveDownloadsBox: View {
+    let title: String
+    
+    @ScaledMetric(relativeTo: .body) private var listHeight = 105
+    
+    @AppStorage("ActiveDownloadsBox.isExpanded") private var isExpanded = true
+    
+    public var body: some View {
+        DisclosureGroup(isExpanded: $isExpanded) {
+            HStack(spacing: 0) {
+                Spacer(minLength: 0)
+                ActiveDownloadsList()
+                    .frame(maxHeight: listHeight)
+                Spacer(minLength: 0)
+            }
+        } label: {
+            HStack(spacing: 10) {
+                ProgressView()
+                Text(title)
+                    .font(.headline)
+                    .bold()
+                    .multilineTextAlignment(.leading)
+            }
+        }
+        .padding(.horizontal, 10)
+    }
+    
+    public init(title: String) {
+        self.title = title
+    }
+}
