@@ -53,10 +53,14 @@ struct FAQDisclosureGroup: View {
     
     var body: some View {
         DisclosureGroup(isExpanded: $isExpanded) {
-            Text(answer)
-                .font(.body)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.leading)
+            VStack {
+                Text(answer)
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .fixedSize(horizontal: false, vertical: true)
         } label: {
             Text("\(question)")
                 .font(.headline)
@@ -187,10 +191,10 @@ public struct StoreView: View {
     public var productGridColumns: [GridItem] {
 #if os(iOS)
         if horizontalSizeClass == .compact {
-            return [GridItem(.adaptive(minimum: 200), spacing: 20)]
+            return [GridItem(.adaptive(minimum: 150), spacing: 10)]
         }
 #endif
-        return [GridItem(.adaptive(minimum: 200), spacing: 20), GridItem(.adaptive(minimum: 200), spacing: 20)]
+        return [GridItem(.adaptive(minimum: 180), spacing: 10), GridItem(.adaptive(minimum: 180), spacing: 10)]
     }
     
     var secondaryHorizontalPadding: CGFloat {
@@ -285,14 +289,6 @@ public struct StoreView: View {
                 .font(.callout)
                 .padding(.horizontal, secondaryHorizontalPadding)
                 
-                HStack(spacing: 20) {
-                    Link("Terms of Service", destination: storeViewModel.termsOfService)
-                    Divider()
-                    Link("Privacy Policy", destination: storeViewModel.privacyPolicy)
-                }
-                .font(.footnote)
-                .fixedSize(horizontal: false, vertical: true)
-                
                 GroupBox {
                     VStack(spacing: 12) {
                         HStack {
@@ -308,6 +304,16 @@ public struct StoreView: View {
                     .padding(10)
                 }
                 .padding(.top, 10)
+                
+                HStack(spacing: 20) {
+                    Link("Terms of Service", destination: storeViewModel.termsOfService)
+//                        .frame(maxWidth: .infinity)
+                    Divider()
+                    Link("Privacy Policy", destination: storeViewModel.privacyPolicy)
+//                        .frame(maxWidth: .infinity)
+                }
+                .font(.footnote)
+                .fixedSize(horizontal: false, vertical: true)
                 Spacer()
             }
             .padding([.leading, .trailing, .bottom])
