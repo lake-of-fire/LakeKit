@@ -1,13 +1,15 @@
 import SwiftUI
 
-public struct DismissButtonView: View {
+public struct DismissalButtonLabel: View {
+    var imageSystemName = "xmark"
+    
     @Environment(\.colorScheme) var colorScheme
     
     public var body: some View {
         ZStack {
             Circle()
                 .fill(Color(white: colorScheme == .dark ? 0.19 : 0.93))
-            Image(systemName: "xmark")
+            Image(systemName: imageSystemName)
                 .resizable()
                 .scaledToFit()
                 .font(Font.body.weight(.bold))
@@ -18,5 +20,9 @@ public struct DismissButtonView: View {
         .padding(1)
     }
     
-    public init() { }
+    public init(imageSystemName: String? = nil) {
+        if let imageSystemName = imageSystemName {
+            self.imageSystemName = imageSystemName
+        }
+    }
 }

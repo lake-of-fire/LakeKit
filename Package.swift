@@ -32,7 +32,6 @@ let package = Package(
         .package(url: "https://github.com/dagronf/DSFSearchField.git", branch: "main"),
         .package(url: "https://github.com/siteline/SwiftUI-Introspect.git", branch: "master"),
         .package(url: "https://github.com/elai950/AlertToast.git", branch: "master"),
-        .package(url: "https://github.com/lake-of-fire/SwiftySegmentedPicker.git", branch: "main"),
         .package(url: "https://github.com/lake-of-fire/swiftui-layout-guides.git", branch: "main"),
 //        .package(path: "../swiftui-layout-guides"),
         .package(url: "https://github.com/malcommac/SwiftDate.git", branch: "master"),
@@ -50,6 +49,7 @@ let package = Package(
 //        .package(url: "https://github.com/danielsaidi/SwiftUIKit.git", branch: "master"),
         .package(url: "https://github.com/markrenaud/FilePicker.git", branch: "main"),
         .package(url: "https://github.com/f-meloni/SwiftBrotli.git", branch: "master"),
+//        .package(url: "https://github.com/lake-of-fire/SwiftyMonaco", branch: "main"),
         .package(path: "../PagerTabStripView"),
         .package(path: "../navigation-stack-backport"),
         .package(path: "../VisionLiveText_SwiftUICompatible"),
@@ -77,7 +77,6 @@ let package = Package(
                 .product(name: "Introspect", package: "SwiftUI-Introspect"),
                 .product(name: "BigSyncKit", package: "BigSyncKit"),
                 .product(name: "AlertToast", package: "AlertToast"),
-                .product(name: "SegmentedPicker", package: "SwiftySegmentedPicker"),
                 .product(name: "SwiftUILayoutGuides", package: "swiftui-layout-guides"),
                 .product(name: "SwiftDate", package: "SwiftDate"),
                 .product(name: "Algorithms", package: "swift-algorithms"),
@@ -95,6 +94,7 @@ let package = Package(
                 .product(name: "VisionLiveText_SwiftUICompatible", package: "VisionLiveText_SwiftUICompatible"),
                 .product(name: "FilePicker", package: "FilePicker"),
                 .product(name: "SwiftBrotli", package: "SwiftBrotli"), // Only needed for iOS 15 Brotli (somehow missing in simulator at least)
+//                .product(name: "SwiftyMonaco", package: "SwiftyMonaco"),
             ]
         ),
         .testTarget(
