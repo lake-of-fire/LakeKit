@@ -26,8 +26,8 @@ public class UserScript: Object, UnownedSyncableObject, ObjectKeyIdentifiable, C
     @Persisted public var script = ""
     @Persisted public var allowedDomains = RealmSwift.List<UserScriptAllowedDomain>()
     
-    @Persisted public var injectAtStart = false
-    @Persisted public var mainFrameOnly = false
+    @Persisted public var injectAtStart = true
+    @Persisted public var mainFrameOnly = true
     @Persisted public var sandboxed = false
     
     @Persisted public var previewURL: URL?
