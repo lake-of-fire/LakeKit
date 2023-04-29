@@ -71,7 +71,7 @@ public struct DownloadProgress: View {
                 } else {
                     ProgressView()
                         .progressViewStyle(.circular)
-                        .scaleEffect(0.5, anchor: .center)
+                        .scaleEffect(0.75, anchor: .center)
                 }
             }
             VStack(alignment: .leading, spacing: 2) {
@@ -142,6 +142,7 @@ public struct ActiveDownloadsBox: View {
         } label: {
             HStack(spacing: 10) {
                 ProgressView()
+                    .scaleEffect(0.75, anchor: .center)
                 Text(title)
                     .font(.headline)
                     .bold()

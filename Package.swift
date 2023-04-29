@@ -50,6 +50,7 @@ let package = Package(
         .package(url: "https://github.com/markrenaud/FilePicker.git", branch: "main"),
         .package(url: "https://github.com/f-meloni/SwiftBrotli.git", branch: "master"),
 //        .package(url: "https://github.com/lake-of-fire/SwiftyMonaco", branch: "main"),
+        .package(url: "https://github.com/lake-of-fire/TranslucentWindowStyle.git", branch: "main"),
         .package(path: "../PagerTabStripView"),
         .package(path: "../navigation-stack-backport"),
         .package(path: "../VisionLiveText_SwiftUICompatible"),
@@ -88,13 +89,14 @@ let package = Package(
 //                .product(name: "FrameUp", package: "FrameUp"),
 //                .product(name: "Flow", package: "SwiftUI-Flow"),
                 .product(name: "PureSwiftUI", package: "pure-swift-ui"),
-//                .product(name: "SwiftUIKit", package: "SwiftUIKit"),
+                //                .product(name: "SwiftUIKit", package: "SwiftUIKit"),
                 .product(name: "PagerTabStripView", package: "PagerTabStripView"),
                 .product(name: "NavigationStackBackport", package: "navigation-stack-backport"),
                 .product(name: "VisionLiveText_SwiftUICompatible", package: "VisionLiveText_SwiftUICompatible"),
                 .product(name: "FilePicker", package: "FilePicker"),
                 .product(name: "SwiftBrotli", package: "SwiftBrotli"), // Only needed for iOS 15 Brotli (somehow missing in simulator at least)
-//                .product(name: "SwiftyMonaco", package: "SwiftyMonaco"),
+                //                .product(name: "SwiftyMonaco", package: "SwiftyMonaco"),
+                .product(name: "TranslucentWindowStyle", package: "TranslucentWindowStyle"),
             ]
         ),
         .testTarget(

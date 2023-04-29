@@ -65,7 +65,7 @@ public struct StorePrompt: View {
             }
             .multilineTextAlignment(.center)
             .frame(maxWidth: maxWidth)
-            .padding(15)
+            .padding(8)
         }
         .fixedSize(horizontal: false, vertical: true)
         .background(.ultraThinMaterial)

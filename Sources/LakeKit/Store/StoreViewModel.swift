@@ -47,6 +47,13 @@ public class StoreViewModel: NSObject, ObservableObject {
                 isSubscribed = true
                 return
             }
+//            for product in (storeHelper.subscriptionProducts ?? []) {
+//                if let groupName = storeHelper.subscriptionHelper.groupName(from: product.id), let state = await storeHelper.subscriptionHelper.subscriptionInfo(for: groupName)?.subscriptionStatus?.state {
+//                    print(state)
+//                    isSubscribed = state == .inBillingRetryPeriod || state == .inGracePeriod || state == .subscribed
+//                }
+//            }
+//            isSubscribed = false
             guard let group = await storeHelper.subscriptionHelper.groupSubscriptionInfo()?.first, let groupID = group.subscriptionGroup, let subscriptionState = await storeHelper.subscriptionHelper.subscriptionInfo(for: groupID)?.subscriptionStatus?.state else {
                 isSubscribed = false
                 return
