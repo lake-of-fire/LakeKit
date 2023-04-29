@@ -97,7 +97,6 @@ public struct StorePromptOverlayModifier: ViewModifier {
                     $0.scrollDisabled(isPresented)
                 } else { $0 }
             }
-        
             .overlay {
                 if isPresented {
                     LinearGradient(
@@ -119,10 +118,12 @@ public struct StorePromptOverlayModifier: ViewModifier {
                 }
             }
             .overlay(alignment: .center) {
-                StorePrompt(storeViewModel: storeViewModel, isPresented: $isStoreSheetPresented, headlineText: headlineText, bodyText: bodyText, storeButtonText: storeButtonText, alternativeButtonText: alternativeButtonText, alternativeButtonAction: alternativeButtonAction, toDismissFirst: toDismissFirst ?? .constant(false))
-                    .groupBoxShadow(cornerRadius: 12)
-                    .padding([.leading, .trailing])
-                    .padding([.leading, .trailing])
+                if isPresented {
+                    StorePrompt(storeViewModel: storeViewModel, isPresented: $isStoreSheetPresented, headlineText: headlineText, bodyText: bodyText, storeButtonText: storeButtonText, alternativeButtonText: alternativeButtonText, alternativeButtonAction: alternativeButtonAction, toDismissFirst: toDismissFirst ?? .constant(false))
+                        .groupBoxShadow(cornerRadius: 12)
+                        .padding([.leading, .trailing])
+                        .padding([.leading, .trailing])
+                }
             }
             .modifier {
                 if presentsStoreSheet {

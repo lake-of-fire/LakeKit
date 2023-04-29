@@ -18,7 +18,7 @@ public struct StoreSheetModifier: ViewModifier {
             .sheet(isPresented: $isPresented) {
 #if os(iOS)
                 NavigationView {
-                    StoreView(storeViewModel: storeViewModel)
+                    StoreView(isPresented: $isPresented, storeViewModel: storeViewModel)
                         .toolbar {
                             ToolbarItem(placement: .cancellationAction) {
                                 Button("Cancel", role: .cancel) {
@@ -30,7 +30,7 @@ public struct StoreSheetModifier: ViewModifier {
                 }
                 .navigationViewStyle(.stack)
 #else
-                StoreView(storeViewModel: storeViewModel)
+                StoreView(isPresented: $isPresented, storeViewModel: storeViewModel)
                     .padding(.top, 10)
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) {
@@ -175,6 +175,7 @@ public struct StoreProduct: Identifiable {
 }
 
 public struct StoreView: View {
+    @Binding public var isPresented: Bool
     @ObservedObject public var storeViewModel: StoreViewModel
     
     @ScaledMetric(relativeTo: .title2) private var storeWidth = 666
@@ -319,9 +320,17 @@ public struct StoreView: View {
             .padding([.leading, .trailing, .bottom])
             .frame(idealWidth: storeWidth, minHeight: storeHeight)
         }
+        .onChange(of: storeViewModel.isSubscribed) { isSubscribed in
+            Task { @MainActor in
+                if isSubscribed {
+                    isPresented = false
+                }
+            }
+        }
     }
     
-    public init(storeViewModel: StoreViewModel) {
+    public init(isPresented: Binding<Bool>, storeViewModel: StoreViewModel) {
+        _isPresented = isPresented
         self.storeViewModel = storeViewModel
     }
     
