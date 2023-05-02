@@ -54,6 +54,7 @@ let package = Package(
         .package(url: "https://github.com/lake-of-fire/TranslucentWindowStyle.git", branch: "main"),
         .package(url: "https://github.com/will-lumley/FaviconFinder.git", branch: "main"),
         .package(url: "https://github.com/nicklockwood/LRUCache.git", branch: "main"),
+        .package(url: "https://github.com/Tunous/DebouncedOnChange.git", branch: "main"),
         .package(path: "../PagerTabStripView"),
         .package(path: "../navigation-stack-backport"),
         .package(path: "../VisionLiveText_SwiftUICompatible"),
@@ -102,6 +103,7 @@ let package = Package(
                 .product(name: "TranslucentWindowStyle", package: "TranslucentWindowStyle"),
                 .product(name: "FaviconFinder", package: "FaviconFinder"),
                 .product(name: "LRUCache", package: "LRUCache"),
+                .product(name: "DebouncedOnChange", package: "DebouncedOnChange"),
             ]
         ),
         .testTarget(
