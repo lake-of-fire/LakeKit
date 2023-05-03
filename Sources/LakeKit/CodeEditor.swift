@@ -5,6 +5,9 @@ public struct CodeEditor: View {
     @Binding var text: String
     
     public var body: some View {
+#if os(iOS)
+        TextEditor(text: $text)
+#else
         SwiftyMonaco(text: $text)
             .syntaxHighlight(SyntaxHighlight(title: "JavaScript", configuration: #"""
 // Difficulty: "Moderate"
@@ -176,6 +179,7 @@ return {
     },
 };
 """#))
+#endif
     }
     
     public init(text: Binding<String>) {
