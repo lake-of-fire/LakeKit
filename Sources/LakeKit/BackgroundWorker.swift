@@ -7,6 +7,10 @@ open class BackgroundWorker: NSObject, ObservableObject {
     
     @objc internal func runBlock() { block() }
     
+    deinit {
+        stop()
+    }
+    
     public func start(_ block: @escaping () -> Void) {
         self.block = block
         

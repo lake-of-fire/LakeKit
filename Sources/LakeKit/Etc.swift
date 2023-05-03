@@ -60,10 +60,12 @@ public struct LakeImage: View {
             } else if state.error != nil {
                 Color.gray // Indicates an error
 //                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                    .fixedSize()
             } else {
 //                ProgressView()
                 Color.gray
                     .brightness(0.1)
+                    .fixedSize()
             }
         }
         .priority(.high)
