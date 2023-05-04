@@ -58,14 +58,16 @@ public struct LakeImage: View {
             if let image = state.image {
                 image.resizable().aspectRatio(contentMode: .fit)
             } else if state.error != nil {
-                Color.gray // Indicates an error
+                Color.clear
+//                Color.gray // Indicates an error
 //                    .clipShape(RoundedRectangle(cornerRadius: 4))
-                    .fixedSize()
             } else {
-//                ProgressView()
+//                ZStack {
+//                    ProgressView()
+//                        .scaleEffect(0.5)
+//                }
                 Color.gray
-                    .brightness(0.1)
-                    .fixedSize()
+//                    .brightness(0.1)
             }
         }
         .priority(.high)
