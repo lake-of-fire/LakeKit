@@ -42,7 +42,7 @@ public class UserScript: Object, UnownedSyncableObject, ObjectKeyIdentifiable, C
     @Persisted public var isDeleted = false
     
     public var webViewUserScript: WebViewUserScript {
-        return WebViewUserScript(webKitUserScript: WKUserScript(source: script, injectionTime: injectAtStart ? .atDocumentStart : .atDocumentEnd, forMainFrameOnly: mainFrameOnly, in: WKContentWorld.world(name: id.uuidString)), allowedDomains: Set(allowedDomains.where({ $0.isDeleted == false }).map({ $0.domain })))
+        return WebViewUserScript(source: script, injectionTime: injectAtStart ? .atDocumentStart : .atDocumentEnd, forMainFrameOnly: mainFrameOnly, in: WKContentWorld.world(name: id.uuidString), allowedDomains: Set(allowedDomains.where({ $0.isDeleted == false }).map({ $0.domain })))
     }
     
     
