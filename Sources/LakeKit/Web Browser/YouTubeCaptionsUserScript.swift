@@ -2,7 +2,7 @@ import Foundation
 import SwiftUIWebView
 import WebKit
 
-public struct YouTubeCaptionsUserScript {
+public struct YoutubeCaptionsUserScript {
     public static let userScript = WebViewUserScript(source: script, injectionTime: .atDocumentStart, forMainFrameOnly: false, in: .page, allowedDomains: Set(["youtube.com"]))
     
     // From: https://github.com/1c7/Youtube-Auto-Subtitle-Download/blob/master/Youtube 下载自动字幕的字词级文件/Tampermonkey.js

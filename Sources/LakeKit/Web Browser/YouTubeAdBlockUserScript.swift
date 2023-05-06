@@ -2,7 +2,7 @@ import Foundation
 import SwiftUIWebView
 import WebKit
 
-public struct YouTubeAdBlockUserScript {
+public struct YoutubeAdBlockUserScript {
     public static let userScript = WebViewUserScript(source: script, injectionTime: .atDocumentStart, forMainFrameOnly: false, in: .page, allowedDomains: Set(["youtube.com"]))
     
     // From: https://gist.github.com/K-mikaZ/c5dfd575b71f2ae6535013103d74c2f7
