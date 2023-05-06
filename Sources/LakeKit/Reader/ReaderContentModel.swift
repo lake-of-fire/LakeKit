@@ -84,6 +84,21 @@ public extension String {
     }
 }
 
+extension String {
+    // From: https://gist.github.com/hashaam/31f51d4044a03473c18a168f4999f063
+    public func removingHTMLTags() -> String? {
+        guard let htmlStringData = self.data(using: String.Encoding.utf8) else {
+            return nil
+        }
+        let options: [NSAttributedString.DocumentReadingOptionKey : Any] = [
+            .documentType: NSAttributedString.DocumentType.html,
+            .characterEncoding: String.Encoding.utf8.rawValue
+        ]
+        let attributedString = try? NSAttributedString(data: htmlStringData, options: options, documentAttributes: nil)
+        return attributedString?.string
+    }
+}
+
 public extension ReaderContentModel {
     var humanReadablePublicationDate: String? {
         guard let publicationDate = publicationDate else { return nil}
@@ -108,7 +123,7 @@ public extension ReaderContentModel {
         return "\(intervalText) ago"
     }
     
-    public static func contentToHTML(legacyHTMLContent: String? = nil, content: Data?) -> String? {
+    static func contentToHTML(legacyHTMLContent: String? = nil, content: Data?) -> String? {
         if let legacyHtml = legacyHTMLContent {
             return legacyHtml
         }
@@ -134,7 +149,7 @@ public extension ReaderContentModel {
     var titleForDisplay: String {
         get {
             if !title.isEmpty {
-                return title
+                return title.removingHTMLTags() ?? title
             }
             
             guard let htmlData = html?.data(using: .utf8) else { return "" }

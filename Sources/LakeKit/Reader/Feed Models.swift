@@ -79,6 +79,36 @@ public class Feed: Object, UnownedSyncableObject, ObjectKeyIdentifiable, Codable
     public var isUserEditable: Bool {
         return category?.opmlURL == nil
     }
+    
+        public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(title, forKey: .title)
+        try container.encode(markdownDescription, forKey: .markdownDescription)
+        try container.encode(rssUrl, forKey: .rssUrl)
+        try container.encode(isReaderModeByDefault, forKey: .isReaderModeByDefault)
+        try container.encode(injectEntryImageIntoHeader, forKey: .injectEntryImageIntoHeader)
+        try container.encode(displayPublicationDate, forKey: .displayPublicationDate)
+        try container.encode(meaningfulContentMinLength, forKey: .meaningfulContentMinLength)
+        try container.encode(modifiedAt, forKey: .modifiedAt)
+    }
+    
+    public override init() {
+        super.init()
+    }
+    
+    required public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try container.decode(UUID.self, forKey: .id)
+        self.title = try container.decode(String.self, forKey: .title)
+        self.markdownDescription = try container.decode(String.self, forKey: .markdownDescription)
+        self.rssUrl = try container.decode(URL.self, forKey: .rssUrl)
+        self.isReaderModeByDefault = try container.decode(Bool.self, forKey: .isReaderModeByDefault)
+        self.injectEntryImageIntoHeader = try container.decode(Bool.self, forKey: .injectEntryImageIntoHeader)
+        self.displayPublicationDate = try container.decode(Bool.self, forKey: .displayPublicationDate)
+        self.meaningfulContentMinLength = try container.decode(Int.self, forKey: .meaningfulContentMinLength)
+        self.modifiedAt = try container.decode(Date.self, forKey: .modifiedAt)
+    }
 }
 
 public class FeedEntry: Object, ObjectKeyIdentifiable, ReaderContentModel {
