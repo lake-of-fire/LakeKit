@@ -106,7 +106,7 @@ let package = Package(
                 .product(name: "VisionLiveText_SwiftUICompatible", package: "VisionLiveText_SwiftUICompatible"),
                 .product(name: "FilePicker", package: "FilePicker"),
                 .product(name: "SwiftBrotli", package: "SwiftBrotli"), // Only needed for iOS 15 Brotli (somehow missing in simulator at least)
-                                .product(name: "SwiftyMonaco", package: "SwiftyMonaco"),
+                .product(name: "SwiftyMonaco", package: "SwiftyMonaco"),
                 .product(name: "TranslucentWindowStyle", package: "TranslucentWindowStyle"),
                 .product(name: "FaviconFinder", package: "FaviconFinder"),
                 .product(name: "LRUCache", package: "LRUCache"),

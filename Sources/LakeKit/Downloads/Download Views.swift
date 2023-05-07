@@ -17,7 +17,7 @@ public struct DownloadProgress: View {
             }
             return str
         case .waitingForResponse:
-            return "Waiting for response from server..."
+            return "Waiting for response from server…"
         case .completed(let destinationLocation, let error):
             if let error = error {
                 return "Error: \(error.localizedDescription)"
@@ -25,7 +25,7 @@ public struct DownloadProgress: View {
                 if download.isFinishedProcessing {
                     return "Finished"
                 } else {
-                    return "Installing..."
+                    return "Installing…"
                 }
             }
         default:
