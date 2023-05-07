@@ -4,11 +4,15 @@ import SwiftyMonaco
 public struct CodeEditor: View {
     @Binding var text: String
     
+    @ScaledMetric(relativeTo: .body) private var fontSize = 10
+    
     public var body: some View {
 #if os(iOS)
         TextEditor(text: $text)
 #else
         SwiftyMonaco(text: $text)
+            .minimap(false)
+            .fontSize(Int(fontSize))
             .syntaxHighlight(SyntaxHighlight(title: "JavaScript", configuration: #"""
 // Difficulty: "Moderate"
 // This is the JavaScript tokenizer that is actually used to highlight
