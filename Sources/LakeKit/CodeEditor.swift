@@ -5,6 +5,7 @@ public struct CodeEditor: View {
     @Binding var text: String
     
     @ScaledMetric(relativeTo: .body) private var fontSize = 10
+    @AppStorage("LibraryScriptFormSections.isPreviewReaderMode") private var isWordWrapping = true
     
     public var body: some View {
 #if os(iOS)
@@ -12,8 +13,22 @@ public struct CodeEditor: View {
 #else
         SwiftyMonaco(text: $text)
             .minimap(false)
+            .wordWrap(isWordWrapping)
             .fontSize(Int(fontSize))
-            .syntaxHighlight(SyntaxHighlight(title: "JavaScript", configuration: #"""
+            .syntaxHighlight(SyntaxHighlight(title: "JavaScript", configuration: javascriptHighlighting))
+        HStack(spacing: 0) {
+            Spacer(minLength: 0)
+            Toggle("Word Wrap", isOn: $isWordWrapping)
+        }
+#endif
+    }
+    
+    public init(text: Binding<String>) {
+        _text = text
+    }
+}
+
+fileprivate let javascriptHighlighting = #"""
 // Difficulty: "Moderate"
 // This is the JavaScript tokenizer that is actually used to highlight
 // all code in the syntax definition editor and the documentation!
@@ -182,11 +197,4 @@ return {
         ],
     },
 };
-"""#))
-#endif
-    }
-    
-    public init(text: Binding<String>) {
-        _text = text
-    }
-}
+"""#
