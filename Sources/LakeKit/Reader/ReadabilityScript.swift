@@ -31,7 +31,7 @@ public struct Readability {
             readabilityImagesJS = try loadFile(name: "readability_images", type: "js")
             readabilityImagesJS = try loadFile(name: "readability_view_original", type: "js")
         } catch {
-            fatalError("Couldn't load Readability scripts")
+            fatalError("Couldn't load Readability scripts. \(error)")
         }
         let scripts = readabilityImagesJS + additionalJS
 //        let regex = try! NSRegularExpression(pattern: "(\\|`|[$])", options: [])

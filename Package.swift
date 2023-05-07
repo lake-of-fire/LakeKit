@@ -112,6 +112,19 @@ let package = Package(
                 .product(name: "LRUCache", package: "LRUCache"),
                 .product(name: "DebouncedOnChange", package: "DebouncedOnChange"),
                 .product(name: "OpenGraph", package: "OpenGraph"),
+            ],
+            resources: [
+//                .copy("Resources/CSS/Reader.css"),
+//                .process("Resources/CSS/"),
+//                .process("Resources/JS/"),
+//                .copy("Resources/JS/Readability/"),
+//                .copy("Resources/CSS/manabi_panel.css"),
+//                .copy("Resources/CSS/manabi_readability.css"),
+//                .copy("Resources/JS/manabi_panel.js"),
+//                .copy("Resources/JS/manabi_reader.js"),
+//                .copy("Resources/JS/popper.min.js"),
+//                .copy("Resources/JS/tippy_css_loader.js"),
+//                .copy("Resources/JS/tippy.umd.min.js"),
             ]
         ),
         .testTarget(
