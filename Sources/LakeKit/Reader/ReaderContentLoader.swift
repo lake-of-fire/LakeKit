@@ -31,21 +31,25 @@ public struct ReaderContentLoader {
             .filter("url == %@", url.absoluteString)
             .first
         let candidates: [any ReaderContentModel] = [bookmark, history, feed].compactMap { $0 }
-        
-        if let match = candidates.max(by: { $0.createdAt < $1.createdAt }) {
-            return match
+        var match = candidates.max(by: { $0.createdAt < $1.createdAt })
+        if match == nil {
+            let historyRecord = HistoryRecord()
+            historyRecord.url = url
+            //        historyRecord.isReaderModeByDefault
+            historyRecord.updateCompoundKey()
+            if persist {
+                try! realm.write {
+                    realm.add(historyRecord, update: .modified)
+                }
+            }
+            match = historyRecord
         }
-        
-        let historyRecord = HistoryRecord()
-        historyRecord.url = url
-//        historyRecord.isReaderModeByDefault
-        historyRecord.updateCompoundKey()
-        if persist {
-            try! realm.write {
-                realm.add(historyRecord, update: .modified)
+        if let match = match, url.isFileURL, url.contains(.plainText), let contents = try? String(contentsOf: url), let data = textToHTML(contents, forceRaw: true).readerContentData {
+            safeWrite(match) { _, match in
+                match.content = data
             }
         }
-        return historyRecord
+        return match
     }
     
     public static func load(urlString: String, realmConfiguration: Realm.Configuration) -> (any ReaderContentModel)? {
