@@ -105,7 +105,7 @@ extension URLResourceDownloadTask: URLSessionDownloadDelegate {
         } else {
             do {
                 try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
-                try FileManager.default.moveItem(at: location, to: destination)
+                _ = try FileManager.default.replaceItemAt(destination, withItemAt: location)
             } catch {
                 print("Error moving: \(error)")
             }

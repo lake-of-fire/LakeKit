@@ -125,7 +125,8 @@ public class Downloadable: ObservableObject, Identifiable, Hashable {
 public extension Downloadable {
     convenience init?(name: String, groupIdentifier: String, parentDirectoryName: String, filename: String? = nil, downloadMirrors: [URL]) {
         guard let url = downloadMirrors.first else { return nil }
-        let filename = filename ?? url.absoluteString.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed) ?? url.lastPathComponent
+//        let filename = filename ?? url.lastPathComponent.absoluteString.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed) ?? url.lastPathComponent
+        let filename = filename ?? url.lastPathComponent
         guard let sharedContainerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: groupIdentifier) else { return nil }
 
         let folderURL = sharedContainerURL
@@ -168,8 +169,6 @@ public class DownloadController: NSObject, ObservableObject {
     
     public override init() {
         super.init()
-        
-        
     }
 }
 
@@ -177,32 +176,32 @@ public extension DownloadController {
     @MainActor
     func ensureDownloaded(_ downloads: Set<Downloadable>) {
         for download in downloads {
-            assuredDownloads.insert(download)
+            ensureDownloaded(download: download)
         }
-        ensureDownloaded()
     }
 }
 
 extension DownloadController {
-    func ensureDownloaded() {
-        for download in assuredDownloads {
-            Task.detached { [weak self] in
-                if download.existsLocally() {
-                    self?.finishDownload(download)
-                    self?.checkFileModifiedAt(download: download) { [weak self] modified, _ in
-                        if modified {
-                            Task { @MainActor [weak self] in
-                                self?.download(download)
-                            }
+    func ensureDownloaded(download: Downloadable) {
+        //        for download in assuredDownloads {
+        assuredDownloads.insert(download)
+        Task.detached { [weak self] in
+            if download.existsLocally() {
+                self?.finishDownload(download)
+                self?.checkFileModifiedAt(download: download) { [weak self] modified, _ in
+                    if modified {
+                        Task { @MainActor [weak self] in
+                            self?.download(download)
                         }
                     }
-                } else {
-                    Task { @MainActor [weak self] in
-                        self?.download(download)
-                    }
+                }
+            } else {
+                Task { @MainActor [weak self] in
+                    self?.download(download)
                 }
             }
         }
+        //        }
     }
     
     @MainActor
@@ -216,9 +215,9 @@ extension DownloadController {
         }.store(in: &cancellables)
         download.$isFailed.removeDuplicates().receive(on: DispatchQueue.main).sink { [weak self] isFailed in
             if isFailed {
+                self?.finishedDownloads.remove(download)
                 self?.failedDownloads.insert(download)
                 self?.activeDownloads.remove(download)
-                self?.finishedDownloads.remove(download)
             } else {
                 self?.failedDownloads.remove(download)
             }
@@ -226,10 +225,9 @@ extension DownloadController {
         download.$isFinishedDownloading.removeDuplicates().receive(on: DispatchQueue.main).sink { [weak self, weak download] isFinishedDownloading in
             if isFinishedDownloading {
                 if let download = download {
+                    self?.failedDownloads.remove(download)
                     self?.finishedDownloads.insert(download)
                     self?.activeDownloads.remove(download)
-                    self?.failedDownloads.remove(download)
-                    download.lastDownloaded = Date()
                 }
                 if !(download?.isFromBackgroundAssetsDownloader ?? true) {
                     Task { @MainActor [weak self] in
@@ -241,10 +239,8 @@ extension DownloadController {
                         self?.finishDownload(download)
                     }
                 }
-            } else {
-                if let download = download {
-                    self?.finishedDownloads.remove(download)
-                }
+            } else if let download = download {
+                self?.finishedDownloads.remove(download)
             }
         }.store(in: &cancellables)
 
@@ -346,12 +342,10 @@ extension DownloadController {
                 completion(false, nil)
                 return
             }
-            
             if modifiedDate > download.lastDownloaded ?? Date(timeIntervalSince1970: 0) {
                 completion(true, modifiedDate)
                 return
             }
-            
             completion(false, nil)
         }).resume()
     }

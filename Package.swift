@@ -59,6 +59,8 @@ let package = Package(
         .package(url: "https://github.com/Tunous/DebouncedOnChange.git", branch: "main"),
         .package(url: "https://github.com/satoshi-takano/OpenGraph.git", branch: "main"),
         .package(url: "https://github.com/scinfu/SwiftSoup.git", branch: "master"),
+        .package(url: "https://github.com/nmdias/FeedKit.git", branch: "master"),
+        .package(url: "https://github.com/lake-of-fire/opml", branch: "master"),
         .package(path: "../PagerTabStripView"),
         .package(path: "../navigation-stack-backport"),
         .package(path: "../VisionLiveText_SwiftUICompatible"),
@@ -112,6 +114,8 @@ let package = Package(
                 .product(name: "LRUCache", package: "LRUCache"),
                 .product(name: "DebouncedOnChange", package: "DebouncedOnChange"),
                 .product(name: "OpenGraph", package: "OpenGraph"),
+                .product(name: "OPML", package: "OPML"),
+                .product(name: "FeedKit", package: "FeedKit"),
             ],
             resources: [
 //                .copy("Resources/CSS/Reader.css"),
