@@ -1,4 +1,4 @@
-// swift-tools-version: 5.6
+// swift-tools-version: 5.7
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -50,7 +50,7 @@ let package = Package(
 //        .package(path: "../SwiftUI-Flow"),
         .package(url: "https://github.com/CodeSlicing/pure-swift-ui.git", branch: "develop"),
 //        .package(url: "https://github.com/danielsaidi/SwiftUIKit.git", branch: "master"),
-        .package(url: "https://github.com/markrenaud/FilePicker.git", branch: "main"),
+        .package(url: "https://github.com/lake-of-fire/FilePicker.git", branch: "main"),
         .package(url: "https://github.com/f-meloni/SwiftBrotli.git", branch: "master"),
         .package(url: "https://github.com/lake-of-fire/SwiftyMonaco", branch: "main"),
         .package(url: "https://github.com/lake-of-fire/TranslucentWindowStyle.git", branch: "main"),
