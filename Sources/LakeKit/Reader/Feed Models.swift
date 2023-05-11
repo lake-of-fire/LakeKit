@@ -49,8 +49,6 @@ public class Feed: Object, UnownedSyncableObject, ObjectKeyIdentifiable, Codable
     @Persisted public var iconUrl: URL
     @Persisted public var modifiedAt: Date
     
-    @Persisted public var preReadabilityUserScript = ""
-    
     @Persisted public var isReaderModeByDefault = true
     @Persisted public var rssContainsFullContent = false
     @Persisted public var injectEntryImageIntoHeader = false
@@ -73,7 +71,9 @@ public class Feed: Object, UnownedSyncableObject, ObjectKeyIdentifiable, Codable
         case injectEntryImageIntoHeader = "inject_entry_image_into_header"
         case displayPublicationDate = "display_publication_date"
         case meaningfulContentMinLength = "meaningful_content_min_length"
+        case extractImageFromContent = "extract_image_from_content"
         case modifiedAt = "modified_at"
+        case isArchived = "is_archived"
     }
     
     public var isUserEditable: Bool {
