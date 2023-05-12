@@ -22,6 +22,8 @@ import NukeUI
 
 public struct LakeImage: View {
     let url: URL
+    var maxWidth: CGFloat? = nil
+    var maxHeight: CGFloat? = nil
     
     private var cleanURL: URL {
         if let webURL = WebURL(url), let url = URL(webURL) {
@@ -31,7 +33,7 @@ public struct LakeImage: View {
     }
     
     private let imagePipeline = ImagePipeline(configuration: .withDataCache)
-
+    
     public var body: some View {
         //        AsyncImage(url: url) { image in
         //           image
@@ -56,7 +58,10 @@ public struct LakeImage: View {
         
         LazyImage(url: cleanURL) { state in
             if let image = state.image {
-                image.resizable().aspectRatio(contentMode: .fit)
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(maxWidth: maxWidth, maxHeight: maxHeight)
             } else if state.error != nil {
                 Color.clear
 //                Color.gray // Indicates an error
@@ -72,9 +77,12 @@ public struct LakeImage: View {
         }
         .priority(.high)
         .pipeline(imagePipeline)
+        .frame(maxWidth: maxWidth, maxHeight: maxHeight)
     }
     
-    public init(_ url: URL) {
+    public init(_ url: URL, maxWidth: CGFloat? = nil, maxHeight: CGFloat? = nil) {
         self.url = url
+        self.maxWidth = maxWidth
+        self.maxHeight = maxHeight
     }
   }
