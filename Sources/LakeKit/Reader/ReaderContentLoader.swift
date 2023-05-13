@@ -31,7 +31,7 @@ public struct ReaderContentLoader {
             .filter("url == %@", url.absoluteString)
             .first
         let candidates: [any ReaderContentModel] = [bookmark, history, feed].compactMap { $0 }
-        var match = candidates.max(by: { $0.createdAt < $1.createdAt })
+        var match = candidates.max(by: { $0.createdAt > $1.createdAt })
         if match == nil {
             let historyRecord = HistoryRecord()
             historyRecord.url = url

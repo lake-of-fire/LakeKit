@@ -125,6 +125,7 @@ public class FeedEntry: Object, ObjectKeyIdentifiable, ReaderContentModel {
     @Persisted public var publicationDate: Date?
     @Persisted public var isFromClipboard = false
     @Persisted public var content: Data?
+//    @Persisted public var readerModeAvailabilityOverride: Bool? = nil
     
     public var htmlToDisplay: String? {
         if rssContainsFullContent {
@@ -175,6 +176,7 @@ public class FeedEntry: Object, ObjectKeyIdentifiable, ReaderContentModel {
     
     // Feed options.
     public var isReaderModeByDefault: Bool {
+//        get { readerModeAvailabilityOverride ?? feed?.isReaderModeByDefault ?? true }
         get { feed?.isReaderModeByDefault ?? true }
         set { }
     }
