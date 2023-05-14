@@ -1,4 +1,5 @@
 import SwiftUI
+import StoreHelper
 
 public extension View {
     func storePromptOverlay(storeViewModel: StoreViewModel, isStoreSheetPresented: Binding<Bool>, headlineText: String, bodyText: String, storeButtonText: String, alternativeButtonText: String? = nil, alternativeButtonAction: (() -> Void)? = nil, toDismissFirst: Binding<Bool>? = nil) -> some View {
@@ -85,9 +86,10 @@ public struct StorePromptOverlayModifier: ViewModifier {
     public let presentsStoreSheet: Bool = true
     
     @Environment(\.colorScheme) private var colorScheme
-    
+    @EnvironmentObject private var storeHelper: StoreHelper
+ 
     private var isPresented: Bool {
-        return !storeViewModel.isSubscribed
+        return !storeViewModel.isSubscribed && storeHelper.hasStarted
     }
     
     public func body(content: Content) -> some View {
