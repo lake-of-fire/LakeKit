@@ -306,6 +306,17 @@ public struct StoreView: View {
                 }
                 .padding(.top, 10)
                 
+                if let chatURL = storeViewModel.chatURL {
+                    GroupBox("Got A Question? Need Help?") {
+                        HStack {
+                            Spacer()
+                            Link(destination: chatURL) { Label("Chat With Team", systemImage: "message.circle") }
+                                .font(.headline)
+                            Spacer()
+                        }
+                    }
+                }
+                
                 HStack(spacing: 20) {
                     Link("Terms of Service", destination: storeViewModel.termsOfService)
 //                        .frame(maxWidth: .infinity)

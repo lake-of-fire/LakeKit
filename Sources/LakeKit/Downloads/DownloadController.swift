@@ -353,6 +353,7 @@ extension DownloadController {
 
 @available(macOS 13.0, iOS 16.1, *)
 extension DownloadController: BADownloadManagerDelegate {
+    @MainActor
     public func download(_ download: BADownload, didWriteBytes bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite totalExpectedBytes: Int64) {
         guard let downloadable = assuredDownloads.downloadable(forDownload: download) else { return }
         let progress = Progress(totalUnitCount: totalExpectedBytes)
@@ -370,6 +371,7 @@ extension DownloadController: BADownloadManagerDelegate {
         }
     }
     
+    @MainActor
     public func downloadDidBegin(_ download: BADownload) {
         guard let downloadable = assuredDownloads.downloadable(forDownload: download) else { return }
         downloadable.downloadProgress = .downloading(progress: Progress())
@@ -379,6 +381,7 @@ extension DownloadController: BADownloadManagerDelegate {
         activeDownloads.insert(downloadable)
     }
     
+    @MainActor
     public func download(_ download: BADownload, finishedWithFileURL fileURL: URL) {
         BADownloadManager.shared.withExclusiveControl { [weak self] acquiredLock, error in
             guard acquiredLock, error == nil else { return }
@@ -399,6 +402,7 @@ extension DownloadController: BADownloadManagerDelegate {
         }
     }
     
+    @MainActor
     public func download(_ download: BADownload, failedWithError error: Error) {
         do {
             if let downloadable = assuredDownloads.downloadable(forDownload: download) {
@@ -410,7 +414,6 @@ extension DownloadController: BADownloadManagerDelegate {
             try BADownloadManager.shared.startForegroundDownload(download)
         } catch { }
     }
-    
 }
 
 @available(macOS 13.0, iOS 16.1, *)

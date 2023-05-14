@@ -19,9 +19,10 @@ public class StoreViewModel: NSObject, ObservableObject {
     @Published public var benefits: [String]
     @Published public var termsOfService: URL
     @Published public var privacyPolicy: URL
+    @Published public var chatURL: URL? = nil
     @Published public var faq = OrderedDictionary<String, String>()
     
-    public init(satisfyingPrerequisite: @escaping () async -> Bool = { true }, products: [StoreProduct], studentProducts: [StoreProduct], appAccountToken: UUID? = nil, headline: String, subheadline: String, productGroupHeading: String, productGroupSubtitle: String = "", freeTierExplanation: String? = nil, benefits: [String], termsOfService: URL, privacyPolicy: URL, faq: OrderedDictionary<String, String>) {
+    public init(satisfyingPrerequisite: @escaping () async -> Bool = { true }, products: [StoreProduct], studentProducts: [StoreProduct], appAccountToken: UUID? = nil, headline: String, subheadline: String, productGroupHeading: String, productGroupSubtitle: String = "", freeTierExplanation: String? = nil, benefits: [String], termsOfService: URL, privacyPolicy: URL, chatURL: URL? = nil, faq: OrderedDictionary<String, String>) {
         self.satisfyingPrerequisite = satisfyingPrerequisite
         self.products = products
         self.studentProducts = studentProducts
@@ -34,6 +35,7 @@ public class StoreViewModel: NSObject, ObservableObject {
         self.benefits = benefits
         self.termsOfService = termsOfService
         self.privacyPolicy = privacyPolicy
+        self.chatURL = chatURL
         self.faq = faq
     }
     
