@@ -22,8 +22,10 @@ public struct TeamChatButton: View {
     @Environment(\.openWindow) private var openWindow
     
     public var body: some View {
-        Button("Chat With Team\(teamName.isEmpty ? "" : " \(teamName)")") {
+        Button {
             openWindow(id: "chat-with-team")
+        } label: {
+            Label("Chat With Team\(teamName.isEmpty ? "" : " \(teamName)")", systemImage: "message")
         }
     }
     
