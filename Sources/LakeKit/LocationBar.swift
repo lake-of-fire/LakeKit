@@ -67,6 +67,7 @@ public struct LocationBar: View, Equatable {
     public var body: some View {
         HStack{
             TextField("", text: $locationText, prompt: Text("Search or enter website address")
+                .accessibilityLabel("Location")
                 .foregroundColor(.secondary))
             .truncationMode(.tail)
 #if os(macOS)

@@ -45,10 +45,17 @@ public class StoreViewModel: NSObject, ObservableObject {
     
     public func refreshIsSubscribed(storeHelper: StoreHelper) {
         Task { @MainActor in
-            if isSubscribedFromElsewhere {
+#if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("pretend-subscribed"), !isSubscribedFromElsewhere {
+                isSubscribedFromElsewhere = true
+            }
+#endif
+            
+            if isSubscribedFromElsewhere, !isSubscribed {
                 isSubscribed = true
                 return
             }
+            
 //            for product in (storeHelper.subscriptionProducts ?? []) {
 //                if let groupName = storeHelper.subscriptionHelper.groupName(from: product.id), let state = await storeHelper.subscriptionHelper.subscriptionInfo(for: groupName)?.subscriptionStatus?.state {
 //                    print(state)
