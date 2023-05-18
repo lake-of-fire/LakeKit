@@ -3,7 +3,7 @@ import SwiftUI
 import Combine
 import Compression
 import BackgroundAssets
-import SwiftBrotli
+import Brotli
 
 public class Downloadable: ObservableObject, Identifiable, Hashable {
     public let url: URL
@@ -109,7 +109,13 @@ public class Downloadable: ObservableObject, Identifiable, Hashable {
             let data = try Data(contentsOf: compressedFileURL)
             // TODO: When dropping iOS 15, switch to native Apple Brotli
             //            let decompressed = try data.decompressed(from: COMPRESSION_BROTLI)
-            let decompressed = try Brotli().decompress(data, maximumDecompressedSize: (1 << 20) * 1000).get()
+            
+            let decompressConfig = Brotli.DecompressConfig.default
+            let inputMemory = BufferedMemoryStream(startData: data)
+            let decompressMemory = BufferedMemoryStream()
+            try Brotli.decompress(reader: inputMemory, writer: decompressMemory, config: decompressConfig)
+            let decompressed = decompressMemory.representation
+            
             try decompressed.write(to: localDestination, options: .atomic)
             do {
                 try FileManager.default.removeItem(at: compressedFileURL)

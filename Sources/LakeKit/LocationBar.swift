@@ -70,6 +70,7 @@ public struct LocationBar: View, Equatable {
                 .accessibilityLabel("Location")
                 .foregroundColor(.secondary))
             .truncationMode(.tail)
+            .submitLabel((url == nil && !locationText.isEmpty) ? .search : .go)
 #if os(macOS)
             .textFieldStyle(.roundedBorder)
 #else

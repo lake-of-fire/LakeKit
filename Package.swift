@@ -51,7 +51,7 @@ let package = Package(
         .package(url: "https://github.com/CodeSlicing/pure-swift-ui.git", branch: "develop"),
 //        .package(url: "https://github.com/danielsaidi/SwiftUIKit.git", branch: "master"),
         .package(url: "https://github.com/lake-of-fire/FilePicker.git", branch: "main"),
-        .package(url: "https://github.com/f-meloni/SwiftBrotli.git", branch: "master"),
+        .package(url: "https://github.com/L1MeN9Yu/Elva.git", branch: "main"),
         .package(url: "https://github.com/lake-of-fire/SwiftyMonaco", branch: "main"),
         .package(url: "https://github.com/lake-of-fire/TranslucentWindowStyle.git", branch: "main"),
         .package(url: "https://github.com/will-lumley/FaviconFinder.git", branch: "main"),
@@ -107,7 +107,7 @@ let package = Package(
                 .product(name: "NavigationStackBackport", package: "navigation-stack-backport"),
                 .product(name: "VisionLiveText_SwiftUICompatible", package: "VisionLiveText_SwiftUICompatible"),
                 .product(name: "FilePicker", package: "FilePicker"),
-                .product(name: "SwiftBrotli", package: "SwiftBrotli"), // Only needed for iOS 15 Brotli (somehow missing in simulator at least)
+                .product(name: "Brotli", package: "Elva"), // Only needed for iOS 15 Brotli (somehow missing in simulator at least)
                 .product(name: "SwiftyMonaco", package: "SwiftyMonaco"),
                 .product(name: "TranslucentWindowStyle", package: "TranslucentWindowStyle"),
                 .product(name: "FaviconFinder", package: "FaviconFinder"),
