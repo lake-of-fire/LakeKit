@@ -94,15 +94,15 @@ public struct DownloadProgress: View {
                 }
                 .buttonStyle(.borderedProminent)
             }
-        }
-        .contextMenu {
-            if download.isFinishedProcessing {
-                Button("Re-download") {
-                    redownloadAction()
+            if download.isFinishedProcessing && !isFailed {
+                Menu {
+                    Button("Re-download") {
+                        redownloadAction()
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
                 }
-                .buttonStyle(.borderedProminent)
             }
-
         }
     }
     
