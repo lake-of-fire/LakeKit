@@ -120,7 +120,7 @@ public class Downloadable: ObservableObject, Identifiable, Hashable {
             do {
                 try FileManager.default.removeItem(at: compressedFileURL)
             } catch {
-                print("Error removing compressedFileURL \(compressedFileURL)")
+                print("Error removing compressedFileURL \(compressedFileURL) \(error.localizedDescription)")
             }
 //        } else {
 //            print("No file exists to decompress at \(compressedFileURL)")
@@ -211,7 +211,7 @@ extension DownloadController {
     }
     
     @MainActor
-    func download(_ download: Downloadable) {
+    public func download(_ download: Downloadable) {
         download.$isActive.removeDuplicates().receive(on: DispatchQueue.main).sink { [weak self] isActive in
             if isActive {
                 self?.activeDownloads.insert(download)

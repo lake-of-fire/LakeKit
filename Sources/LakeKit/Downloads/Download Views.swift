@@ -3,6 +3,7 @@ import SwiftUI
 public struct DownloadProgress: View {
     @ObservedObject var download: Downloadable
     let retryAction: (() -> Void)
+    let redownloadAction: (() -> Void)
     
     private var statusText: String {
         if download.isFinishedProcessing {
@@ -94,11 +95,21 @@ public struct DownloadProgress: View {
                 .buttonStyle(.borderedProminent)
             }
         }
+        .contextMenu {
+            if download.isFinishedProcessing {
+                Button("Re-download") {
+                    redownloadAction()
+                }
+                .buttonStyle(.borderedProminent)
+            }
+
+        }
     }
     
-    public init(download: Downloadable, retryAction: @escaping (() -> Void)) {
+    public init(download: Downloadable, retryAction: @escaping (() -> Void), redownloadAction: @escaping (() -> Void)) {
         self.download = download
         self.retryAction = retryAction
+        self.redownloadAction = redownloadAction
     }
 }
 
@@ -111,6 +122,8 @@ public struct ActiveDownloadsList: View {
                 ForEach(downloadController.unfinishedDownloads) { download in
                     DownloadProgress(download: download, retryAction: {
                         downloadController.ensureDownloaded([download])
+                    }, redownloadAction: {
+                        downloadController.download(download)
                     })
                     .padding(.horizontal, 12)
                     Divider()
