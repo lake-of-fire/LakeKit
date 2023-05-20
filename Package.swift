@@ -61,6 +61,7 @@ let package = Package(
         .package(url: "https://github.com/scinfu/SwiftSoup.git", branch: "master"),
         .package(url: "https://github.com/nmdias/FeedKit.git", branch: "master"),
         .package(url: "https://github.com/lake-of-fire/opml", branch: "master"),
+        .package(url: "https://github.com/witekbobrowski/EPUBKit.git", branch: "main"),
         .package(path: "../PagerTabStripView"),
         .package(path: "../navigation-stack-backport"),
         .package(path: "../VisionLiveText_SwiftUICompatible"),
@@ -116,6 +117,7 @@ let package = Package(
                 .product(name: "OpenGraph", package: "OpenGraph"),
                 .product(name: "OPML", package: "OPML"),
                 .product(name: "FeedKit", package: "FeedKit"),
+                .product(name: "EPUBKit", package: "EPUBKit")
             ],
             resources: [
 //                .copy("Resources/CSS/Reader.css"),
