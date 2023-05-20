@@ -17,8 +17,8 @@ public struct GroupBoxShadowModifier: ViewModifier {
                 RoundedRectangle(cornerRadius: cornerRadius)
                     .foregroundColor(.clear)
                     .shadow(
-                        color: colorScheme == .dark ? Color.black.opacity(0.8) : Color.black.opacity(0.6),
-                        radius: 25,
+                        color: colorScheme == .dark ? Color.black.opacity(0.8) : Color.black.opacity(0.7),
+                        radius: 30,
                         x: 0,
                         y: 0
                     )

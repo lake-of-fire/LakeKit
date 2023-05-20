@@ -17,7 +17,7 @@ public struct StorePrompt: View {
     public let alternativeButtonAction: (() -> Void)?
     @Binding public var toDismissFirst: Bool
     
-    @ScaledMetric(relativeTo: .body) private var maxWidth = 300
+    @ScaledMetric(relativeTo: .body) private var maxWidth = 340
     
     public var body: some View {
         ScrollView {
@@ -39,7 +39,7 @@ public struct StorePrompt: View {
                         toDismissFirst = false
                         Task.detached {
                             do {
-                                try await Task.sleep(nanoseconds: UInt64(round(0.05 * 1_000_000_000)))
+                                try await Task.sleep(nanoseconds: UInt64(round(0.1 * 1_000_000_000)))
                                 Task { @MainActor in
                                     isPresented = true
                                 }
@@ -57,7 +57,9 @@ public struct StorePrompt: View {
                         Text(alternativeButtonText)
                             .frame(maxWidth: .infinity)
                     })
+#if os(macOS)
                     .buttonStyle(.bordered)
+#endif
                 }
                 
                 Text(bodyText)
@@ -123,8 +125,7 @@ public struct StorePromptOverlayModifier: ViewModifier {
                 if isPresented {
                     StorePrompt(storeViewModel: storeViewModel, isPresented: $isStoreSheetPresented, headlineText: headlineText, bodyText: bodyText, storeButtonText: storeButtonText, alternativeButtonText: alternativeButtonText, alternativeButtonAction: alternativeButtonAction, toDismissFirst: toDismissFirst ?? .constant(false))
                         .groupBoxShadow(cornerRadius: 12)
-                        .padding([.leading, .trailing])
-                        .padding([.leading, .trailing])
+                        .padding([.leading, .trailing], 20)
                 }
             }
             .modifier {
