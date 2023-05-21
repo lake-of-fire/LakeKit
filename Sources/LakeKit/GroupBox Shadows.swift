@@ -15,13 +15,13 @@ public struct GroupBoxShadowModifier: ViewModifier {
         content
             .background(
                 RoundedRectangle(cornerRadius: cornerRadius)
-                    .foregroundColor(.clear)
+                    .foregroundColor(.init(white: 0.0000001, opacity: 0.0000001))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .shadow(
-                        color: colorScheme == .dark ? Color.black.opacity(0.8) : Color.black.opacity(0.7),
+                        color: colorScheme == .dark ? Color.black.opacity(0.7) : Color.black.opacity(0.65),
                         radius: 30,
                         x: 0,
-                        y: 0
-                    )
+                        y: 0)
             )
     }
     

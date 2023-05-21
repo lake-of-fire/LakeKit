@@ -73,6 +73,10 @@ public struct StorePrompt: View {
         .fixedSize(horizontal: false, vertical: true)
         .background(.ultraThinMaterial)
         .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .circular)
+                .stroke(Color.gray.opacity(0.8), lineWidth: 1)
+        )
     }
 }
     

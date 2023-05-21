@@ -88,7 +88,7 @@ struct StudentDiscountDisclosureGroup<Content: View>: View {
                     .padding(.trailing, 5)
                 
                 VStack(alignment: .leading, spacing: 5) {
-                    Text("Are you a student or educator? A special discount is available to you.")
+                    Text("Affordable pricing")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                     Text("Student & Educator Discount \(Image(systemName: "chevron.right"))")
@@ -195,12 +195,12 @@ public struct StoreView: View {
             return [GridItem(.adaptive(minimum: 150), spacing: 10)]
         }
 #endif
-        return [GridItem(.adaptive(minimum: 180), spacing: 10), GridItem(.adaptive(minimum: 180), spacing: 10)]
+        return [GridItem(.adaptive(minimum: 180), spacing: 5), GridItem(.adaptive(minimum: 180), spacing: 5)]
     }
     
     var secondaryHorizontalPadding: CGFloat {
 #if os(iOS)
-        return horizontalSizeClass == .compact ? 0 : 40
+        return horizontalSizeClass == .compact ? 4 : 40
 #else
         return 40
 #endif
@@ -208,8 +208,8 @@ public struct StoreView: View {
     
     public var body: some View {
         ScrollView {
-            VStack(spacing: 20) {
-                VStack(spacing: 10) {
+            VStack(spacing: 10) {
+                Group {
                     Text(storeViewModel.headline)
                         .font(.largeTitle)
                         .bold()
@@ -219,31 +219,38 @@ public struct StoreView: View {
                         .foregroundColor(.secondary)
                         .font(.subheadline)
                         .multilineTextAlignment(.center)
+                }
+                Group {
+                    Divider()
+                        .padding(.bottom, 5)
                     Text(storeViewModel.productGroupHeading)
                         .foregroundColor(.secondary)
                         .bold()
                         .multilineTextAlignment(.center)
-                        .padding(.top, 5)
-                }
-                
-                LazyVGrid(columns: productGridColumns, spacing: 10) {
-                    ForEach(storeViewModel.products) { (storeProduct: StoreProduct) in
-                        if let product = storeProduct.product(storeHelper: storeHelper) {
-                            productOptionView(storeProduct: storeProduct, product: product)
-//                                .frame(maxWidth: .infinity)
-                                .frame(maxHeight: .infinity)
-                            //                            .fixedSize(horizontal: false, vertical: true)
-                            //                            .frame(maxWidth: .infinity)
+                    if !storeViewModel.productGroupSubtitle.isEmpty {
+                        Text(storeViewModel.productGroupSubtitle)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .font(.caption)
+                    }
+                    LazyVGrid(columns: productGridColumns, spacing: 10) {
+                        ForEach(storeViewModel.products) { (storeProduct: StoreProduct) in
+                            if let product = storeProduct.product(storeHelper: storeHelper) {
+                                productOptionView(storeProduct: storeProduct, product: product)
+                                //                                .frame(maxWidth: .infinity)
+                                    .frame(maxHeight: .infinity)
+                                //                            .fixedSize(horizontal: false, vertical: true)
+                                //                            .frame(maxWidth: .infinity)
+                            }
                         }
                     }
+                    //                .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, secondaryHorizontalPadding)
                 }
-//                .fixedSize(horizontal: false, vertical: true)
-                .padding(.horizontal, secondaryHorizontalPadding)
-                
                 GroupBox {
                     StudentDiscountDisclosureGroup(discountView: {
                         VStack {
-                            Text("Students and educators already have enough expenses to manage for which we'd like to help ease the burden. If you're not eligible, please use the regular rate options to provide support to the developers for ongoing app improvements.")
+                            Text("Students and educators already have enough expenses to manage. We'd like to help ease the burden. If you're ineligible, please use the regular rate options. Your subscription goes directly to the developers to support ongoing app improvements.")
                                 .font(.subheadline)
                                 .padding()
                             
@@ -260,7 +267,6 @@ public struct StoreView: View {
                         .padding(.top, 5)
                     })
                 }
-                
                 if let freeTierExplanation = storeViewModel.freeTierExplanation {
                     GroupBox {
                         FreeTierDisclosureGroup {
@@ -273,12 +279,6 @@ public struct StoreView: View {
                         }
                     }
                 }
-                
-                Text(storeViewModel.productGroupSubtitle)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .font(.caption)
-                
                 VStack(alignment: .leading, spacing: 15) {
                     ForEach(storeViewModel.benefits, id: \.self) { benefit in
                         Text(Image(systemName: "checkmark.circle"))
@@ -288,8 +288,8 @@ public struct StoreView: View {
                     }
                 }
                 .font(.callout)
+                .padding(.top, 5)
                 .padding(.horizontal, secondaryHorizontalPadding)
-                
                 GroupBox {
                     VStack(spacing: 12) {
                         HStack {
@@ -305,7 +305,6 @@ public struct StoreView: View {
                     .padding(10)
                 }
                 .padding(.top, 10)
-                
                 if let chatURL = storeViewModel.chatURL {
                     GroupBox("Got A Question? Need Help?") {
                         HStack {
@@ -316,7 +315,6 @@ public struct StoreView: View {
                         }
                     }
                 }
-                
                 HStack(spacing: 20) {
                     Link("Terms of Service", destination: storeViewModel.termsOfService)
 //                        .frame(maxWidth: .infinity)
@@ -326,6 +324,7 @@ public struct StoreView: View {
                 }
                 .font(.footnote)
                 .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 10)
                 Spacer()
             }
             .padding([.leading, .trailing, .bottom])

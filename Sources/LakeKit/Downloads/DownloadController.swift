@@ -410,15 +410,17 @@ extension DownloadController: BADownloadManagerDelegate {
     
     @MainActor
     public func download(_ download: BADownload, failedWithError error: Error) {
-        do {
-            if let downloadable = assuredDownloads.downloadable(forDownload: download) {
-                downloadable.downloadProgress = .completed(destinationLocation: nil, error: error)
-                finishedDownloads.remove(downloadable)
-                activeDownloads.remove(downloadable)
-                failedDownloads.insert(downloadable)
-            }
-            try BADownloadManager.shared.startForegroundDownload(download)
-        } catch { }
+        if let downloadable = assuredDownloads.downloadable(forDownload: download) {
+            downloadable.downloadProgress = .completed(destinationLocation: nil, error: error)
+            finishedDownloads.remove(downloadable)
+            activeDownloads.remove(downloadable)
+            failedDownloads.insert(downloadable)
+        }
+        Task { @MainActor in
+            do {
+                try BADownloadManager.shared.startForegroundDownload(download)
+            } catch { }
+        }
     }
 }
 

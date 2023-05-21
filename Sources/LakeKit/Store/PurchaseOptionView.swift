@@ -95,7 +95,7 @@ public struct PurchaseOptionView: View {
                                     .fixedSize()
                             }
                             .clipShape(Circle())
-                            .scaleEffect(1.2)
+                            .scaleEffect(1.1)
                             .fixedSize()
                         VStack {
                             Text(displayPrice)
@@ -103,6 +103,7 @@ public struct PurchaseOptionView: View {
                                 .bold()
                                 .fixedSize(horizontal: true, vertical: false)
                             Text(displayPriceType)
+                                .multilineTextAlignment(.center)
                                 .foregroundColor(.primary)
                                 .foregroundColor(.secondary)
                                 .font(.caption)
@@ -110,25 +111,27 @@ public struct PurchaseOptionView: View {
                         }
                     }
                     .fixedSize(horizontal: true, vertical: false)
-                    .padding(.vertical, 10)
-                    Group {
-                        if buyTitle != nil {
-                            Text(product.displayName)
-                                .font(.headline)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 5)
+                    
+                    if buyTitle != nil {
+                        Text(product.displayName)
+                            .font(.headline)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                            .foregroundColor(.primary)
+                            .fixedSize(horizontal: true, vertical: false)
+                    }
+                    VStack(alignment: .center) {
+                        HStack(alignment: .center) {
+                            Text(product.description)
+                                .font(.caption)
+                                .multilineTextAlignment(.center)
                                 .padding(.horizontal)
-                                .foregroundColor(.primary)
+                                .foregroundColor(.secondary)
                         }
-                        VStack(alignment: .center) {
-                            HStack(alignment: .center) {
-                                Text(product.description)
-                                    .font(.caption)
-                                    .multilineTextAlignment(.center)
-                                    .padding(.horizontal)
-                                    .foregroundColor(.secondary)
-                            }
-                            .frame(minHeight: subtitleHeight)
-                            Spacer(minLength: 0)
-                        }
+                        .frame(minHeight: subtitleHeight)
+                        Spacer(minLength: 0)
                     }
                     
                     if product.type == .autoRenewable, [PurchaseState.purchased, .pending, .inProgress].contains(purchaseState) {
@@ -137,26 +140,26 @@ public struct PurchaseOptionView: View {
                                 .padding()
                         } else {
                             Text(purchaseState.shortDescription())
-                            .bold()
-                            .italic()
-                            .foregroundColor(.primary)
-                            .padding()
+                                .bold()
+                                .italic()
+                                .foregroundColor(.primary)
+                                .padding()
                         }
                     } else {
                         VStack {
 #if os(iOS)
                             Text(buyTitle ?? product.displayName)
-                                .font(.callout)
+//                                .font(.callout)
                                 .bold()
+                                .multilineTextAlignment(.center)
                                 .foregroundColor(.accentColor)
-                                .padding(.horizontal, 20)
-                                .padding(.vertical, 8)
                                 .fixedSize(horizontal: false, vertical: true)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
                                 .overlay(
-                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
                                         .stroke(Color.accentColor, lineWidth: 1)
                                 )
-                                .padding(10)
 #else
                             Button {
                                 submitAction()
