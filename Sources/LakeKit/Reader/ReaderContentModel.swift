@@ -85,17 +85,9 @@ public extension String {
 }
 
 extension String {
-    // From: https://gist.github.com/hashaam/31f51d4044a03473c18a168f4999f063
+    // From: https://stackoverflow.com/a/50798549/89373
     public func removingHTMLTags() -> String? {
-        guard let htmlStringData = self.data(using: String.Encoding.utf8) else {
-            return nil
-        }
-        let options: [NSAttributedString.DocumentReadingOptionKey : Any] = [
-            .documentType: NSAttributedString.DocumentType.html,
-            .characterEncoding: String.Encoding.utf8.rawValue
-        ]
-        let attributedString = try? NSAttributedString(data: htmlStringData, options: options, documentAttributes: nil)
-        return attributedString?.string
+        return replacingOccurrences(of: "<[^>]+>", with: "", options: String.CompareOptions.regularExpression, range: nil)
     }
 }
 
