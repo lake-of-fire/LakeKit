@@ -224,7 +224,7 @@ public struct StoreView: View {
                     Divider()
                         .padding(.bottom, 5)
                     Text(storeViewModel.productGroupHeading)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.primary)
                         .bold()
                         .multilineTextAlignment(.center)
                     if !storeViewModel.productGroupSubtitle.isEmpty {
