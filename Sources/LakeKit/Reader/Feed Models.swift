@@ -25,10 +25,10 @@ public class FeedCategory: Object, UnownedSyncableObject, ObjectKeyIdentifiable,
     public enum CodingKeys: String, CodingKey, CaseIterable {
         case id
         case title
-        case backgroundImageUrl = "background_image_url"
-        case createdAt = "created_at"
-        case modifiedAt = "modified_at"
-        case isDeleted = "is_deleted"
+        case backgroundImageUrl // = "background_image_url"
+        case createdAt //= "created_at"
+        case modifiedAt //= "modified_at"
+        case isDeleted //= "is_deleted"
     }
     
     public var isUserEditable: Bool {
@@ -63,17 +63,17 @@ public class Feed: Object, UnownedSyncableObject, ObjectKeyIdentifiable, Codable
     public enum CodingKeys: String, CodingKey, CaseIterable {
         case id
         case title
-        case markdownDescription = "markdown_description"
-        case rssUrl = "rss_url"
-        case iconUrl = "icon_url"
-        case isReaderModeByDefault = "is_reader_mode_by_default"
-        case rssContainsFullContent = "rss_contains_full_content"
-        case injectEntryImageIntoHeader = "inject_entry_image_into_header"
-        case displayPublicationDate = "display_publication_date"
-        case meaningfulContentMinLength = "meaningful_content_min_length"
-        case extractImageFromContent = "extract_image_from_content"
-        case modifiedAt = "modified_at"
-        case isArchived = "is_archived"
+        case markdownDescription
+        case rssUrl
+        case iconUrl
+        case isReaderModeByDefault
+        case rssContainsFullContent
+        case injectEntryImageIntoHeader
+        case displayPublicationDate
+        case meaningfulContentMinLength
+        case extractImageFromContent
+        case modifiedAt
+        case isArchived
     }
     
     public var isUserEditable: Bool {
