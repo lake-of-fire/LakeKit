@@ -261,7 +261,13 @@ extension DownloadController {
                 Task.detached {
                     do {
                         if let baDL = download.backgroundAssetDownload(applicationGroupIdentifier: "group.io.manabi.shared"), try await BADownloadManager.shared.currentDownloads.contains(baDL) {
-                            try BADownloadManager.shared.startForegroundDownload(baDL)
+                            if #available(iOS 16.4, macOS 13.3, *) {
+                                if !baDL.isEssential {
+                                    try BADownloadManager.shared.startForegroundDownload(baDL)
+                                }
+                            } else {
+                                try BADownloadManager.shared.startForegroundDownload(baDL)
+                            }
                             return
                         }
                     } catch {
@@ -382,9 +388,11 @@ extension DownloadController: BADownloadManagerDelegate {
         guard let downloadable = assuredDownloads.downloadable(forDownload: download) else { return }
         downloadable.downloadProgress = .downloading(progress: Progress())
         downloadable.isFromBackgroundAssetsDownloader = true
-        finishedDownloads.remove(downloadable)
-        failedDownloads.remove(downloadable)
-        activeDownloads.insert(downloadable)
+        Task { @MainActor in
+            finishedDownloads.remove(downloadable)
+            failedDownloads.remove(downloadable)
+            activeDownloads.insert(downloadable)
+        }
     }
     
     @MainActor
@@ -418,7 +426,13 @@ extension DownloadController: BADownloadManagerDelegate {
         }
         Task { @MainActor in
             do {
-                try BADownloadManager.shared.startForegroundDownload(download)
+                if #available(iOS 16.4, macOS 13.3, *) {
+                    if !download.isEssential {
+                        try BADownloadManager.shared.startForegroundDownload(download)
+                    }
+                } else {
+                    try BADownloadManager.shared.startForegroundDownload(download)
+                }
             } catch { }
         }
     }
