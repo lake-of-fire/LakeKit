@@ -372,10 +372,10 @@ extension DownloadController: BADownloadManagerDelegate {
         progress.completedUnitCount = totalBytesWritten
         downloadable.downloadProgress = .downloading(progress: progress)
         downloadable.isFromBackgroundAssetsDownloader = true
-        finishedDownloads.remove(downloadable)
-        failedDownloads.remove(downloadable)
-        activeDownloads.insert(downloadable)
         Task { @MainActor in
+            finishedDownloads.remove(downloadable)
+            failedDownloads.remove(downloadable)
+            activeDownloads.insert(downloadable)
             do {
                 try await cancelInProgressDownloads(inApp: true)
             } catch {
@@ -420,9 +420,11 @@ extension DownloadController: BADownloadManagerDelegate {
     public func download(_ download: BADownload, failedWithError error: Error) {
         if let downloadable = assuredDownloads.downloadable(forDownload: download) {
             downloadable.downloadProgress = .completed(destinationLocation: nil, error: error)
-            finishedDownloads.remove(downloadable)
-            activeDownloads.remove(downloadable)
-            failedDownloads.insert(downloadable)
+            Task { @MainActor in
+                finishedDownloads.remove(downloadable)
+                activeDownloads.remove(downloadable)
+                failedDownloads.insert(downloadable)
+            }
         }
         Task { @MainActor in
             do {

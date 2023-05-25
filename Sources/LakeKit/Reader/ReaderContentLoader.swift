@@ -16,6 +16,11 @@ public struct ReaderContentLoader {
             return nil
         }
         
+        var url = url
+        if url.isEPUBURL, url.isFileURL {
+            url = URL(string: "epub://" + url.path) ?? url
+        }
+        
         guard let realm = try? Realm(), let sharedRealm = try? Realm(configuration: realmConfiguration) else { return nil }
         
         let bookmark = realm.objects(Bookmark.self)
