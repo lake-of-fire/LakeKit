@@ -6,6 +6,7 @@ public class StoreViewModel: NSObject, ObservableObject {
     /// For server overrides, other apps, etc.
     @Published public var isSubscribed = false
     @Published public var isSubscribedFromElsewhere = false
+    @Published public var isInitialized = false
     
     let satisfyingPrerequisite: () async -> Bool
     @Published public var products: [StoreProduct]
@@ -43,6 +44,10 @@ public class StoreViewModel: NSObject, ObservableObject {
         return [GridItem(.adaptive(minimum: 200), spacing: 20)]
     }
     
+    public var showAds: Bool {
+        return !isSubscribed && isInitialized
+    }
+    
     public func refreshIsSubscribed(storeHelper: StoreHelper) {
         Task { @MainActor in
 #if DEBUG
@@ -53,6 +58,7 @@ public class StoreViewModel: NSObject, ObservableObject {
             
             if isSubscribedFromElsewhere, !isSubscribed {
                 isSubscribed = true
+                isInitialized = true
                 return
             }
             
@@ -65,9 +71,11 @@ public class StoreViewModel: NSObject, ObservableObject {
 //            isSubscribed = false
             guard let group = await storeHelper.subscriptionHelper.groupSubscriptionInfo()?.first, let groupID = group.subscriptionGroup, let subscriptionState = await storeHelper.subscriptionHelper.subscriptionInfo(for: groupID)?.subscriptionStatus?.state else {
                 isSubscribed = false
+                isInitialized = true
                 return
             }
             isSubscribed = subscriptionState == .inBillingRetryPeriod || subscriptionState == .inGracePeriod || subscriptionState == .subscribed
+            isInitialized = true
         }
     }
 }

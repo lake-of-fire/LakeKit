@@ -20,25 +20,20 @@ struct FrameTagModifier: ViewModifier {
     @State private var window: NSWindow? = nil
 
     func body(content: Content) -> some View {
-        WindowReader { window in
-            content
-                .geometryReader { geometry in
-                    if let window = window {
-                        self.frame = geometry.frame(in: .local)
-                        window.save(self.frame, for: tag)
-                    }
+        //        WindowReader { window in
+        content
+            .background {
+                WindowAccessor(for: $window)
+                GeometryReader { geometry in
+                    Color.clear
+                        .onAppear {
+                            self.frame = geometry.frame(in: .global)
+                        }
                 }
-                .task {
-                    Task { @MainActor in
-                        self.window = window
-                    }
-                }
-        }
-        .onChange(of: window) { window in
-            if let window = window {
-                window.save(frame, for: tag)
             }
-        }
+            .onChange(of: window) { window in
+                window?.save(frame, for: tag)
+            }
     }
 }
 
@@ -67,7 +62,9 @@ public extension NSResponder {
 
     /// Save a frame in this window's `frameTags`.
     internal func save(_ frame: CGRect, for tag: AnyHashable) {
-        windowTagModel.frameTags[tag] = frame
+        if windowTagModel.frameTags[tag] != frame {
+            windowTagModel.frameTags[tag] = frame
+        }
     }
 }
 

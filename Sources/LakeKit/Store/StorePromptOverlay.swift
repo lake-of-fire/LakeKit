@@ -95,7 +95,7 @@ public struct StorePromptOverlayModifier: ViewModifier {
     @EnvironmentObject private var storeHelper: StoreHelper
  
     private var isPresented: Bool {
-        return !storeViewModel.isSubscribed && storeHelper.hasStarted
+        return storeViewModel.showAds
     }
     
     public func body(content: Content) -> some View {

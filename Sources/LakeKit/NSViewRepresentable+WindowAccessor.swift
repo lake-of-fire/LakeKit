@@ -5,9 +5,9 @@
 //  Created by Alex Ehlke on 7/3/22.
 //
 
+#if os(macOS)
 import Foundation
 import SwiftUI
-#if os(macOS)
 import AppKit
 
 public struct WindowAccessor: NSViewRepresentable {

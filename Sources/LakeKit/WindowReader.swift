@@ -9,7 +9,51 @@
 #if os(macOS)
 import SwiftUI
 import AppKit
+//
+//@available(OSX 11.0, *)
+//public extension View {
+//    func wndAccessor(_ act: @escaping (NSWindow?) -> () )
+//        -> some View {
+//            self.modifier(WndTitleConfigurer(act: act))
+//    }
+//}
+//
+//@available(OSX 11.0, *)
+//struct WndTitleConfigurer: ViewModifier {
+//    let act: (NSWindow?) -> ()
+//    
+//    @State var window: NSWindow? = nil
+//    
+//    func body(content: Content) -> some View {
+//        content
+//            .getWindow($window)
+//            .onChange(of: window, perform: act )
+//    }
+//}
+//
+//@available(OSX 11.0, *)
+//private extension View {
+//    func getWindow(_ wnd: Binding<NSWindow?>) -> some View {
+//        self.background(WindowAccessor(for: wnd))
+//    }
+//}
+//
+//@available(OSX 11.0, *)
+//private struct WindowAccessor: NSViewRepresentable {
+//    @Binding var window: NSWindow?
+//    
+//    public func makeNSView(context: Context) -> NSView {
+//        let view = NSView()
+//        DispatchQueue.main.async {
+//            self.window = view.window
+//        }
+//        return view
+//    }
+//    
+//    public func updateNSView(_ nsView: NSView, context: Context) {}
+//}
 
+/*
 class WindowViewModel: ObservableObject {
     @Published var window: NSWindow?
 }
@@ -27,11 +71,15 @@ public struct WindowReader<Content: View>: View {
     }
 
     public var body: some View {
+        let _ = Self._printChanges()
         view(windowViewModel.window)
 //            .id(windowViewModel.window)
             .background(
                 WindowHandlerRepresentable(windowViewModel: windowViewModel)
             )
+            .task {
+                print("uh win \(windowViewModel.window)")
+            }
         
     }
 
@@ -63,11 +111,15 @@ public struct WindowReader<Content: View>: View {
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
 
-            DispatchQueue.main.async {
+            let window = self.window
+            print("got window \(window)")
+            Task { @MainActor in
                 /// Set the window.
-                self.windowViewModel.window = self.window
+            print("set window \(window)")
+                self.windowViewModel.window = window
             }
         }
     }
 }
+*/
 #endif
