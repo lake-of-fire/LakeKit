@@ -23,6 +23,7 @@ import NukeUI
 public struct LakeImage: View {
     let url: URL
     var maxWidth: CGFloat? = nil
+    var minHeight: CGFloat? = nil
     var maxHeight: CGFloat? = nil
     
     private var cleanURL: URL {
@@ -61,7 +62,7 @@ public struct LakeImage: View {
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .frame(maxWidth: maxWidth, maxHeight: maxHeight)
+                    .frame(maxWidth: maxWidth, minHeight: minHeight, maxHeight: maxHeight)
             } else if state.error != nil {
                 Color.clear
 //                Color.gray // Indicates an error
@@ -72,6 +73,8 @@ public struct LakeImage: View {
 //                        .scaleEffect(0.5)
 //                }
                 Color.gray
+                    .opacity(0.7)
+                    .frame(minHeight: minHeight)
 //                    .brightness(0.1)
             }
         }
@@ -80,9 +83,10 @@ public struct LakeImage: View {
         .frame(maxWidth: maxWidth, maxHeight: maxHeight)
     }
     
-    public init(_ url: URL, maxWidth: CGFloat? = nil, maxHeight: CGFloat? = nil) {
+    public init(_ url: URL, maxWidth: CGFloat? = nil, minHeight: CGFloat? = nil, maxHeight: CGFloat? = nil) {
         self.url = url
         self.maxWidth = maxWidth
+        self.minHeight = minHeight
         self.maxHeight = maxHeight
     }
   }
