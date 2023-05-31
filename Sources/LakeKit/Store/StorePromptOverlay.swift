@@ -111,9 +111,9 @@ public struct StorePromptOverlayModifier: ViewModifier {
                         stops: [
                             Gradient.Stop(color: .clear, location: .zero),
                             Gradient.Stop(color: .clear, location: 0.1),
-                            Gradient.Stop(color: (colorScheme == .dark ? Color.black : .white).opacity(0.5), location: 0.5),
+                            Gradient.Stop(color: (colorScheme == .dark ? Color.black : .white).opacity(0.5), location: 0.6),
 //                            Gradient.Stop(color: (colorScheme == .dark ? Color.black : .white).opacity(0.9), location: 0.7),
-                            Gradient.Stop(color: (colorScheme == .dark ? Color.black : .white).opacity(0.2), location: 1.0),
+                            Gradient.Stop(color: (colorScheme == .dark ? Color.black : .white).opacity(0.44), location: 1.0),
                         ],
                         startPoint: .top,
                         endPoint: .bottom

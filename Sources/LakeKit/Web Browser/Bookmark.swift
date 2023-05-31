@@ -21,7 +21,7 @@ public class Bookmark: Object, ReaderContentModel {
     @Persisted public var rssTitles = RealmSwift.List<String>()
     @Persisted public var isRSSAvailable = false
     @Persisted public var voiceFrameUrl: URL?
-    @Persisted public var voiceAudioUrl: URL?
+    @Persisted public var voiceAudioURLs = RealmSwift.List<URL>()
     @Persisted public var redditTranslationsUrl: URL?
     @Persisted public var redditTranslationsTitle: String?
     

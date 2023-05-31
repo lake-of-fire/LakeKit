@@ -250,7 +250,7 @@ public struct StoreView: View {
                 GroupBox {
                     StudentDiscountDisclosureGroup(discountView: {
                         VStack {
-                            Text("Students and educators already have enough expenses to manage. We'd like to help ease the burden. If you're ineligible, please use the regular rate options. Your subscription goes directly to the developers to support ongoing app improvements.")
+                            Text("Students and educators already have enough expenses to manage. We'd like to help ease the burden. If you're ineligible and can afford it, please use the regular rate options. Your subscription goes directly to the developers to support ongoing app improvements.")
                                 .font(.subheadline)
                                 .padding()
                             

@@ -26,7 +26,7 @@ public protocol ReaderContentModel: RealmSwift.Object, ObjectKeyIdentifiable, Eq
     
     // Feed entry metadata.
     var voiceFrameUrl: URL? { get set }
-    var voiceAudioUrl: URL? { get set }
+    var voiceAudioURLs: RealmSwift.List<URL> { get set }
     var redditTranslationsUrl: URL? { get set }
     var redditTranslationsTitle: String? { get set }
     

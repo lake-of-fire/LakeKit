@@ -170,7 +170,7 @@ public class FeedEntry: Object, ObjectKeyIdentifiable, ReaderContentModel {
         set { }
     }
     @Persisted public var voiceFrameUrl: URL?
-    @Persisted public var voiceAudioUrl: URL?
+    @Persisted public var voiceAudioURLs = RealmSwift.List<URL>()
     @Persisted public var redditTranslationsUrl: URL?
     @Persisted public var redditTranslationsTitle: String?
     
@@ -222,7 +222,8 @@ public class FeedEntry: Object, ObjectKeyIdentifiable, ReaderContentModel {
         }
         bookmark.isRSSAvailable = !bookmark.rssURLs.isEmpty
         bookmark.voiceFrameUrl = voiceFrameUrl
-        bookmark.voiceAudioUrl = voiceAudioUrl
+        bookmark.voiceAudioURLs.removeAll()
+        bookmark.voiceAudioURLs.append(objectsIn: voiceAudioURLs)
         bookmark.redditTranslationsUrl = redditTranslationsUrl
         bookmark.redditTranslationsTitle = redditTranslationsTitle
         
@@ -386,12 +387,10 @@ public extension Feed {
                 voiceFrameUrl = URL(string: rawVoiceFrameUrl)
             }
             
-            var voiceAudioUrl: URL? = nil
-            if let rawVoiceAudioUrl = item.links?.filter({ (link) -> Bool in
-                return (link.attributes?.rel ?? "") == "voice-audio"
-            }).first?.attributes?.href {
-                voiceAudioUrl = URL(string: rawVoiceAudioUrl)
-            }
+            let voiceAudioURLs: [URL] = (item.links ?? [])
+                .filter { $0.attributes?.rel == "voice-audio" }
+                .compactMap { $0.attributes?.href }
+                .compactMap { URL(string: $0) }
             
             // TODO: Refactor into community commentary links
             var redditTranslationsUrl: URL? = nil, redditTranslationsTitle: String? = nil
@@ -422,7 +421,7 @@ public extension Feed {
             feedEntry.publicationDate = item.published ?? item.updated
             feedEntry.html = item.content?.value
             feedEntry.voiceFrameUrl = voiceFrameUrl
-            feedEntry.voiceAudioUrl = voiceAudioUrl
+            feedEntry.voiceAudioURLs.append(objectsIn: voiceAudioURLs)
             feedEntry.redditTranslationsUrl = redditTranslationsUrl
             feedEntry.redditTranslationsTitle = redditTranslationsTitle
             feedEntry.updateCompoundKey()
