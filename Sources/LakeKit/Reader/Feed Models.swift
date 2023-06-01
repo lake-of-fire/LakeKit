@@ -123,10 +123,12 @@ public class FeedEntry: Object, ObjectKeyIdentifiable, ReaderContentModel {
     @Persisted public var title = ""
     @Persisted public var imageUrl: URL?
     @Persisted public var publicationDate: Date?
-    @Persisted public var isFromClipboard = false
+//    @Persisted public var isFromClipboard = false
     @Persisted public var content: Data?
 //    @Persisted public var readerModeAvailabilityOverride: Bool? = nil
     
+    public var isFromClipboard = false
+
     public var htmlToDisplay: String? {
         if rssContainsFullContent {
             return Self.contentToHTML(legacyHTMLContent: htmlContent, content: content)
