@@ -84,7 +84,7 @@ public struct PurchaseOptionView: View {
                 submitAction()
             } label: {
                 VStack(spacing: 0) {
-                    HStack(spacing: 25) {
+                    HStack(spacing: 0) {
                         Circle()
                             .foregroundColor(.accentColor)
                             .frame(width: 60, height: 60)
@@ -97,17 +97,19 @@ public struct PurchaseOptionView: View {
                             .clipShape(Circle())
                             .scaleEffect(1.1)
                             .fixedSize()
+                        Spacer()
+                            .frame(maxWidth: 25)
                         VStack {
                             Text(displayPrice)
                                 .font(.headline)
                                 .bold()
-                                .fixedSize(horizontal: true, vertical: false)
+                                .fixedSize(horizontal: false, vertical: true)
                             Text(displayPriceType)
                                 .multilineTextAlignment(.center)
                                 .foregroundColor(.primary)
                                 .foregroundColor(.secondary)
                                 .font(.caption)
-                                .fixedSize(horizontal: true, vertical: false)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
                     }
                     .fixedSize(horizontal: true, vertical: false)
@@ -120,7 +122,7 @@ public struct PurchaseOptionView: View {
                             .multilineTextAlignment(.center)
                             .padding(.horizontal)
                             .foregroundColor(.primary)
-                            .fixedSize(horizontal: true, vertical: false)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                     VStack(alignment: .center) {
                         HStack(alignment: .center) {
@@ -150,15 +152,16 @@ public struct PurchaseOptionView: View {
 #if os(iOS)
                             Text(buyTitle ?? product.displayName)
 //                                .font(.callout)
-                                .bold()
+//                                .bold()
                                 .multilineTextAlignment(.center)
-                                .foregroundColor(.accentColor)
+                                .foregroundColor(.white)
                                 .fixedSize(horizontal: false, vertical: true)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 6)
-                                .overlay(
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(
                                     RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                        .stroke(Color.accentColor, lineWidth: 1)
+//                                        .stroke(Color.accentColor, lineWidth: 1)
+                                        .foregroundColor(Color.accentColor)
                                 )
 #else
                             Button {

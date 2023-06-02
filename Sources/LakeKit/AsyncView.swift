@@ -56,6 +56,7 @@ public struct AsyncView<Success, Content: View>: View {
                 Text("")
             case (.inProgress, false):
                 ProgressView()
+                    .padding()
             case let (.success(value), _):
                 content(value)
             case let (.failure(error), showInitialContent):
