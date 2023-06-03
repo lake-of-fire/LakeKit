@@ -326,9 +326,9 @@ extension DownloadController {
                 self?.failedDownloads.insert(download)
                 self?.activeDownloads.remove(download)
                 self?.finishedDownloads.remove(download)
+                try? FileManager.default.removeItem(at: download.compressedFileURL)
+                try? FileManager.default.removeItem(at: download.localDestination)
             }
-            try? FileManager.default.removeItem(at: download.compressedFileURL)
-            try? FileManager.default.removeItem(at: download.localDestination)
         }
     }
     
@@ -367,12 +367,12 @@ extension DownloadController {
 extension DownloadController: BADownloadManagerDelegate {
     @MainActor
     public func download(_ download: BADownload, didWriteBytes bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite totalExpectedBytes: Int64) {
-        guard let downloadable = assuredDownloads.downloadable(forDownload: download) else { return }
-        let progress = Progress(totalUnitCount: totalExpectedBytes)
-        progress.completedUnitCount = totalBytesWritten
-        downloadable.downloadProgress = .downloading(progress: progress)
-        downloadable.isFromBackgroundAssetsDownloader = true
         Task { @MainActor in
+            guard let downloadable = assuredDownloads.downloadable(forDownload: download) else { return }
+            let progress = Progress(totalUnitCount: totalExpectedBytes)
+            progress.completedUnitCount = totalBytesWritten
+            downloadable.downloadProgress = .downloading(progress: progress)
+            downloadable.isFromBackgroundAssetsDownloader = true
             finishedDownloads.remove(downloadable)
             failedDownloads.remove(downloadable)
             activeDownloads.insert(downloadable)
@@ -385,10 +385,10 @@ extension DownloadController: BADownloadManagerDelegate {
     
     @MainActor
     public func downloadDidBegin(_ download: BADownload) {
-        guard let downloadable = assuredDownloads.downloadable(forDownload: download) else { return }
-        downloadable.downloadProgress = .downloading(progress: Progress())
-        downloadable.isFromBackgroundAssetsDownloader = true
         Task { @MainActor in
+            guard let downloadable = assuredDownloads.downloadable(forDownload: download) else { return }
+            downloadable.downloadProgress = .downloading(progress: Progress())
+            downloadable.isFromBackgroundAssetsDownloader = true
             finishedDownloads.remove(downloadable)
             failedDownloads.remove(downloadable)
             activeDownloads.insert(downloadable)
@@ -397,19 +397,21 @@ extension DownloadController: BADownloadManagerDelegate {
     
     @MainActor
     public func download(_ download: BADownload, finishedWithFileURL fileURL: URL) {
-        BADownloadManager.shared.withExclusiveControl { [weak self] acquiredLock, error in
-            guard acquiredLock, error == nil else { return }
-            if let downloadable = self?.assuredDownloads.downloadable(forDownload: download) {
-                downloadable.isFromBackgroundAssetsDownloader = true
-                let destination = downloadable.url.pathExtension == "br" ? downloadable.compressedFileURL : downloadable.localDestination
-                do {
-                    try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
-                    try FileManager.default.moveItem(at: fileURL, to: destination)
-                } catch { }
-                Task.detached { [weak self] in
-                    self?.finishDownload(downloadable)
-                    Task { @MainActor [weak self] in
-                        try await self?.cancelInProgressDownloads(inApp: true)
+        Task { @MainActor in
+            BADownloadManager.shared.withExclusiveControl { [weak self] acquiredLock, error in
+                guard acquiredLock, error == nil else { return }
+                if let downloadable = self?.assuredDownloads.downloadable(forDownload: download) {
+                    downloadable.isFromBackgroundAssetsDownloader = true
+                    let destination = downloadable.url.pathExtension == "br" ? downloadable.compressedFileURL : downloadable.localDestination
+                    do {
+                        try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
+                        try FileManager.default.moveItem(at: fileURL, to: destination)
+                    } catch { }
+                    Task.detached { [weak self] in
+                        self?.finishDownload(downloadable)
+                        Task { @MainActor [weak self] in
+                            try await self?.cancelInProgressDownloads(inApp: true)
+                        }
                     }
                 }
             }
@@ -419,8 +421,8 @@ extension DownloadController: BADownloadManagerDelegate {
     @MainActor
     public func download(_ download: BADownload, failedWithError error: Error) {
         if let downloadable = assuredDownloads.downloadable(forDownload: download) {
-            downloadable.downloadProgress = .completed(destinationLocation: nil, error: error)
             Task { @MainActor in
+                downloadable.downloadProgress = .completed(destinationLocation: nil, error: error)
                 finishedDownloads.remove(downloadable)
                 activeDownloads.remove(downloadable)
                 failedDownloads.insert(downloadable)
