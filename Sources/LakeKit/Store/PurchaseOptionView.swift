@@ -87,7 +87,7 @@ public struct PurchaseOptionView: View {
                     HStack(spacing: 0) {
                         Circle()
                             .foregroundColor(.accentColor)
-                            .frame(width: 60, height: 60)
+                            .frame(width: 58, height: 58)
                             .overlay {
                                 Image(systemName: symbolName)
                                     .font(.system(size: 22))
@@ -95,10 +95,10 @@ public struct PurchaseOptionView: View {
                                     .fixedSize()
                             }
                             .clipShape(Circle())
-                            .scaleEffect(1.1)
+                            .scaleEffect(1.08)
                             .fixedSize()
                         Spacer()
-                            .frame(maxWidth: 25)
+                            .frame(minWidth: 5, idealWidth: 25)
                         VStack {
                             Text(displayPrice)
                                 .font(.headline)
@@ -203,18 +203,20 @@ public struct PurchaseOptionView: View {
         //        .buttonBorderShape(.roundedRectangle)
         //        .border(Color.accentColor, width: 2)
         .task {
-            canMakePayments = AppStore.canMakePayments
-            
-            let isPurchased = (try? await storeHelper.isPurchased(product: product)) ?? false
-            purchaseState = isPurchased ? .purchased : .notPurchased
-           
-            if purchaseState != .purchased {
-                let priceViewModel = PriceViewModel(storeHelper: storeHelper, purchaseState: $purchaseState)
-                prePurchaseSubInfo = await priceViewModel.getPrePurchaseSubscriptionInfo(productId: product.id)
+            Task { @MainActor in
+                canMakePayments = AppStore.canMakePayments
+                
+                let isPurchased = (try? await storeHelper.isPurchased(product: product)) ?? false
+                purchaseState = isPurchased ? .purchased : .notPurchased
+                
+                if purchaseState != .purchased {
+                    let priceViewModel = PriceViewModel(storeHelper: storeHelper, purchaseState: $purchaseState)
+                    prePurchaseSubInfo = await priceViewModel.getPrePurchaseSubscriptionInfo(productId: product.id)
+                }
             }
         }
         .onChange(of: storeHelper.purchasedProducts) { _ in
-            Task.init {
+            Task { @MainActor in
                 let isPurchased = (try? await storeHelper.isPurchased(product: product)) ?? false
                 purchaseState = isPurchased ? .purchased : .notPurchased
             }

@@ -63,6 +63,7 @@ let package = Package(
         .package(url: "https://github.com/nmdias/FeedKit.git", branch: "master"),
         .package(url: "https://github.com/lake-of-fire/opml", branch: "master"),
         .package(url: "https://github.com/witekbobrowski/EPUBKit.git", branch: "main"),
+        .package(url: "https://github.com/kean/Pulse.git", revision: "00eeef20c91d0fefbb33f0d752caf2a4430b9d66"),
         .package(path: "../PagerTabStripView"),
         .package(path: "../navigation-stack-backport"),
         .package(path: "../VisionLiveText_SwiftUICompatible"),
@@ -118,7 +119,10 @@ let package = Package(
                 .product(name: "OpenGraph", package: "OpenGraph"),
                 .product(name: "OPML", package: "OPML"),
                 .product(name: "FeedKit", package: "FeedKit"),
-                .product(name: "EPUBKit", package: "EPUBKit")
+                .product(name: "EPUBKit", package: "EPUBKit"),
+                .product(name: "Pulse", package: "Pulse"),
+                .product(name: "PulseUI", package: "Pulse"),
+//                .product(name: "Pulse", package: "PulseUI"),
             ],
             resources: [
 //                .copy("Resources/CSS/Reader.css"),

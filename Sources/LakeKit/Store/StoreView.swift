@@ -66,6 +66,7 @@ struct FAQDisclosureGroup: View {
                 .font(.headline)
                 .bold()
                 .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .onTapGesture(count: 1) {
             withAnimation { isExpanded.toggle() }
@@ -215,10 +216,12 @@ public struct StoreView: View {
                         .bold()
                         .foregroundColor(.primary)
                         .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
                     Text(storeViewModel.subheadline)
                         .foregroundColor(.secondary)
                         .font(.subheadline)
                         .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 Group {
                     Divider()
@@ -227,11 +230,13 @@ public struct StoreView: View {
                         .foregroundColor(.primary)
                         .bold()
                         .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
                     if !storeViewModel.productGroupSubtitle.isEmpty {
                         Text(storeViewModel.productGroupSubtitle)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
                             .font(.caption)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                     LazyVGrid(columns: productGridColumns, spacing: 10) {
                         ForEach(storeViewModel.products) { (storeProduct: StoreProduct) in
@@ -253,6 +258,8 @@ public struct StoreView: View {
                             Text("Students and educators already have enough expenses to manage. We'd like to help ease the burden. If you're ineligible and can afford it, please use the regular rate options. Your subscription goes directly to the developers to support ongoing app improvements.")
                                 .font(.subheadline)
                                 .padding()
+                                .multilineTextAlignment(.leading)
+                                .fixedSize(horizontal: false, vertical: true)
                             
                             LazyVGrid(columns: productGridColumns, spacing: 10) {
                                 ForEach(storeViewModel.studentProducts) { (storeProduct: StoreProduct) in
@@ -274,6 +281,7 @@ public struct StoreView: View {
                                 Text(freeTierExplanation)
                                     .font(.subheadline)
                                     .padding()
+                                    .fixedSize(horizontal: false, vertical: true)
                                 // TODO: show links to other apps here too
                             }
                         }
@@ -357,6 +365,7 @@ public struct StoreView: View {
                 }
             }
         }
+        .tint(.accentColor)
         .modifier {
 #if os(iOS)
             if horizontalSizeClass == .compact {
