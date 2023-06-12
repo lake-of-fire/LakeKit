@@ -88,7 +88,7 @@ public extension Bookmark {
         let url = url
         safeWrite { realm in
             for historyRecord in realm.objects(HistoryRecord.self).where({ ($0.bookmark == nil || $0.bookmark.isDeleted) && !$0.isDeleted }).filter({ $0.url == url }) {
-                historyRecord.bookmark = self
+                historyRecord.bookmark = bookmark
             }
         }
     }
