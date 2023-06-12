@@ -37,6 +37,16 @@ public class Bookmark: Object, ReaderContentModel {
     
     public var htmlToDisplay: String? { html }
     public var imageURLToDisplay: URL? { imageUrl }
+    
+    
+    public func configureBookmark(_ bookmark: Bookmark) {
+        let url = url
+        safeWrite { realm in
+            for historyRecord in realm.objects(HistoryRecord.self).where({ ($0.bookmark == nil || $0.bookmark.isDeleted) && !$0.isDeleted }).filter({ $0.url == url }) {
+                historyRecord.bookmark = bookmark
+            }
+        }
+    }
 }
 
 public extension Bookmark {
@@ -81,15 +91,6 @@ public extension Bookmark {
                 realm.add(bookmark, update: .modified)
             }
             return bookmark
-        }
-    }
-    
-    func configureBookmark(_ bookmark: Bookmark) {
-        let url = url
-        safeWrite { realm in
-            for historyRecord in realm.objects(HistoryRecord.self).where({ ($0.bookmark == nil || $0.bookmark.isDeleted) && !$0.isDeleted }).filter({ $0.url == url }) {
-                historyRecord.bookmark = bookmark
-            }
         }
     }
     

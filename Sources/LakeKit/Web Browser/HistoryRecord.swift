@@ -5,6 +5,9 @@ public class HistoryRecord: Bookmark {
     @Persisted public var lastVisitedAt = Date()
     
     @Persisted public var bookmark: Bookmark?
+    
+    public override func configureBookmark(_ bookmark: Bookmark) {
+    }
 }
 
 //public extension HistoryRecord {
@@ -21,7 +24,7 @@ public class HistoryRecord: Bookmark {
 
 //public struct OptionalHistoryRecordBookmarkComparator: SortComparator {
 //    public var order: SortOrder = .forward
-//    
+//
 //    public func compare(_ lhs: HistoryRecord?, _ rhs: HistoryRecord?) -> ComparisonResult {
 //        let result: ComparisonResult
 //        switch (lhs?.bookmark, rhs?.bookmark) {
@@ -33,7 +36,7 @@ public class HistoryRecord: Bookmark {
 //        }
 //        return order == .forward ? result : result.reversed
 //    }
-//    
+//
 //    public init(order: SortOrder = .forward) {
 //        self.order = order
 //    }
