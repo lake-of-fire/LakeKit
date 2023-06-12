@@ -61,8 +61,8 @@ public struct LakeImage: View {
             if let image = state.image {
                 image
                     .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(maxWidth: maxWidth, minHeight: minHeight, maxHeight: maxHeight)
+                    .aspectRatio(contentMode: .fill)
+                    .frame(maxWidth: maxWidth, idealHeight: minHeight, maxHeight: maxHeight)
             } else if state.error != nil {
                 Color.clear
 //                Color.gray // Indicates an error
