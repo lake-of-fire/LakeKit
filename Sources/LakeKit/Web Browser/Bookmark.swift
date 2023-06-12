@@ -85,6 +85,11 @@ public extension Bookmark {
     }
     
     func configureBookmark(_ bookmark: Bookmark) {
+        safeWrite { realm in
+            for historyRecord in realm.objects(HistoryRecord.self).where({ $0.url == url && ($0.bookmark == nil || $0.bookmark.isDeleted) && !$0.isDeleted }) {
+                historyRecord.bookmark = self
+            }
+        }
     }
     
 //    func fetchRecords() -> [HistoryRecord] {

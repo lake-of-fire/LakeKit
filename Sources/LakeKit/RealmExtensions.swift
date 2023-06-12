@@ -29,7 +29,7 @@ public func safeWrite<Value>(_ value: Value, configuration: Realm.Configuration?
     }
 }
 
-public func safeWrite(configuration: Realm.Configuration, _ block: (Realm) -> Void) {
+public func safeWrite(configuration: Realm.Configuration = Realm.Configuration.defaultConfiguration, _ block: (Realm) -> Void) {
     let realm = try! Realm(configuration: configuration)
     if realm.isInWriteTransaction {
         block(realm)
