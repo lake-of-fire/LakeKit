@@ -11,10 +11,17 @@ import UIKit
 /// Loads from any source by URL.
 public struct ReaderContentLoader {
     public static func load(url: URL, persist: Bool = true, realmConfiguration: Realm.Configuration) -> (any ReaderContentModel)? {
-        if url.scheme == "about" && url.absoluteString.lowercased().starts(with: "about:load") {
-            // Don't persist about:load visits.
+        let lowerURL = url.absoluteString.lowercased()
+        if url.scheme == "about" && lowerURL.starts(with: "about:load") {
+            // Don't persist about:load
             return nil
+        } else if url.scheme == "about" && lowerURL.starts(with: "about:blank") && !persist {
+            let historyRecord = HistoryRecord()
+            historyRecord.url = url
+            historyRecord.updateCompoundKey()
+            return historyRecord
         }
+        print("load")
         
         var url = url
         if url.isEPUBURL, url.isFileURL {
@@ -49,7 +56,7 @@ public struct ReaderContentLoader {
             }
             match = historyRecord
         }
-        if let match = match, url.isFileURL, url.contains(.plainText), let contents = try? String(contentsOf: url), let data = textToHTML(contents, forceRaw: true).readerContentData {
+        if persist, let match = match, url.isFileURL, url.contains(.plainText), let contents = try? String(contentsOf: url), let data = textToHTML(contents, forceRaw: true).readerContentData {
             safeWrite(match) { _, match in
                 match.content = data
             }
