@@ -21,7 +21,6 @@ public struct ReaderContentLoader {
             historyRecord.updateCompoundKey()
             return historyRecord
         }
-        print("load")
         
         var url = url
         if url.isEPUBURL, url.isFileURL {
