@@ -9,7 +9,7 @@ public struct CheckboxToggleStyle: ToggleStyle{
             HStack(alignment: .center) {
                 Image(systemName: configuration.isOn
                       ? "checkmark.circle.fill"
-                      : "circle")
+                      : "plus.circle")
                 .padding(.trailing, 6)
                 configuration.label
                     .multilineTextAlignment(.leading)
