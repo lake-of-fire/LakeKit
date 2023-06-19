@@ -62,9 +62,9 @@ public struct EnhancedSearchableModifier: ViewModifier {
         VStack {
             DSFSearchField.SwiftUI(text: $searchText, placeholderText: prompt, autosaveName: autosaveName, onSearchTermChange: { searchTerm in
                 onSearchTextChange(searchText: searchTerm)
-                Task { @MainActor in
-                    isEnhancedlySearching = !searchTerm.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                }
+//                Task { @MainActor in
+//                    isEnhancedlySearching = !searchTerm.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+//                }
             })
             .padding(.horizontal, 5)
             .frame(maxWidth: 850)
