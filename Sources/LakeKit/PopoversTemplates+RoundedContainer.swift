@@ -58,7 +58,7 @@ public extension Templates {
                         RoundedBackground(
                             cornerRadius: cornerRadius
                         )
-                        .fill(.ultraThickMaterial)
+                        .background(.ultraThickMaterial)
                         .popoverShadowIfNeeded(shadow: shadow)
                     )
             }
