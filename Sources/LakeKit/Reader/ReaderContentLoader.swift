@@ -10,7 +10,7 @@ import UIKit
 
 /// Loads from any source by URL.
 public struct ReaderContentLoader {
-    public static func load(url: URL, persist: Bool = true, realmConfiguration: Realm.Configuration) -> (any ReaderContentModel)? {
+    public static func load(url: URL, persist: Bool = true, bookmarkRealmConfiguration: Realm.Configuration, historyRealmConfiguration: Realm.Configuration, feedEntryRealmConfiguration: Realm.Configuration) -> (any ReaderContentModel)? {
         let lowerURL = url.absoluteString.lowercased()
         if url.scheme == "about" && lowerURL.starts(with: "about:load") {
             // Don't persist about:load
@@ -27,17 +27,17 @@ public struct ReaderContentLoader {
             url = URL(string: "epub://" + url.path) ?? url
         }
         
-        guard let realm = try? Realm(), let sharedRealm = try? Realm(configuration: realmConfiguration) else { return nil }
+        guard let bookmarkRealm = try? Realm(configuration: bookmarkRealmConfiguration), let historyRealm = try? Realm(configuration: historyRealmConfiguration), let feedRealm = try? Realm(configuration: feedEntryRealmConfiguration) else { return nil }
         
-        let bookmark = realm.objects(Bookmark.self)
+        let bookmark = bookmarkRealm.objects(Bookmark.self)
             .sorted(by: \.createdAt, ascending: false)
             .filter("url == %@", url.absoluteString)
             .first
-        let history = realm.objects(HistoryRecord.self)
+        let history = historyRealm.objects(HistoryRecord.self)
             .sorted(by: \.createdAt, ascending: false)
             .filter("url == %@", url.absoluteString)
             .first
-        let feed = sharedRealm.objects(FeedEntry.self)
+        let feed = feedRealm.objects(FeedEntry.self)
             .sorted(by: \.createdAt, ascending: false)
             .filter("url == %@", url.absoluteString)
             .first
@@ -49,8 +49,8 @@ public struct ReaderContentLoader {
             //        historyRecord.isReaderModeByDefault
             historyRecord.updateCompoundKey()
             if persist {
-                try! realm.write {
-                    realm.add(historyRecord, update: .modified)
+                try! historyRealm.write {
+                    historyRealm.add(historyRecord, update: .modified)
                 }
             }
             match = historyRecord
@@ -63,26 +63,26 @@ public struct ReaderContentLoader {
         return match
     }
     
-    public static func load(urlString: String, realmConfiguration: Realm.Configuration) -> (any ReaderContentModel)? {
+    public static func load(urlString: String, bookmarkRealmConfiguration: Realm.Configuration, historyRealmConfiguration: Realm.Configuration, feedEntryRealmConfiguration: Realm.Configuration) -> (any ReaderContentModel)? {
         guard let url = URL(string: urlString) else { return nil }
-        return load(url: url, realmConfiguration: realmConfiguration)
+        return load(url: url, bookmarkRealmConfiguration: bookmarkRealmConfiguration, historyRealmConfiguration: historyRealmConfiguration, feedEntryRealmConfiguration: feedEntryRealmConfiguration)
     }
     
-    public static func load(html: String, realmConfiguration: Realm.Configuration) -> (any ReaderContentModel)? {
-        guard let realm = try? Realm(), let sharedRealm = try? Realm(configuration: DefaultRealmConfiguration.configuration) else { return nil }
+    public static func load(html: String, bookmarkRealmConfiguration: Realm.Configuration, historyRealmConfiguration: Realm.Configuration, feedEntryRealmConfiguration: Realm.Configuration) -> (any ReaderContentModel)? {
+        guard let bookmarkRealm = try? Realm(configuration: bookmarkRealmConfiguration), let historyRealm = try? Realm(configuration: historyRealmConfiguration), let feedRealm = try? Realm(configuration: feedEntryRealmConfiguration) else { return nil }
         
         let data = html.readerContentData
         
-        let bookmark = realm.objects(Bookmark.self)
+        let bookmark = bookmarkRealm.objects(Bookmark.self)
             .sorted(by: \.createdAt, ascending: false)
             .where { $0.content == data }
             .first
 //            .first(where: { $0.content == data })
-        let history = realm.objects(HistoryRecord.self)
+        let history = historyRealm.objects(HistoryRecord.self)
             .sorted(by: \.createdAt, ascending: false)
             .where { $0.content == data }
             .first
-        let feed = sharedRealm.objects(FeedEntry.self)
+        let feed = feedRealm.objects(FeedEntry.self)
             .sorted(by: \.createdAt, ascending: false)
             .where { $0.content == data }
             .first
@@ -98,8 +98,8 @@ public struct ReaderContentLoader {
 //        historyRecord.isReaderModeByDefault = true
         historyRecord.updateCompoundKey()
         historyRecord.url = snippetURL(key: historyRecord.compoundKey) ?? historyRecord.url
-        try! realm.write {
-            realm.add(historyRecord, update: .modified)
+        try! historyRealm.write {
+            historyRealm.add(historyRecord, update: .modified)
         }
         return historyRecord
     }
@@ -130,11 +130,11 @@ public struct ReaderContentLoader {
         return URL(string: "about:snippet?key=\(key)")
     }
     
-    public static func load(text: String, realmConfiguration: Realm.Configuration) -> (any ReaderContentModel)? {
-        return load(html: textToHTML(text, forceRaw: true), realmConfiguration: realmConfiguration)
+    public static func load(text: String, bookmarkRealmConfiguration: Realm.Configuration, historyRealmConfiguration: Realm.Configuration, feedEntryRealmConfiguration: Realm.Configuration) -> (any ReaderContentModel)? {
+        return load(html: textToHTML(text, forceRaw: true), bookmarkRealmConfiguration: bookmarkRealmConfiguration, historyRealmConfiguration: historyRealmConfiguration, feedEntryRealmConfiguration: feedEntryRealmConfiguration)
     }
     
-    public static func loadPasteboard(realmConfiguration: Realm.Configuration) -> (any ReaderContentModel)? {
+    public static func loadPasteboard(bookmarkRealmConfiguration: Realm.Configuration, historyRealmConfiguration: Realm.Configuration, feedEntryRealmConfiguration: Realm.Configuration) -> (any ReaderContentModel)? {
         var match: (any ReaderContentModel)?
         
         #if os(macOS)
@@ -148,16 +148,16 @@ public struct ReaderContentLoader {
         if let html = html {
             if let doc = try? SwiftSoup.parse(html) {
                 if docIsPlainText(doc: doc), let text = text {
-                    match = load(html: textToHTML(text), realmConfiguration: realmConfiguration)
+                    match = load(html: textToHTML(text), bookmarkRealmConfiguration: bookmarkRealmConfiguration, historyRealmConfiguration: historyRealmConfiguration, feedEntryRealmConfiguration: feedEntryRealmConfiguration)
                 } else {
-                    match = load(html: html, realmConfiguration: realmConfiguration)
+                    match = load(html: html, bookmarkRealmConfiguration: bookmarkRealmConfiguration, historyRealmConfiguration: historyRealmConfiguration, feedEntryRealmConfiguration: feedEntryRealmConfiguration)
                 }
-                match = load(html: html, realmConfiguration: realmConfiguration)
+                match = load(html: html, bookmarkRealmConfiguration: bookmarkRealmConfiguration, historyRealmConfiguration: historyRealmConfiguration, feedEntryRealmConfiguration: feedEntryRealmConfiguration)
             } else {
-                match = load(html: textToHTML(html), realmConfiguration: realmConfiguration)
+                match = load(html: textToHTML(html), bookmarkRealmConfiguration: bookmarkRealmConfiguration, historyRealmConfiguration: historyRealmConfiguration, feedEntryRealmConfiguration: feedEntryRealmConfiguration)
             }
         } else if let text = text {
-            match = load(html: textToHTML(text), realmConfiguration: realmConfiguration)
+            match = load(html: textToHTML(text), bookmarkRealmConfiguration: bookmarkRealmConfiguration, historyRealmConfiguration: historyRealmConfiguration, feedEntryRealmConfiguration: feedEntryRealmConfiguration)
         }
         if let match = match, let url = snippetURL(key: match.compoundKey) {
             safeWrite(match) { _, match in
