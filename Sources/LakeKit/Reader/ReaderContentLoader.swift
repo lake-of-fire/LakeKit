@@ -95,7 +95,8 @@ public struct ReaderContentLoader {
         let historyRecord = HistoryRecord()
         historyRecord.publicationDate = Date()
         historyRecord.content = data
-//        historyRecord.isReaderModeByDefault = true
+        // isReaderModeByDefault used to be commented out... why?
+        historyRecord.isReaderModeByDefault = true
         historyRecord.updateCompoundKey()
         historyRecord.url = snippetURL(key: historyRecord.compoundKey) ?? historyRecord.url
         try! historyRealm.write {
@@ -159,7 +160,8 @@ public struct ReaderContentLoader {
         } else if let text = text {
             match = load(html: textToHTML(text), bookmarkRealmConfiguration: bookmarkRealmConfiguration, historyRealmConfiguration: historyRealmConfiguration, feedEntryRealmConfiguration: feedEntryRealmConfiguration)
         }
-        if let match = match, let url = snippetURL(key: match.compoundKey) {
+        if let match = match {
+            let url = snippetURL(key: match.compoundKey) ?? match.url
             safeWrite(match) { _, match in
                 match.isFromClipboard = true
                 match.url = url

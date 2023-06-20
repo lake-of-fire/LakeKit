@@ -39,6 +39,7 @@ public struct EnhancedSearchableModifier: ViewModifier {
         
         func body(content: Content) -> some View {
             content
+#if os(iOS)
                 .task {
                     Task { @MainActor in
                         self.isEnhancedlySearching = isSearching
@@ -54,6 +55,7 @@ public struct EnhancedSearchableModifier: ViewModifier {
                         self.isEnhancedlySearching = isSearching
                     }
                 }
+#endif
         }
     }
     
