@@ -67,6 +67,7 @@ let package = Package(
         .package(path: "../PagerTabStripView"),
         .package(path: "../navigation-stack-backport"),
         .package(path: "../VisionLiveText_SwiftUICompatible"),
+//        .package(path: "../FramedScreenshotsTool"),
     ],
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.

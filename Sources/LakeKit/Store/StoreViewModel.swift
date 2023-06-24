@@ -50,11 +50,9 @@ public class StoreViewModel: NSObject, ObservableObject {
     
     public func refreshIsSubscribed(storeHelper: StoreHelper) {
         Task { @MainActor in
-#if DEBUG
             if ProcessInfo.processInfo.arguments.contains("pretend-subscribed"), !isSubscribedFromElsewhere {
                 isSubscribedFromElsewhere = true
             }
-#endif
             
             if isSubscribedFromElsewhere, !isSubscribed {
                 isSubscribed = true
