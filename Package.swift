@@ -63,7 +63,7 @@ let package = Package(
         .package(url: "https://github.com/nmdias/FeedKit.git", branch: "master"),
         .package(url: "https://github.com/lake-of-fire/opml", branch: "master"),
         .package(url: "https://github.com/witekbobrowski/EPUBKit.git", branch: "main"),
-        .package(url: "https://github.com/kean/Pulse.git", revision: "00eeef20c91d0fefbb33f0d752caf2a4430b9d66"),
+        .package(url: "https://github.com/kean/Pulse.git", branch: "main"),
         .package(path: "../PagerTabStripView"),
         .package(path: "../navigation-stack-backport"),
         .package(path: "../VisionLiveText_SwiftUICompatible"),
