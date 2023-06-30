@@ -22,7 +22,7 @@ public func safeWrite<Value>(_ value: Value, configuration: Realm.Configuration?
             }
             // Needed to avoid err "Cannot register notifcaiton block from within write tranasaction"
             // See @Brandon's comment: https://github.com/realm/realm-swift/issues/4818
-            realm.refresh()
+//            realm.refresh()
         }
     } else {
         block(nil, thawed)
@@ -39,7 +39,7 @@ public func safeWrite(configuration: Realm.Configuration = Realm.Configuration.d
         }
         // Needed to avoid err "Cannot register notifcaiton block from within write tranasaction"
         // See @Brandon's comment: https://github.com/realm/realm-swift/issues/4818
-        realm.refresh()
+//        realm.refresh()
     }
 }
 
