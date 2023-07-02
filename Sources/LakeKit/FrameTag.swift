@@ -112,7 +112,7 @@ class WindowTagModels {
      - parameter window: The `UIWindow` whose `WindowTagModel` is being requested, e.g. to present a popover.
      - Returns: The `WindowTagModel` used to model the visible popovers for the given window.
      */
-    func windowTagModel(for window: NSWindow) -> WindowTagModel {
+    func windowTagModel(for window: NSWindow) -> WindowTagModel? {
         /**
          Continually remove entries that refer to `UIWindow`s that are no longer about.
          The view hierarchies have already been dismantled - this is just for our own book keeping.
@@ -138,12 +138,15 @@ class WindowTagModels {
         return windowModels.first(where: { holder, _ in holder.pointee === window })?.value
     }
 
-    private func prepareAndRetainModel(for window: NSWindow) -> WindowTagModel {
+    private func prepareAndRetainModel(for window: NSWindow?) -> WindowTagModel? {
         let newModel = WindowTagModel()
-        let weakWindowReference = Weak(pointee: window)
-        windowModels[weakWindowReference] = newModel
-
-        return newModel
+        if let window = window {
+            let weakWindowReference = Weak(pointee: window)
+            windowModels[weakWindowReference] = newModel
+            
+            return newModel
+        }
+        return nil
     }
 
     /// Container type to enable storage of an object type without incrementing its retain count.
@@ -176,8 +179,8 @@ extension NSResponder {
         }
 
         /// If we're a window, we define the scoping for the model - access it.
-        if let window = self as? NSWindow {
-            return WindowTagModels.shared.windowTagModel(for: window)
+        if let window = self as? NSWindow, let windowTagModel = WindowTagModels.shared.windowTagModel(for: window) {
+            return windowTagModel
         }
 
         /// If we're a view controller, begin walking the responder chain up to the root view.
