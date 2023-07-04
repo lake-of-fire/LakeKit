@@ -71,17 +71,20 @@ public class Downloadable: ObservableObject, Identifiable, Hashable {
         task.publisher.receive(on: DispatchQueue.main).sink(receiveCompletion: { [weak self] completion in
             switch completion {
             case .failure(let error):
+            print("PUB fail")
                 self?.isFailed = true
                 self?.isFinishedDownloading = false
                 self?.isActive = false
                 self?.downloadProgress = .completed(destinationLocation: nil, error: error)
             case .finished:
+            print("PUB fin")
                 self?.lastDownloaded = Date()
                 self?.isFailed = false
                 self?.isActive = false
                 self?.isFinishedDownloading = true
             }
         }, receiveValue: { [weak self] progress in
+            print("PUB val \(progress)")
             self?.isActive = true
             self?.downloadProgress = progress
             switch progress {
@@ -160,6 +163,7 @@ public class DownloadController: NSObject, ObservableObject {
         return controller
     }()
     
+    @Published public var isPending = false
     @Published public var assuredDownloads = Set<Downloadable>()
     @Published public var activeDownloads = Set<Downloadable>()
     @Published public var finishedDownloads = Set<Downloadable>()
@@ -175,6 +179,13 @@ public class DownloadController: NSObject, ObservableObject {
     
     public override init() {
         super.init()
+        
+        $activeDownloads.removeDuplicates().combineLatest($failedDownloads.removeDuplicates())
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] (active, failed) in
+                self?.isPending = !(active.isEmpty && failed.isEmpty)
+            }
+            .store(in: &cancellables)
     }
 }
 

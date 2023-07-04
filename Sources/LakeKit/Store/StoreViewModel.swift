@@ -72,6 +72,7 @@ public class StoreViewModel: NSObject, ObservableObject {
                 isInitialized = true
                 return
             }
+//            print("SET IS SUB \(subscriptionState)")
             isSubscribed = subscriptionState == .inBillingRetryPeriod || subscriptionState == .inGracePeriod || subscriptionState == .subscribed
             isInitialized = true
         }
