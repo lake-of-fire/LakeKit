@@ -1,4 +1,4 @@
-// swift-tools-version: 5.7
+// swift-tools-version: 5.8
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -13,14 +13,11 @@ let package = Package(
             targets: ["LakeKit"]),
     ],
     dependencies: [
-        // Dependencies declare other packages that this package depends on.
-        // .package(url: /* package url */, from: "1.0.0"),
         .package(url: "https://github.com/realm/realm-swift.git", from: "10.28.1"),
         .package(path: "../BigSyncKit"),
         .package(url: "https://github.com/lake-of-fire/AsyncView.git", branch: "main"),
         .package(url: "https://github.com/NuPlay/ExpandableText.git", branch: "main"),
 //        .package(url: "https://github.com/lake-of-fire/swiftui-webview.git", branch: "main"),
-        .package(path: "../swiftui-webview"),
         .package(url: "https://github.com/kean/Nuke.git", branch: "main"),
         .package(url: "https://github.com/lake-of-fire/swift-url.git", branch: "main"),
 //        .package(url: "https://github.com/demharusnam/SwiftUIDrag.git", branch: "main"),
@@ -64,6 +61,7 @@ let package = Package(
         .package(url: "https://github.com/lake-of-fire/opml", branch: "master"),
         .package(url: "https://github.com/witekbobrowski/EPUBKit.git", branch: "main"),
         .package(url: "https://github.com/kean/Pulse.git", branch: "main"),
+        .package(url: "https://github.com/stevengharris/SplitView.git", branch: "main"),
         .package(path: "../PagerTabStripView"),
         .package(path: "../navigation-stack-backport"),
         .package(path: "../VisionLiveText_SwiftUICompatible"),
@@ -78,7 +76,6 @@ let package = Package(
                 .product(name: "Realm", package: "realm-swift"),
                 .product(name: "RealmSwift", package: "realm-swift"),
                 .product(name: "AsyncView", package: "AsyncView"),
-                .product(name: "SwiftUIWebView", package: "swiftui-webview"),
                 .product(name: "Nuke", package: "Nuke"),
                 .product(name: "NukeUI", package: "Nuke"),
                 .product(name: "WebURL", package: "swift-url"),
@@ -124,6 +121,7 @@ let package = Package(
                 .product(name: "Pulse", package: "Pulse"),
                 .product(name: "PulseUI", package: "Pulse"),
 //                .product(name: "Pulse", package: "PulseUI"),
+                .product(name: "SplitView", package: "SplitView"),
             ],
             resources: [
 //                .copy("Resources/CSS/Reader.css"),

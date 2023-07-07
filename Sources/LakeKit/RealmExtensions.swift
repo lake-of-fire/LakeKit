@@ -47,7 +47,11 @@ extension URL: FailableCustomPersistable {
     public typealias PersistedType = String
     
     public init?(persistedValue: String) {
-        self.init(string: persistedValue)
+        if persistedValue.isEmpty || URL(string: persistedValue) == nil {
+            self.init(string: "about:blank")
+        } else {
+            self.init(string: persistedValue)
+        }
     }
     
     public var persistableValue: String {
