@@ -4,14 +4,15 @@ import StoreKit
 import Collections
 
 public extension View {
-    func storeSheet(isPresented: Binding<Bool>, storeViewModel: StoreViewModel) -> some View {
-        self.modifier(StoreSheetModifier(isPresented: isPresented, storeViewModel: storeViewModel))
+    func storeSheet(isPresented: Binding<Bool>) -> some View {
+        self.modifier(StoreSheetModifier(isPresented: isPresented))
     }
 }
 
 public struct StoreSheetModifier: ViewModifier {
     @Binding var isPresented: Bool
-    @ObservedObject public var storeViewModel: StoreViewModel
+    
+    @EnvironmentObject private var storeViewModel: StoreViewModel
 
     public func body(content: Content) -> some View {
         content

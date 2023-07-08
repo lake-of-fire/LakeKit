@@ -134,7 +134,7 @@ public struct StorePromptOverlayModifier: ViewModifier {
             }
             .modifier {
                 if presentsStoreSheet {
-                    $0.storeSheet(isPresented: $isStoreSheetPresented, storeViewModel: storeViewModel)
+                    $0.storeSheet(isPresented: $isStoreSheetPresented)
                 } else { $0 }
             }
     }
