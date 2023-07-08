@@ -10,7 +10,7 @@
 // Forked from https://github.com/aheze/Popovers/blob/54728a9ca199ffbffe444d5b04a9354f6a02da7c/Sources/SwiftUI/FrameTag.swift#L81
 import SwiftUI
 import AppKit
-import PureSwiftUI
+import SwiftUtilities
 
 /// Store a view's frame for later use.
 struct FrameTagModifier: ViewModifier {
