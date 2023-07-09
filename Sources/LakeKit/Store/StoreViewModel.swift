@@ -23,7 +23,9 @@ public class StoreViewModel: NSObject, ObservableObject {
     @Published public var chatURL: URL? = nil
     @Published public var faq = OrderedDictionary<String, String>()
     
-    public init(satisfyingPrerequisite: @escaping () async -> Bool = { true }, products: [StoreProduct], studentProducts: [StoreProduct], appAccountToken: UUID? = nil, headline: String, subheadline: String, productGroupHeading: String, productGroupSubtitle: String = "", freeTierExplanation: String? = nil, benefits: [String], termsOfService: URL, privacyPolicy: URL, chatURL: URL? = nil, faq: OrderedDictionary<String, String>) {
+    var beforeSubscriptionRefresh: ((StoreViewModel) async -> Void)? = nil
+    
+    public init(satisfyingPrerequisite: @escaping () async -> Bool = { true }, products: [StoreProduct], studentProducts: [StoreProduct], appAccountToken: UUID? = nil, headline: String, subheadline: String, productGroupHeading: String, productGroupSubtitle: String = "", freeTierExplanation: String? = nil, benefits: [String], termsOfService: URL, privacyPolicy: URL, chatURL: URL? = nil, faq: OrderedDictionary<String, String>, beforeSubscriptionRefresh: ((StoreViewModel) async -> Void)? = nil) {
         self.satisfyingPrerequisite = satisfyingPrerequisite
         self.products = products
         self.studentProducts = studentProducts
@@ -38,6 +40,7 @@ public class StoreViewModel: NSObject, ObservableObject {
         self.privacyPolicy = privacyPolicy
         self.chatURL = chatURL
         self.faq = faq
+        self.beforeSubscriptionRefresh = beforeSubscriptionRefresh
     }
     
     public var productGridColumns: [GridItem] {
@@ -52,6 +55,10 @@ public class StoreViewModel: NSObject, ObservableObject {
         Task { @MainActor in
             if ProcessInfo.processInfo.arguments.contains("pretend-subscribed"), !isSubscribedFromElsewhere {
                 isSubscribedFromElsewhere = true
+            }
+            
+            if let beforeSubscriptionRefresh = beforeSubscriptionRefresh {
+                await beforeSubscriptionRefresh(self)
             }
             
             if isSubscribedFromElsewhere, !isSubscribed {
