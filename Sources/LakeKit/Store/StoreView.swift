@@ -348,6 +348,15 @@ public struct StoreView: View {
         }
     }
     
+    private var productOptionFrameMaxWidth: CGFloat? {
+#if os(iOS)
+        if horizontalSizeClass == .compact {
+            return .infinity
+        } else { }
+#endif
+        return .infinity
+    }
+    
     public init(isPresented: Binding<Bool>, storeViewModel: StoreViewModel) {
         _isPresented = isPresented
         self.storeViewModel = storeViewModel
@@ -367,15 +376,7 @@ public struct StoreView: View {
             }
         }
         .tint(.accentColor)
-        .modifier {
-#if os(iOS)
-            if horizontalSizeClass == .compact {
-                $0.frame(maxWidth: .infinity)
-            } else { $0 }
-#else
-            $0
-#endif
-        }
+        .frame(maxWidth: productOptionFrameMaxWidth)
 //            .frame(maxHeight: .infinity)
             //                            .fixedSize(horizontal: false, vertical: true)
             //                            .frame(maxWidth: .infinity)

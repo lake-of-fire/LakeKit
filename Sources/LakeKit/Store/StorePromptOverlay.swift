@@ -1,5 +1,6 @@
 import SwiftUI
 import StoreHelper
+import SwiftUtilities
 
 public extension View {
     func storePromptOverlay(storeViewModel: StoreViewModel, isStoreSheetPresented: Binding<Bool>, headlineText: String, bodyText: String, storeButtonText: String, alternativeButtonText: String? = nil, alternativeButtonAction: (() -> Void)? = nil, toDismissFirst: Binding<Bool>? = nil) -> some View {
@@ -79,7 +80,7 @@ public struct StorePrompt: View {
         )
     }
 }
-    
+
 public struct StorePromptOverlayModifier: ViewModifier {
     @ObservedObject public var storeViewModel: StoreViewModel
     @Binding public var isStoreSheetPresented: Bool
@@ -100,11 +101,6 @@ public struct StorePromptOverlayModifier: ViewModifier {
     
     public func body(content: Content) -> some View {
         content
-            .modifier {
-                if #available(iOS 16, macOS 13, *) {
-                    $0.scrollDisabled(isPresented)
-                } else { $0 }
-            }
             .overlay {
                 if isPresented {
                     LinearGradient(
@@ -132,10 +128,12 @@ public struct StorePromptOverlayModifier: ViewModifier {
                         .padding([.leading, .trailing], 20)
                 }
             }
-            .modifier {
-                if presentsStoreSheet {
-                    $0.storeSheet(isPresented: $isStoreSheetPresented)
-                } else { $0 }
-            }
+            .scrollDisabledIfAvailable(isPresented)
+            .storeSheet(isPresented: Binding<Bool>(
+                get: {
+                    presentsStoreSheet && isStoreSheetPresented
+                }, set: {
+                    isStoreSheetPresented = $0
+                }))
     }
 }
