@@ -24,6 +24,7 @@ public class StoreViewModel: NSObject, ObservableObject {
     @Published public var faq = OrderedDictionary<String, String>()
     
     var beforeSubscriptionRefresh: ((StoreViewModel) async -> Void)? = nil
+    private var subscriptionRefreshTask: Task<Void, Never>? = nil
     
     public init(satisfyingPrerequisite: @escaping () async -> Bool = { true }, products: [StoreProduct], studentProducts: [StoreProduct], appAccountToken: UUID? = nil, headline: String, subheadline: String, productGroupHeading: String, productGroupSubtitle: String = "", freeTierExplanation: String? = nil, benefits: [String], termsOfService: URL, privacyPolicy: URL, chatURL: URL? = nil, faq: OrderedDictionary<String, String>, beforeSubscriptionRefresh: ((StoreViewModel) async -> Void)? = nil) {
         self.satisfyingPrerequisite = satisfyingPrerequisite
@@ -51,37 +52,48 @@ public class StoreViewModel: NSObject, ObservableObject {
         return !isSubscribed && isInitialized
     }
     
+    @MainActor
     public func refreshIsSubscribed(storeHelper: StoreHelper) {
-        Task { @MainActor in
-            if ProcessInfo.processInfo.arguments.contains("pretend-subscribed"), !isSubscribedFromElsewhere {
-                isSubscribedFromElsewhere = true
-            }
-            
-            if let beforeSubscriptionRefresh = beforeSubscriptionRefresh {
-                await beforeSubscriptionRefresh(self)
-            }
-            
-            if isSubscribedFromElsewhere, !isSubscribed {
-                isSubscribed = true
+        subscriptionRefreshTask?.cancel()
+        subscriptionRefreshTask = Task { @MainActor in
+            do {
+                try Task.checkCancellation()
+                if ProcessInfo.processInfo.arguments.contains("pretend-subscribed"), !isSubscribedFromElsewhere {
+                    isSubscribedFromElsewhere = true
+                }
+                
+                if let beforeSubscriptionRefresh = beforeSubscriptionRefresh {
+                    await beforeSubscriptionRefresh(self)
+                }
+                
+                if isSubscribedFromElsewhere {
+                    try Task.checkCancellation()
+                    if !isSubscribed {
+                        isSubscribed = true
+                    }
+                    isInitialized = true
+                    return
+                }
+                
+                //            for product in (storeHelper.subscriptionProducts ?? []) {
+                //                if let groupName = storeHelper.subscriptionHelper.groupName(from: product.id), let state = await storeHelper.subscriptionHelper.subscriptionInfo(for: groupName)?.subscriptionStatus?.state {
+                //                    print(state)
+                //                    isSubscribed = state == .inBillingRetryPeriod || state == .inGracePeriod || state == .subscribed
+                //                }
+                //            }
+                //            isSubscribed = false
+                guard let group = await storeHelper.subscriptionHelper.groupSubscriptionInfo()?.first, let groupID = group.subscriptionGroup, let subscriptionState = await storeHelper.subscriptionHelper.subscriptionInfo(for: groupID)?.subscriptionStatus?.state else {
+                    try Task.checkCancellation()
+                    isSubscribed = false
+                    isInitialized = true
+                    return
+                }
+                
+                try Task.checkCancellation()
+                isSubscribed = subscriptionState == .inBillingRetryPeriod || subscriptionState == .inGracePeriod || subscriptionState == .subscribed
                 isInitialized = true
-                return
+            } catch {
             }
-            
-//            for product in (storeHelper.subscriptionProducts ?? []) {
-//                if let groupName = storeHelper.subscriptionHelper.groupName(from: product.id), let state = await storeHelper.subscriptionHelper.subscriptionInfo(for: groupName)?.subscriptionStatus?.state {
-//                    print(state)
-//                    isSubscribed = state == .inBillingRetryPeriod || state == .inGracePeriod || state == .subscribed
-//                }
-//            }
-//            isSubscribed = false
-            guard let group = await storeHelper.subscriptionHelper.groupSubscriptionInfo()?.first, let groupID = group.subscriptionGroup, let subscriptionState = await storeHelper.subscriptionHelper.subscriptionInfo(for: groupID)?.subscriptionStatus?.state else {
-                isSubscribed = false
-                isInitialized = true
-                return
-            }
-//            print("SET IS SUB \(subscriptionState)")
-            isSubscribed = subscriptionState == .inBillingRetryPeriod || subscriptionState == .inGracePeriod || subscriptionState == .subscribed
-            isInitialized = true
         }
     }
 }

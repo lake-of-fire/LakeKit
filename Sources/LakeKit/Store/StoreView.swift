@@ -93,7 +93,7 @@ struct StudentDiscountDisclosureGroup<Content: View>: View {
                     Text("Affordable pricing")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
-                    Text("Student & Educator Discount \(Image(systemName: "chevron.right"))")
+                    Text("Student & Educator Discount") // \(Image(systemName: "chevron.right"))")
                     .font(.headline)
                     .bold()
                 }
@@ -129,7 +129,7 @@ struct FreeTierDisclosureGroup<Content: View>: View {
                     Text("Use without payment")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
-                    Text("Free Tier \(Image(systemName: "chevron.right"))")
+                    Text("Free Tier") // \(Image(systemName: "chevron.right"))")
                     .font(.headline)
                     .bold()
                 }
