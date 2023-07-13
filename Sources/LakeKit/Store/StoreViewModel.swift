@@ -23,7 +23,7 @@ public class StoreViewModel: NSObject, ObservableObject {
     @Published public var chatURL: URL? = nil
     @Published public var faq = OrderedDictionary<String, String>()
     
-    var beforeSubscriptionRefresh: ((StoreViewModel) async -> Void)? = nil
+    @MainActor var beforeSubscriptionRefresh: ((StoreViewModel) async -> Void)? = nil
     private var subscriptionRefreshTask: Task<Void, Never>? = nil
     
     public init(satisfyingPrerequisite: @escaping () async -> Bool = { true }, products: [StoreProduct], studentProducts: [StoreProduct], appAccountToken: UUID? = nil, headline: String, subheadline: String, productGroupHeading: String, productGroupSubtitle: String = "", freeTierExplanation: String? = nil, benefits: [String], termsOfService: URL, privacyPolicy: URL, chatURL: URL? = nil, faq: OrderedDictionary<String, String>, beforeSubscriptionRefresh: ((StoreViewModel) async -> Void)? = nil) {
@@ -60,10 +60,14 @@ public class StoreViewModel: NSObject, ObservableObject {
                 try Task.checkCancellation()
                 if ProcessInfo.processInfo.arguments.contains("pretend-subscribed"), !isSubscribedFromElsewhere {
                     isSubscribedFromElsewhere = true
+                    print("HUH is subbed from else")
                 }
                 
                 if let beforeSubscriptionRefresh = beforeSubscriptionRefresh {
+                    print("HUH before..")
                     await beforeSubscriptionRefresh(self)
+                } else {
+                    print("HUH NO before..")
                 }
                 
                 if isSubscribedFromElsewhere {
@@ -72,6 +76,7 @@ public class StoreViewModel: NSObject, ObservableObject {
                         isSubscribed = true
                     }
                     isInitialized = true
+                    print("HUH ret cos good")
                     return
                 }
                 
@@ -86,12 +91,14 @@ public class StoreViewModel: NSObject, ObservableObject {
                     try Task.checkCancellation()
                     isSubscribed = false
                     isInitialized = true
+                    print("HUH undoing it! no sub")
                     return
                 }
                 
                 try Task.checkCancellation()
                 isSubscribed = subscriptionState == .inBillingRetryPeriod || subscriptionState == .inGracePeriod || subscriptionState == .subscribed
                 isInitialized = true
+                    print("HUH sub cuz good")
             } catch {
             }
         }

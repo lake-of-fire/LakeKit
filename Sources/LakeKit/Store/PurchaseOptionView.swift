@@ -120,7 +120,7 @@ public struct PurchaseOptionView: View {
                         Text(product.displayName)
                             .font(.headline)
                             .multilineTextAlignment(.center)
-                            .padding(.horizontal)
+                            .padding(.horizontal, 5)
                             .foregroundColor(.primary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -156,7 +156,7 @@ public struct PurchaseOptionView: View {
                                 .multilineTextAlignment(.center)
                                 .foregroundColor(.white)
                                 .fixedSize(horizontal: false, vertical: true)
-                                .padding(.horizontal, 10)
+                                .padding(.horizontal, 5)
                                 .padding(.vertical, 5)
                                 .background(
                                     RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -168,7 +168,7 @@ public struct PurchaseOptionView: View {
                                 submitAction()
                             } label: {
                                 Text(buyTitle ?? product.displayName)
-                                    .padding(.horizontal, 8)
+                                    .padding(.horizontal, 5)
                                     .padding(.vertical, 4)
                             }
                             .buttonStyle(.borderedProminent)

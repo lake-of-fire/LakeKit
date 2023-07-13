@@ -375,7 +375,6 @@ public struct StoreView: View {
                 }
             }
         }
-        .tint(.accentColor)
         .frame(maxWidth: productOptionFrameMaxWidth)
 //            .frame(maxHeight: .infinity)
             //                            .fixedSize(horizontal: false, vertical: true)
