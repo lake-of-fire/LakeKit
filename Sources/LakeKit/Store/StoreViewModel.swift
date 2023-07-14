@@ -5,7 +5,6 @@ import StoreHelper
 public class StoreViewModel: NSObject, ObservableObject {
     /// For server overrides, other apps, etc.
     @Published public var isSubscribed = false
-    @Published public var isSubscribedFromElsewhere = false
     @Published public var isInitialized = false
     
     let satisfyingPrerequisite: () async -> Bool
@@ -23,10 +22,11 @@ public class StoreViewModel: NSObject, ObservableObject {
     @Published public var chatURL: URL? = nil
     @Published public var faq = OrderedDictionary<String, String>()
     
-    @MainActor var beforeSubscriptionRefresh: ((StoreViewModel) async -> Void)? = nil
+    @AppStorage("LakeKit.isSubscribedFromElsewhere") public var isSubscribedFromElsewhere = false
+    @MainActor var isSubscribedFromElsewhereCallback: ((StoreViewModel) async -> Bool)? = nil
     private var subscriptionRefreshTask: Task<Void, Never>? = nil
     
-    public init(satisfyingPrerequisite: @escaping () async -> Bool = { true }, products: [StoreProduct], studentProducts: [StoreProduct], appAccountToken: UUID? = nil, headline: String, subheadline: String, productGroupHeading: String, productGroupSubtitle: String = "", freeTierExplanation: String? = nil, benefits: [String], termsOfService: URL, privacyPolicy: URL, chatURL: URL? = nil, faq: OrderedDictionary<String, String>, beforeSubscriptionRefresh: ((StoreViewModel) async -> Void)? = nil) {
+    public init(satisfyingPrerequisite: @escaping () async -> Bool = { true }, products: [StoreProduct], studentProducts: [StoreProduct], appAccountToken: UUID? = nil, headline: String, subheadline: String, productGroupHeading: String, productGroupSubtitle: String = "", freeTierExplanation: String? = nil, benefits: [String], termsOfService: URL, privacyPolicy: URL, chatURL: URL? = nil, faq: OrderedDictionary<String, String>, isSubscribedFromElsewhereCallback: ((StoreViewModel) async -> Bool)? = nil) {
         self.satisfyingPrerequisite = satisfyingPrerequisite
         self.products = products
         self.studentProducts = studentProducts
@@ -41,7 +41,7 @@ public class StoreViewModel: NSObject, ObservableObject {
         self.privacyPolicy = privacyPolicy
         self.chatURL = chatURL
         self.faq = faq
-        self.beforeSubscriptionRefresh = beforeSubscriptionRefresh
+        self.isSubscribedFromElsewhereCallback = isSubscribedFromElsewhereCallback
     }
     
     public var productGridColumns: [GridItem] {
@@ -60,14 +60,8 @@ public class StoreViewModel: NSObject, ObservableObject {
                 try Task.checkCancellation()
                 if ProcessInfo.processInfo.arguments.contains("pretend-subscribed"), !isSubscribedFromElsewhere {
                     isSubscribedFromElsewhere = true
-                    print("HUH is subbed from else")
-                }
-                
-                if let beforeSubscriptionRefresh = beforeSubscriptionRefresh {
-                    print("HUH before..")
-                    await beforeSubscriptionRefresh(self)
-                } else {
-                    print("HUH NO before..")
+                } else if let isSubscribedFromElsewhereCallback = isSubscribedFromElsewhereCallback {
+                    isSubscribedFromElsewhere = await isSubscribedFromElsewhereCallback(self)
                 }
                 
                 if isSubscribedFromElsewhere {
@@ -76,7 +70,6 @@ public class StoreViewModel: NSObject, ObservableObject {
                         isSubscribed = true
                     }
                     isInitialized = true
-                    print("HUH ret cos good")
                     return
                 }
                 
@@ -91,14 +84,12 @@ public class StoreViewModel: NSObject, ObservableObject {
                     try Task.checkCancellation()
                     isSubscribed = false
                     isInitialized = true
-                    print("HUH undoing it! no sub")
                     return
                 }
                 
                 try Task.checkCancellation()
                 isSubscribed = subscriptionState == .inBillingRetryPeriod || subscriptionState == .inGracePeriod || subscriptionState == .subscribed
                 isInitialized = true
-                    print("HUH sub cuz good")
             } catch {
             }
         }
