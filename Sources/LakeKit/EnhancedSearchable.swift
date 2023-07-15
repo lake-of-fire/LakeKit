@@ -1,6 +1,5 @@
 import SwiftUI
 import DSFSearchField
-import SwiftUILayoutGuides
 
 struct IsEnhancedlySearchingKey: EnvironmentKey {
     static let defaultValue = false
