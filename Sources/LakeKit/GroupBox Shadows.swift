@@ -1,6 +1,5 @@
 import SwiftUI
 
-
 public extension View {
     func groupBoxShadow(cornerRadius: CGFloat = 6) -> some View {
         self.modifier(GroupBoxShadowModifier(cornerRadius: cornerRadius))
