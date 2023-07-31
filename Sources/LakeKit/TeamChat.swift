@@ -37,22 +37,22 @@ public struct TeamChatButton: View {
 public struct TeamChat: View {
     public let url: URL
     
+    @State private var webNavigator = WebViewNavigator()
     @State private var webState = WebViewState.empty
-    @State private var webAction = WebViewAction.idle
     
     public var body: some View {
         GeometryReader { geometry in
             WebView(
                 config: WebViewConfig(pageZoom: 0.9, userScripts: [
                 ]),
-                action: $webAction,
+                navigator: webNavigator,
                 state: $webState,
                 //                            scriptCaller: viewModel.resourcesScriptCaller,
                 obscuredInsets: geometry.safeAreaInsets)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .task {
-            webAction = .load(URLRequest(url: url))
+            webNavigator.load(URLRequest(url: url))
         }
     }
     
