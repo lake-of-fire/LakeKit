@@ -34,12 +34,13 @@ public class Session: ObservableObject {
                     return
                 }
                 authenticationContinuations.append(continuation)
-                if isPresentingWebAuthentication {
-                    isPresentingWebAuthentication = false
-                }
-                Task { @MainActor in
-                    await beforePresentation()
-                    isPresentingWebAuthentication = true
+                if !isPresentingWebAuthentication {
+                    //                    isPresentingWebAuthentication = false
+                    //                }
+                    Task { @MainActor in
+                        await beforePresentation()
+                        isPresentingWebAuthentication = true
+                    }
                 }
             }
         }
