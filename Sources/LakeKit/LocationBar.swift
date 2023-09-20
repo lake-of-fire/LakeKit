@@ -1,5 +1,5 @@
 import SwiftUI
-import Introspect
+@_spi(Advanced) import SwiftUIIntrospect
 
 public class LocationController: ObservableObject {
     @Published public var isPresentingLocationOpening = false
@@ -93,7 +93,8 @@ public struct LocationBar: View, Equatable {
             .onSubmit {
                 onSubmit(url, locationText)
             }
-            .introspectTextField { textField in
+//            .introspect(.textField, on: .IOS) { textField in
+            .introspect(.textField, on: .iOS(.v15...), .macOS(.v12...)) { textField in
                 // See: https://developer.apple.com/forums/thread/74372
                 if locationController.isPresentingLocationOpening {
 #if os(macOS)

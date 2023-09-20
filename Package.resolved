@@ -1,24 +1,6 @@
 {
   "pins" : [
     {
-      "identity" : "alerttoast",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/elai950/AlertToast.git",
-      "state" : {
-        "branch" : "master",
-        "revision" : "638f38f9daf08e17b7caea22d2fcb9c0a418d1b6"
-      }
-    },
-    {
-      "identity" : "asyncview",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/lake-of-fire/AsyncView.git",
-      "state" : {
-        "branch" : "main",
-        "revision" : "aceed35b6f5584df4ed9594fbdf83346bb47ead8"
-      }
-    },
-    {
       "identity" : "bettersafariview",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/lake-of-fire/BetterSafariView.git",
@@ -28,21 +10,21 @@
       }
     },
     {
+      "identity" : "bigsynckit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/lake-of-fire/BigSyncKit.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "0f7596c9a64e4a4d3bd6854029a811f00594b406"
+      }
+    },
+    {
       "identity" : "cloudkitsyncmonitor",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/ggruen/CloudKitSyncMonitor.git",
       "state" : {
         "branch" : "main",
         "revision" : "8f8de8e71928df27bf023cc6ed808a8b6270a0d3"
-      }
-    },
-    {
-      "identity" : "debouncedonchange",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/Tunous/DebouncedOnChange.git",
-      "state" : {
-        "branch" : "main",
-        "revision" : "21502f1f88659d32de27083253c81767be8e4eee"
       }
     },
     {
@@ -73,24 +55,6 @@
       }
     },
     {
-      "identity" : "faviconfinder",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/will-lumley/FaviconFinder.git",
-      "state" : {
-        "branch" : "main",
-        "revision" : "a46d1789829f77824990efed552eecd52511d192"
-      }
-    },
-    {
-      "identity" : "feedkit",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/nmdias/FeedKit.git",
-      "state" : {
-        "branch" : "master",
-        "revision" : "fb75f2a142f658c773953ab1a6885154a8624abb"
-      }
-    },
-    {
       "identity" : "filepicker",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/lake-of-fire/FilePicker.git",
@@ -109,12 +73,30 @@
       }
     },
     {
+      "identity" : "lakeimage",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/lake-of-fire/LakeImage.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "a735275f505ff9247fe6a95b494c80b344cfd488"
+      }
+    },
+    {
       "identity" : "lrucache",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/nicklockwood/LRUCache.git",
       "state" : {
         "branch" : "main",
         "revision" : "6d2b5246c9c98dcd498552bb22f08d55b12a8371"
+      }
+    },
+    {
+      "identity" : "navigation-stack-backport",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/lake-of-fire/navigation-stack-backport.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "bf4e9fda8b31db99c4af7b9966204456b4562f6a"
       }
     },
     {
@@ -127,21 +109,12 @@
       }
     },
     {
-      "identity" : "opengraph",
+      "identity" : "pagertabstripview",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/satoshi-takano/OpenGraph.git",
-      "state" : {
-        "branch" : "main",
-        "revision" : "7a76976df4625c599f2685e376291669d841d369"
-      }
-    },
-    {
-      "identity" : "opml",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/lake-of-fire/opml",
+      "location" : "https://github.com/lake-of-fire/PagerTabStripView.git",
       "state" : {
         "branch" : "master",
-        "revision" : "ae3c16303dc63f4ce0e717e82c8c82c47d76aefd"
+        "revision" : "5e2df6dd00f0c79efcf004bb321c2758e194331a"
       }
     },
     {
@@ -154,21 +127,21 @@
       }
     },
     {
-      "identity" : "pure-swift-ui",
+      "identity" : "popupview",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/CodeSlicing/pure-swift-ui.git",
+      "location" : "https://github.com/exyte/PopupView.git",
       "state" : {
-        "branch" : "develop",
-        "revision" : "dcad7b0a144af72ad7ef14323e8267b8d851477b"
+        "branch" : "master",
+        "revision" : "5724e89ce2e81f79ccfc1fabaaf5c42473234aef"
       }
     },
     {
-      "identity" : "pure-swift-ui-design",
+      "identity" : "pulse",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/CodeSlicing/pure-swift-ui-design.git",
+      "location" : "https://github.com/kean/Pulse.git",
       "state" : {
-        "revision" : "40489273ee4703032c7d4d185ac25743f604e158",
-        "version" : "1.0.0"
+        "branch" : "main",
+        "revision" : "e080339a24f5a47461378e5fe02ba3f2ef0a2cfa"
       }
     },
     {
@@ -187,6 +160,24 @@
       "state" : {
         "revision" : "08ee98e7f52a5fb11b10b7430e6f84adbb7433a4",
         "version" : "10.39.1"
+      }
+    },
+    {
+      "identity" : "realmswiftgaps",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/lake-of-fire/RealmSwiftGaps.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "7730c2705b91a1cf4c5f52fc1caba63e50fc6bd8"
+      }
+    },
+    {
+      "identity" : "splitview",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/stevengharris/SplitView.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "b43b07b06aefc5a0daf574938e3b55a47390bcc4"
       }
     },
     {
@@ -217,15 +208,6 @@
       }
     },
     {
-      "identity" : "swift-html",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/hallee/swift-html.git",
-      "state" : {
-        "branch" : "main",
-        "revision" : "d28317dd348a266c444deba046da33f0421667df"
-      }
-    },
-    {
       "identity" : "swift-markdownkit",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/objecthub/swift-markdownkit.git",
@@ -241,15 +223,6 @@
       "state" : {
         "revision" : "0a5bc04095a675662cf24757cc0640aa2204253b",
         "version" : "1.0.2"
-      }
-    },
-    {
-      "identity" : "swift-snapshot-testing",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/pointfreeco/swift-snapshot-testing.git",
-      "state" : {
-        "revision" : "cef5b3f6f11781dd4591bdd1dd0a3d22bd609334",
-        "version" : "1.11.0"
       }
     },
     {
@@ -289,21 +262,12 @@
       }
     },
     {
-      "identity" : "swiftsoup",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/scinfu/SwiftSoup.git",
-      "state" : {
-        "branch" : "master",
-        "revision" : "0e96a20ffd37a515c5c963952d4335c89bed50a6"
-      }
-    },
-    {
       "identity" : "swiftui-introspect",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/siteline/SwiftUI-Introspect.git",
       "state" : {
-        "branch" : "master",
-        "revision" : "5b3f3996c7a2a84d5f4ba0e03cd7d584154778f2"
+        "branch" : "main",
+        "revision" : "7d85109b19e425314badd0311dc6b58abd4dcc5b"
       }
     },
     {
@@ -325,6 +289,33 @@
       }
     },
     {
+      "identity" : "swiftuidownloads",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/lake-of-fire/SwiftUIDownloads.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "608d2e0b107bd30bf2c6c46bdbe80d07ef52c665"
+      }
+    },
+    {
+      "identity" : "swiftuidrag",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/lake-of-fire/SwiftUIDrag.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "468d9567d71c3f61c0094c57b5b6fcdaf7a53716"
+      }
+    },
+    {
+      "identity" : "swiftutilities",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/lake-of-fire/SwiftUtilities.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "39ed80ab2e4f9701f18082278353c6305fb6304b"
+      }
+    },
+    {
       "identity" : "swiftymonaco",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/lake-of-fire/SwiftyMonaco",
@@ -340,6 +331,15 @@
       "state" : {
         "branch" : "main",
         "revision" : "4adc0a9e5892de65110f54937ad589770ecbc840"
+      }
+    },
+    {
+      "identity" : "visionlivetext_swiftuicompatible",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/lake-of-fire/VisionLiveText_SwiftUICompatible.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "4507047c5300582603c8e19040634bd86a534ab2"
       }
     }
   ],

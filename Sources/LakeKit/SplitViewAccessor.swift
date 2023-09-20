@@ -4,7 +4,6 @@ import AppKit
 #else
 import UIKit
 #endif
-import Introspect
 
 #if os(macOS)
 /// See: https://github.com/Asperi-Demo/4SwiftUI/blob/master/Answers/Get_sidebar_isCollapsed.md
