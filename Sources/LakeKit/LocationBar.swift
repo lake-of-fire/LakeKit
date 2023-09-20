@@ -93,27 +93,31 @@ public struct LocationBar: View, Equatable {
             .onSubmit {
                 onSubmit(url, locationText)
             }
-//            .introspect(.textField, on: .IOS) { textField in
-            .introspect(.textField, on: .iOS(.v15...), .macOS(.v12...)) { textField in
+#if os(macOS)
+            .introspect(.textField, on: .macOS(.v12...)) { textField in
                 // See: https://developer.apple.com/forums/thread/74372
                 if locationController.isPresentingLocationOpening {
-#if os(macOS)
                     if textField.currentEditor() == nil {
                         textField.becomeFirstResponder()
                     } else {
                         locationController.isPresentingLocationOpening = false
                         textField.resignFirstResponder()
                     }
-#else
-                    if textField.isFirstResponder {
-                        locationController.isPresentingLocationOpening = false
-                        textField.resignFirstResponder()
-                    } else {
-                        textField.becomeFirstResponder()
-                    }
-#endif
                 }
             }
+#else
+            .introspect(.textField, on: .iOS(.v15...)) { textField in
+                // See: https://developer.apple.com/forums/thread/74372
+                if locationController.isPresentingLocationOpening {
+                }
+                if textField.isFirstResponder {
+                    locationController.isPresentingLocationOpening = false
+                    textField.resignFirstResponder()
+                } else {
+                    textField.becomeFirstResponder()
+                }
+            }
+#endif
 #if os(iOS)
             // See: https://stackoverflow.com/a/67502495/89373
             .onReceive(NotificationCenter.default.publisher(for: UITextField.textDidBeginEditingNotification)) { obj in
