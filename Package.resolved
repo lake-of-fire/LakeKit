@@ -91,30 +91,12 @@
       }
     },
     {
-      "identity" : "navigation-stack-backport",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/lake-of-fire/navigation-stack-backport.git",
-      "state" : {
-        "branch" : "main",
-        "revision" : "bf4e9fda8b31db99c4af7b9966204456b4562f6a"
-      }
-    },
-    {
       "identity" : "nuke",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/kean/Nuke.git",
       "state" : {
         "branch" : "main",
         "revision" : "fbad184f38eb628d57b5a4dca4aeaae652333d04"
-      }
-    },
-    {
-      "identity" : "pagertabstripview",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/lake-of-fire/PagerTabStripView.git",
-      "state" : {
-        "branch" : "master",
-        "revision" : "5e2df6dd00f0c79efcf004bb321c2758e194331a"
       }
     },
     {
@@ -136,15 +118,6 @@
       }
     },
     {
-      "identity" : "pulse",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/kean/Pulse.git",
-      "state" : {
-        "branch" : "main",
-        "revision" : "e080339a24f5a47461378e5fe02ba3f2ef0a2cfa"
-      }
-    },
-    {
       "identity" : "realm-core",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/realm/realm-core.git",
@@ -160,6 +133,15 @@
       "state" : {
         "revision" : "08ee98e7f52a5fb11b10b7430e6f84adbb7433a4",
         "version" : "10.39.1"
+      }
+    },
+    {
+      "identity" : "realmbinary",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/lake-of-fire/RealmBinary.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "900539531dd45892e390d29c57eeec8ba224106b"
       }
     },
     {
@@ -313,24 +295,6 @@
       "state" : {
         "branch" : "main",
         "revision" : "39ed80ab2e4f9701f18082278353c6305fb6304b"
-      }
-    },
-    {
-      "identity" : "swiftymonaco",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/lake-of-fire/SwiftyMonaco",
-      "state" : {
-        "branch" : "main",
-        "revision" : "d428748f20bad6a877be7b4c44b1be5dbbef640a"
-      }
-    },
-    {
-      "identity" : "translucentwindowstyle",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/lake-of-fire/TranslucentWindowStyle.git",
-      "state" : {
-        "branch" : "main",
-        "revision" : "4adc0a9e5892de65110f54937ad589770ecbc840"
       }
     },
     {
