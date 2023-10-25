@@ -13,7 +13,7 @@ let package = Package(
             targets: ["LakeKit"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/lake-of-fire/RealmBinary", branch: "main"),
+        .package(url: "https://github.com/lake-of-fire/RealmBinary.git", branch: "main"),
 //        .package(path: "../BigSyncKit"),
         .package(url: "https://github.com/lake-of-fire/BigSyncKit.git", branch: "main"),
 //        .package(path: "../RealmSwiftGaps"),
