@@ -15,7 +15,16 @@
       "location" : "https://github.com/lake-of-fire/BigSyncKit.git",
       "state" : {
         "branch" : "main",
-        "revision" : "0f7596c9a64e4a4d3bd6854029a811f00594b406"
+        "revision" : "77cfdd38c24e92d92c960985827cbeb225f5f6f6"
+      }
+    },
+    {
+      "identity" : "brotli",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/NghiaTranUIT/Brotli.git",
+      "state" : {
+        "branch" : "master",
+        "revision" : "57aae2129a6d5e56a6476b1a3891ed7049bc0a9a"
       }
     },
     {
@@ -33,16 +42,7 @@
       "location" : "https://github.com/dagronf/DSFSearchField.git",
       "state" : {
         "branch" : "main",
-        "revision" : "d2dac5e143a8e5ce49f9f12412932684072089ba"
-      }
-    },
-    {
-      "identity" : "elva",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/L1MeN9Yu/Elva.git",
-      "state" : {
-        "branch" : "main",
-        "revision" : "fa091666bf724a9507138abce505f54aee07e919"
+        "revision" : "8f118439e1e74b3afb8dc8cbdc049d7979aa045e"
       }
     },
     {
@@ -69,7 +69,7 @@
       "location" : "https://github.com/evgenyneu/keychain-swift.git",
       "state" : {
         "branch" : "master",
-        "revision" : "c1fde55798b164cad44b5e23cfa2f0f1ebcd76af"
+        "revision" : "95219e66c94b6ba25e7d6ece7aecf1ea13134174"
       }
     },
     {
@@ -96,7 +96,7 @@
       "location" : "https://github.com/kean/Nuke.git",
       "state" : {
         "branch" : "main",
-        "revision" : "fbad184f38eb628d57b5a4dca4aeaae652333d04"
+        "revision" : "81b8b5281b40e5f2281ffc426a8b0ab2db898d25"
       }
     },
     {
@@ -114,25 +114,7 @@
       "location" : "https://github.com/exyte/PopupView.git",
       "state" : {
         "branch" : "master",
-        "revision" : "5724e89ce2e81f79ccfc1fabaaf5c42473234aef"
-      }
-    },
-    {
-      "identity" : "realm-core",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/realm/realm-core.git",
-      "state" : {
-        "revision" : "72226e2fd84f3a3a8ab3cffc2890c7951f1351d5",
-        "version" : "13.10.1"
-      }
-    },
-    {
-      "identity" : "realm-swift",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/realm/realm-swift.git",
-      "state" : {
-        "revision" : "08ee98e7f52a5fb11b10b7430e6f84adbb7433a4",
-        "version" : "10.39.1"
+        "revision" : "95fdd73a2667c8fba939ade16fb560f2d29bc77d"
       }
     },
     {
@@ -150,7 +132,7 @@
       "location" : "https://github.com/lake-of-fire/RealmSwiftGaps.git",
       "state" : {
         "branch" : "main",
-        "revision" : "7730c2705b91a1cf4c5f52fc1caba63e50fc6bd8"
+        "revision" : "1d903fe0b6c82560a7773ef3930c6be44661fd70"
       }
     },
     {
@@ -159,7 +141,7 @@
       "location" : "https://github.com/stevengharris/SplitView.git",
       "state" : {
         "branch" : "main",
-        "revision" : "b43b07b06aefc5a0daf574938e3b55a47390bcc4"
+        "revision" : "a50615757079ab43eaf06678516315abdcd64fce"
       }
     },
     {
@@ -168,7 +150,7 @@
       "location" : "https://github.com/lake-of-fire/StoreHelper",
       "state" : {
         "branch" : "main",
-        "revision" : "0194223bb9d09c87c8ec46fb7bb28732d61f108d"
+        "revision" : "8c6e0d03269c33a096241d6b5b78226487f1fd30"
       }
     },
     {
@@ -177,7 +159,7 @@
       "location" : "https://github.com/apple/swift-algorithms.git",
       "state" : {
         "branch" : "main",
-        "revision" : "288d8b00f2d7d746dce8997124f4a7d902100af7"
+        "revision" : "bcd4f369ac962bc3e5244c9df778739f8f5bdbf1"
       }
     },
     {
@@ -230,8 +212,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/shaps80/SwiftBackports",
       "state" : {
-        "revision" : "fafbeabf78b7e364abbbb7565cdfeee42af16211",
-        "version" : "1.0.2"
+        "revision" : "ddca6a237c1ba2291d5a3cc47ec8480ce6e9f805",
+        "version" : "1.0.3"
       }
     },
     {
@@ -249,7 +231,7 @@
       "location" : "https://github.com/siteline/SwiftUI-Introspect.git",
       "state" : {
         "branch" : "main",
-        "revision" : "7d85109b19e425314badd0311dc6b58abd4dcc5b"
+        "revision" : "3ced72fccb284235c266c1e8a32f1bf93129fc74"
       }
     },
     {
@@ -267,7 +249,7 @@
       "location" : "https://github.com/shaps80/SwiftUIBackports.git",
       "state" : {
         "branch" : "main",
-        "revision" : "cbf0a6d8311c73bf722edf85f42535d4d99228c1"
+        "revision" : "d9c284eb9b212ebc0b637cfdd22a3f684d2450e3"
       }
     },
     {
@@ -276,7 +258,7 @@
       "location" : "https://github.com/lake-of-fire/SwiftUIDownloads.git",
       "state" : {
         "branch" : "main",
-        "revision" : "608d2e0b107bd30bf2c6c46bdbe80d07ef52c665"
+        "revision" : "168b79f96a84c8927b60ccd2446c2b51609083fe"
       }
     },
     {
