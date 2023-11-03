@@ -87,18 +87,18 @@ public struct PurchaseOptionView: View {
                     HStack(spacing: 0) {
                         Circle()
                             .foregroundColor(.accentColor)
-                            .frame(width: 58, height: 58)
+                            .frame(width: 55, height: 55)
                             .overlay {
                                 Image(systemName: symbolName)
-                                    .font(.system(size: 22))
+                                    .font(.system(size: 21))
                                     .foregroundColor(.white)
                                     .fixedSize()
                             }
                             .clipShape(Circle())
-                            .scaleEffect(1.08)
+                            .scaleEffect(1.05)
                             .fixedSize()
                         Spacer()
-                            .frame(minWidth: 5, idealWidth: 25)
+                            .frame(minWidth: 5, idealWidth: 20)
                         VStack {
                             Text(displayPrice)
                                 .font(.headline)
@@ -113,8 +113,8 @@ public struct PurchaseOptionView: View {
                         }
                     }
                     .fixedSize(horizontal: true, vertical: false)
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 5)
+                    .padding(.horizontal, 2)
+                    .padding(.vertical, 2)
                     
                     if buyTitle != nil {
                         Text(product.displayName)
@@ -129,7 +129,7 @@ public struct PurchaseOptionView: View {
                             Text(product.description)
                                 .font(.caption)
                                 .multilineTextAlignment(.center)
-                                .padding(.horizontal)
+                                .padding(.horizontal, 10)
                                 .foregroundColor(.secondary)
                         }
                         .frame(minHeight: subtitleHeight)
@@ -150,14 +150,15 @@ public struct PurchaseOptionView: View {
                     } else {
                         VStack {
 #if os(iOS)
-                            Text(buyTitle ?? product.displayName)
+//                            Text(buyTitle ?? product.displayName)
+                            Text("Subscribe")
 //                                .font(.callout)
 //                                .bold()
                                 .multilineTextAlignment(.center)
                                 .foregroundColor(.white)
-                                .fixedSize(horizontal: false, vertical: true)
-                                .padding(.horizontal, 5)
+                                .padding(.horizontal, 10)
                                 .padding(.vertical, 5)
+                                .fixedSize(horizontal: false, vertical: true)
                                 .background(
                                     RoundedRectangle(cornerRadius: 8, style: .continuous)
 //                                        .stroke(Color.accentColor, lineWidth: 1)
@@ -167,7 +168,8 @@ public struct PurchaseOptionView: View {
                             Button {
                                 submitAction()
                             } label: {
-                                Text(buyTitle ?? product.displayName)
+//                                Text(buyTitle ?? product.displayName)
+                                Text("Subscribe")
                                     .padding(.horizontal, 5)
                                     .padding(.vertical, 4)
                             }

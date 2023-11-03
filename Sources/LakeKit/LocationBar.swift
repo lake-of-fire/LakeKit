@@ -107,14 +107,16 @@ public struct LocationBar: View, Equatable {
             }
 #else
             .introspect(.textField, on: .iOS(.v15...)) { textField in
-                // See: https://developer.apple.com/forums/thread/74372
                 if locationController.isPresentingLocationOpening {
-                }
-                if textField.isFirstResponder {
-                    locationController.isPresentingLocationOpening = false
-                    textField.resignFirstResponder()
-                } else {
-                    textField.becomeFirstResponder()
+                    Task { @MainActor in
+                        // See: https://developer.apple.com/forums/thread/74372
+                        if textField.isFirstResponder {
+                            locationController.isPresentingLocationOpening = false
+                            textField.resignFirstResponder()
+                        } else {
+                            textField.becomeFirstResponder()
+                        }
+                    }
                 }
             }
 #endif
