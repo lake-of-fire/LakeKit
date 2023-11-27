@@ -70,7 +70,7 @@ public extension Templates {
 //                            .popoverShadowIfNeeded(shadow: shadow)
 //                    }
             }
-            .shadow(radius: 10)
+            .shadow(radius: 20)
         }
     }
 }
