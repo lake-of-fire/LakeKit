@@ -54,14 +54,23 @@ public extension Templates {
             PopoverReader { context in
                 view
                     .padding(padding)
-                    .background(
-                        RoundedBackground(
-                            cornerRadius: cornerRadius
-                        )
-                        .background(.ultraThickMaterial)
-                        .popoverShadowIfNeeded(shadow: shadow)
-                    )
+//                    .background(.thickMaterial)
+//                    .background(.red.opacity(0.25))
+//                        RoundedRectangle(cornerRadius: 16)
+//                            .fill(.red)
+//                        RoundedBackground(
+//                            cornerRadius: cornerRadius
+//                        )
+//                        .fill(.red)
+//                        .background(.ultraThickMaterial)
+//                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 24))
+//                    .background {
+//                        Color.clear
+//                            .popoverShadowIfNeeded(shadow: shadow)
+//                    }
             }
+            .shadow(radius: 10)
         }
     }
 }
