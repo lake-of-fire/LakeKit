@@ -151,7 +151,7 @@ public struct PurchaseOptionView: View {
                         VStack {
 #if os(iOS)
 //                            Text(buyTitle ?? product.displayName)
-                            Text("Subscribe")
+                            Text("Unlock")
 //                                .font(.callout)
 //                                .bold()
                                 .multilineTextAlignment(.center)
@@ -169,8 +169,9 @@ public struct PurchaseOptionView: View {
                                 submitAction()
                             } label: {
 //                                Text(buyTitle ?? product.displayName)
-                                Text("Subscribe")
-                                    .padding(.horizontal, 5)
+                                Text("Unlock")
+                                    .bold()
+                                    .padding(.horizontal, 6)
                                     .padding(.vertical, 4)
                             }
                             .buttonStyle(.borderedProminent)

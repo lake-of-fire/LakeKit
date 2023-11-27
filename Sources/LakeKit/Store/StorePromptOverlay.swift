@@ -3,8 +3,8 @@ import StoreHelper
 import SwiftUtilities
 
 public extension View {
-    func storePromptOverlay(storeViewModel: StoreViewModel, isStoreSheetPresented: Binding<Bool>, headlineText: String, bodyText: String, storeButtonText: String, alternativeButtonText: String? = nil, alternativeButtonAction: (() -> Void)? = nil, toDismissFirst: Binding<Bool>? = nil) -> some View {
-        self.modifier(StorePromptOverlayModifier(storeViewModel: storeViewModel, isStoreSheetPresented: isStoreSheetPresented, headlineText: headlineText, bodyText: bodyText, storeButtonText: storeButtonText, alternativeButtonText: alternativeButtonText, alternativeButtonAction: alternativeButtonAction, toDismissFirst: toDismissFirst))
+    func storePromptOverlay(storeViewModel: StoreViewModel, isPresented: Binding<Bool>, isStoreSheetPresented: Binding<Bool>, headlineText: String, bodyText: String, storeButtonText: String, alternativeButtonText: String? = nil, alternativeButtonAction: (() -> Void)? = nil, toDismissFirst: Binding<Bool>? = nil) -> some View {
+        self.modifier(StorePromptOverlayModifier(storeViewModel: storeViewModel, isPresented: isPresented, isStoreSheetPresented: isStoreSheetPresented, headlineText: headlineText, bodyText: bodyText, storeButtonText: storeButtonText, alternativeButtonText: alternativeButtonText, alternativeButtonAction: alternativeButtonAction, toDismissFirst: toDismissFirst))
     }
 }
 
@@ -58,9 +58,8 @@ public struct StorePrompt: View {
                         Text(alternativeButtonText)
                             .frame(maxWidth: .infinity)
                     })
-#if os(macOS)
                     .buttonStyle(.bordered)
-#endif
+                    .tint(.primary)
                 }
                 
                 Text(bodyText)
@@ -83,6 +82,7 @@ public struct StorePrompt: View {
 
 public struct StorePromptOverlayModifier: ViewModifier {
     @ObservedObject public var storeViewModel: StoreViewModel
+    @Binding public var isPresented: Bool
     @Binding public var isStoreSheetPresented: Bool
     public let headlineText: String
     public let bodyText: String
@@ -95,14 +95,14 @@ public struct StorePromptOverlayModifier: ViewModifier {
     @Environment(\.colorScheme) private var colorScheme
     @EnvironmentObject private var storeHelper: StoreHelper
  
-    private var isPresented: Bool {
-        return storeViewModel.showAds
+    private var isOverlayPresented: Bool {
+        return storeViewModel.showAds && isPresented
     }
     
     public func body(content: Content) -> some View {
         content
             .overlay {
-                if isPresented {
+                if isOverlayPresented {
                     LinearGradient(
                         stops: [
                             Gradient.Stop(color: .clear, location: .zero),
@@ -122,18 +122,13 @@ public struct StorePromptOverlayModifier: ViewModifier {
                 }
             }
             .overlay(alignment: .center) {
-                if isPresented {
+                if isOverlayPresented {
                     StorePrompt(storeViewModel: storeViewModel, isPresented: $isStoreSheetPresented, headlineText: headlineText, bodyText: bodyText, storeButtonText: storeButtonText, alternativeButtonText: alternativeButtonText, alternativeButtonAction: alternativeButtonAction, toDismissFirst: toDismissFirst ?? .constant(false))
                         .groupBoxShadow(cornerRadius: 12)
                         .padding([.leading, .trailing], 20)
                 }
             }
-            .scrollDisabledIfAvailable(isPresented)
-            .storeSheet(isPresented: Binding<Bool>(
-                get: {
-                    presentsStoreSheet && isStoreSheetPresented
-                }, set: {
-                    isStoreSheetPresented = $0
-                }))
+            .scrollDisabledIfAvailable(isOverlayPresented)
+            .storeSheet(isPresented: $isStoreSheetPresented)
     }
 }
