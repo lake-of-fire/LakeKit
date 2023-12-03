@@ -71,37 +71,37 @@ public struct PublishedAppStorage<Value> {
     // MARK: - Initializers
     
     // RawRepresentable
-    init(wrappedValue: Value, _ key: String, store: UserDefaults? = nil) where Value : RawRepresentable, Value.RawValue == String {
+    public init(wrappedValue: Value, _ key: String, store: UserDefaults? = nil) where Value : RawRepresentable, Value.RawValue == String {
         self._storedValue = AppStorage(wrappedValue: wrappedValue, key, store: store)
     }
     
     // String
-    init(wrappedValue: String, _ key: String, store: UserDefaults? = nil) where Value == String {
+    public init(wrappedValue: String, _ key: String, store: UserDefaults? = nil) where Value == String {
         self._storedValue = AppStorage(wrappedValue: wrappedValue, key, store: store)
     }
     
     // Data
-    init(wrappedValue: Data, _ key: String, store: UserDefaults? = nil) where Value == Data {
+    public init(wrappedValue: Data, _ key: String, store: UserDefaults? = nil) where Value == Data {
         self._storedValue = AppStorage(wrappedValue: wrappedValue, key, store: store)
     }
     
     // Int
-    init(wrappedValue: Value, _ key: String, store: UserDefaults? = nil) where Value: RawRepresentable, Value.RawValue == Int {
+    public init(wrappedValue: Value, _ key: String, store: UserDefaults? = nil) where Value: RawRepresentable, Value.RawValue == Int {
         self._storedValue = AppStorage(wrappedValue: wrappedValue, key, store: store)
     }
     
     // URL
-    init(wrappedValue: URL, _ key: String, store: UserDefaults? = nil) where Value == URL {
+    public init(wrappedValue: URL, _ key: String, store: UserDefaults? = nil) where Value == URL {
         self._storedValue = AppStorage(wrappedValue: wrappedValue, key, store: store)
     }
     
     // Double
-    init(wrappedValue: Double, _ key: String, store: UserDefaults? = nil) where Value == Double {
+    public init(wrappedValue: Double, _ key: String, store: UserDefaults? = nil) where Value == Double {
         self._storedValue = AppStorage(wrappedValue: wrappedValue, key, store: store)
     }
     
     // Bool
-    init(wrappedValue: Bool, _ key: String, store: UserDefaults? = nil) where Value == Bool {
+    public init(wrappedValue: Bool, _ key: String, store: UserDefaults? = nil) where Value == Bool {
         self._storedValue = AppStorage(wrappedValue: wrappedValue, key, store: store)
     }
 }
