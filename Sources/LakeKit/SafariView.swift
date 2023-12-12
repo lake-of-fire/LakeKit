@@ -1,13 +1,18 @@
 import SwiftUI
 import BetterSafariView
-
-
+import SwiftUIWebView
 
 fileprivate struct SafariViewModifier: ViewModifier {
     @Binding public var isPresented: Bool
     let url: URL
     var onDismiss: (() -> Void)?
     let entersReaderIfAvailable: Bool
+    
+    @ScaledMetric(relativeTo: .body) private var idealWidth: CGFloat = 650
+    @ScaledMetric(relativeTo: .body) private var idealHeight: CGFloat = 500
+    
+    @State private var webNavigator = WebViewNavigator()
+    @State private var webState = WebViewState.empty
     
     func body(content: Content) -> some View {
 #if os(iOS)
@@ -26,7 +31,28 @@ fileprivate struct SafariViewModifier: ViewModifier {
 #else
         return content
             .sheet(isPresented: $isPresented) {
-                
+                VStack {
+                    HStack(spacing: 0) {
+                        Spacer(minLength: 0)
+                        Button("") {
+                            isPresented = false
+                        }
+                        .buttonStyle(DismissButtonStyle())
+                        .padding(.top, 1)
+                        .padding(.trailing, 0)
+                    }
+                    WebView(
+                        config: WebViewConfig(userScripts: []),
+                        navigator: webNavigator,
+                        state: $webState,
+                        bounces: false)
+//                    .fixedSize(horizontal: false, vertical: false)
+                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .task {
+                        webNavigator.load(URLRequest(url: url))
+                    }
+                }
+                .frame(idealWidth: idealWidth, idealHeight: idealHeight)
             }
 #endif
     }
