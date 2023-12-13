@@ -56,7 +56,7 @@ public struct LocationBar: View, Equatable {
     var url: URL? {
         get {
             guard let url = URL(string: locationText) else { return nil }
-            guard url.scheme != nil && (url.host != nil || url.scheme == "about") else { return nil }
+            guard url.scheme != nil && (url.host != nil || url.scheme == "about" || url.scheme == "internal") else { return nil }
             return url
         }
         set {
