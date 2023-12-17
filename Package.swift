@@ -13,8 +13,8 @@ let package = Package(
             targets: ["LakeKit"]),
     ],
     dependencies: [
-//        .package(url: "https://github.com/lake-of-fire/RealmBinary.git", branch: "main"),
-        .package(url: "https://github.com/realm/realm-swift.git", branch: "master"),
+        .package(url: "https://github.com/lake-of-fire/RealmBinary.git", branch: "main"),
+//        .package(url: "https://github.com/realm/realm-swift.git", branch: "master"),
 //        .package(path: "../BigSyncKit"),
         .package(url: "https://github.com/lake-of-fire/BigSyncKit.git", branch: "main"),
 //        .package(path: "../RealmSwiftGaps"),
@@ -67,10 +67,10 @@ let package = Package(
         .target(
             name: "LakeKit",
             dependencies: [
-//                .product(name: "Realm", package: "RealmBinary"),
-//                .product(name: "RealmSwift", package: "RealmBinary"),
-                .product(name: "Realm", package: "realm-swift"),
-                .product(name: "RealmSwift", package: "realm-swift"),
+                .product(name: "Realm", package: "RealmBinary"),
+                .product(name: "RealmSwift", package: "RealmBinary"),
+//                .product(name: "Realm", package: "realm-swift"),
+//                .product(name: "RealmSwift", package: "realm-swift"),
                 .product(name: "RealmSwiftGaps", package: "RealmSwiftGaps"),
                 .product(name: "WebURL", package: "swift-url"),
                 .product(name: "WebURLFoundationExtras", package: "swift-url"),
