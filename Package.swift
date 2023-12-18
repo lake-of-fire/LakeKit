@@ -26,7 +26,7 @@ let package = Package(
 //        .package(path: "../SwiftUtilities"),
 //        .package(path: "../LakeImage"),
 //        .package(url: "https://github.com/NuPlay/ExpandableText.git", branch: "main"),
-//        .package(url: "https://github.com/lake-of-fire/swiftui-webview.git", branch: "main"),
+        .package(url: "https://github.com/lake-of-fire/swiftui-webview.git", branch: "main"),
         .package(url: "https://github.com/lake-of-fire/swift-url.git", branch: "main"),
 //        .package(url: "https://github.com/demharusnam/SwiftUIDrag.git", branch: "main"),
         .package(url: "https://github.com/lake-of-fire/SwiftUIDrag.git", branch: "main"),
@@ -67,6 +67,7 @@ let package = Package(
         .target(
             name: "LakeKit",
             dependencies: [
+                .product(name: "SwiftUIWebView", package: "swiftui-webview"),
                 .product(name: "Realm", package: "RealmBinary"),
                 .product(name: "RealmSwift", package: "RealmBinary"),
 //                .product(name: "Realm", package: "realm-swift"),
