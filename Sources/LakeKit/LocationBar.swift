@@ -49,7 +49,7 @@ public enum LocationBarAction: Equatable {
 public struct LocationBar: View, Equatable {
     @Binding var action: LocationBarAction
     @Binding var locationText: String
-    private let onSubmit: ((URL?, String) -> Void)
+    private let onSubmit: ((URL?, String) async throws -> Void)
     @EnvironmentObject private var locationController: LocationController
     @Environment(\.colorScheme) private var colorScheme
 
@@ -91,7 +91,9 @@ public struct LocationBar: View, Equatable {
             .submitLabel(.go)
 #endif
             .onSubmit {
-                onSubmit(url, locationText)
+                Task {
+                    try await onSubmit(url, locationText)
+                }
             }
 #if os(macOS)
             .introspect(.textField, on: .macOS(.v12...)) { textField in
@@ -139,7 +141,7 @@ public struct LocationBar: View, Equatable {
         }
     }
     
-    public init(action: Binding<LocationBarAction>, locationText: Binding<String>, onSubmit: @escaping ((URL?, String) -> Void)) {
+    public init(action: Binding<LocationBarAction>, locationText: Binding<String>, onSubmit: @escaping ((URL?, String) async throws -> Void)) {
         _action = action
         _locationText = locationText
         self.onSubmit = onSubmit
