@@ -27,7 +27,14 @@ struct FrameTagModifier: ViewModifier {
                 GeometryReader { geometry in
                     Color.clear
                         .onAppear {
-                            self.frame = geometry.frame(in: .global)
+                            Task { @MainActor in
+                                self.frame = geometry.frame(in: .global)
+                            }
+                        }
+                        .onChange(of: geometry.frame(in: .global)) { frame in
+                            Task { @MainActor in
+                                self.frame = frame
+                            }
                         }
                 }
             }
