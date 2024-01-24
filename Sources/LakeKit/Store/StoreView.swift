@@ -208,10 +208,49 @@ public struct StoreView: View {
 #endif
     }
     
+    private func storeOptionsMaxWidth(geometrySize: CGSize) -> CGFloat {
+        return geometrySize.width - 10
+    }
+    
+    private func componentMaxWidth(geometrySize: CGSize) -> CGFloat {
+        return geometrySize.width
+    }
+    
+    @ViewBuilder private func purchaseOptionsGrid(products: [StoreProduct], maxWidth: CGFloat) -> some View {
+        if #available(iOS 16, macOS 13, *) {
+            ViewThatFits {
+                HStack(alignment: .top, spacing: 0) {
+                    Spacer(minLength: 0)
+                    HStack(alignment: .top, spacing: 0) {
+                        purchaseOptions(products: products, maxWidth: maxWidth)
+                    }
+                    Spacer(minLength: 0)
+                }
+                VStack(alignment: .center) {
+                    purchaseOptions(products: products, maxWidth: maxWidth)
+                }
+            }
+            .frame(maxWidth: maxWidth)
+        } else {
+            LazyVGrid(columns: productGridColumns, spacing: 10) {
+                purchaseOptions(products: products, maxWidth: maxWidth)
+            }
+        }
+    }
+    
+    @ViewBuilder private func purchaseOptions(products: [StoreProduct], maxWidth: CGFloat) -> some View {
+        ForEach(products) { (storeProduct: StoreProduct) in
+            if let product = storeProduct.product(storeHelper: storeHelper) {
+                productOptionView(storeProduct: storeProduct, product: product, maxWidth: maxWidth)
+                    .frame(maxHeight: .infinity)
+            }
+        }
+    }
+    
     public var body: some View {
-        ScrollView {
-            VStack(spacing: 10) {
-                Group {
+        GeometryReader { geometry in
+            ScrollView {
+                VStack(spacing: 10) {
                     Text(storeViewModel.headline)
                         .font(.largeTitle)
                         .bold()
@@ -223,8 +262,6 @@ public struct StoreView: View {
                         .font(.subheadline)
                         .multilineTextAlignment(.center)
                         .fixedSize(horizontal: false, vertical: true)
-                }
-                Group {
                     Divider()
                         .padding(.bottom, 5)
                     Text(storeViewModel.productGroupHeading)
@@ -239,105 +276,91 @@ public struct StoreView: View {
                             .font(.caption)
                             .fixedSize(horizontal: false, vertical: true)
                     }
-                    LazyVGrid(columns: productGridColumns, spacing: 10) {
-                        ForEach(storeViewModel.products) { (storeProduct: StoreProduct) in
-                            if let product = storeProduct.product(storeHelper: storeHelper) {
-                                productOptionView(storeProduct: storeProduct, product: product)
-                                //                                .frame(maxWidth: .infinity)
-                                    .frame(maxHeight: .infinity)
-                                //                            .fixedSize(horizontal: false, vertical: true)
-                                //                            .frame(maxWidth: .infinity)
-                            }
-                        }
-                    }
-                    //                .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, secondaryHorizontalPadding)
-                }
-                GroupBox {
-                    StudentDiscountDisclosureGroup(discountView: {
-                        VStack {
-                            Text("Students and educators already have enough expenses to manage. We'd like to help ease the burden. If you're ineligible and can afford it, please use the regular rate options. Your subscription goes directly to the developers to support ongoing app improvements.")
-                                .font(.subheadline)
-                                .padding()
-                                .multilineTextAlignment(.leading)
-                                .fixedSize(horizontal: false, vertical: true)
-                            
-                            LazyVGrid(columns: productGridColumns, spacing: 10) {
-                                ForEach(storeViewModel.studentProducts) { (storeProduct: StoreProduct) in
-                                    if let product = storeProduct.product(storeHelper: storeHelper) {
-                                        productOptionView(storeProduct: storeProduct, product: product)
-                                            .frame(maxHeight: .infinity)
-                                    }
-                                }
-                            }
-                            //                            .fixedSize(horizontal: true, vertical: false)
-                        }
-                        .padding(.top, 5)
-                    })
-                }
-                if let freeTierExplanation = storeViewModel.freeTierExplanation {
+                    purchaseOptionsGrid(products: storeViewModel.products, maxWidth: storeOptionsMaxWidth(geometrySize: geometry.size))
+//                        .padding(.horizontal, secondaryHorizontalPadding)
+                        .frame(maxWidth: storeOptionsMaxWidth(geometrySize: geometry.size))
                     GroupBox {
-                        FreeTierDisclosureGroup {
+                        StudentDiscountDisclosureGroup(discountView: {
                             VStack {
-                                Text(freeTierExplanation)
+                                Text("Students and educators already have enough expenses to manage. We hope to help ease the burden. If you're not in education and can afford it, please use the regular rate options. Your payment goes directly to the developers to support ongoing app improvements.")
                                     .font(.subheadline)
                                     .padding()
+                                    .multilineTextAlignment(.leading)
+                                    .lineLimit(9001)
                                     .fixedSize(horizontal: false, vertical: true)
-                                // TODO: show links to other apps here too
+                                
+                                purchaseOptionsGrid(products: storeViewModel.studentProducts, maxWidth: storeOptionsMaxWidth(geometrySize: geometry.size))
+//                                    .fixedSize(horizontal: true, vertical: false)
+                                    .frame(maxWidth: storeOptionsMaxWidth(geometrySize: geometry.size))
+                            }
+                            .padding(.top, 5)
+                        })
+                    }
+                    if let freeTierExplanation = storeViewModel.freeTierExplanation {
+                        GroupBox {
+                            FreeTierDisclosureGroup {
+                                VStack {
+                                    Text(freeTierExplanation)
+                                        .font(.subheadline)
+                                        .padding()
+                                        .fixedSize(horizontal: false, vertical: true)
+                                    // TODO: show links to other apps here too
+                                }
                             }
                         }
                     }
-                }
-                VStack(alignment: .leading, spacing: 15) {
-                    ForEach(storeViewModel.benefits, id: \.self) { benefit in
-                        Text(Image(systemName: "checkmark.circle"))
-                            .bold()
-                            .foregroundColor(.green)
-                        + Text(" ") + Text(.init(benefit))
-                    }
-                }
-                .font(.callout)
-                .padding(.top, 5)
-                .padding(.horizontal, secondaryHorizontalPadding)
-                GroupBox {
-                    VStack(spacing: 12) {
-                        HStack {
-                            Text("Q&A")
-                                .font(.title2)
-                                .foregroundColor(.secondary)
-                            Spacer()
-                        }
-                        ForEach(storeViewModel.faq.elements, id: \.key) { q, a in
-                            FAQDisclosureGroup(question: q, answer: a)
+                    VStack(alignment: .leading, spacing: 15) {
+                        ForEach(storeViewModel.benefits, id: \.self) { benefit in
+                            Text(Image(systemName: "checkmark.circle"))
+                                .bold()
+                                .foregroundColor(.green)
+                            + Text(" ") + Text(.init(benefit))
                         }
                     }
-                    .padding(10)
-                }
-                .padding(.top, 10)
-                if let chatURL = storeViewModel.chatURL {
-                    GroupBox("Got A Question? Need Help?") {
-                        HStack {
-                            Spacer()
-                            Link(destination: chatURL) { Label("Chat With Team", systemImage: "message.circle") }
-                                .font(.headline)
-                            Spacer()
+                    .font(.callout)
+                    .padding(.top, 5)
+                    .padding(.horizontal, secondaryHorizontalPadding)
+                    GroupBox {
+                        VStack(spacing: 12) {
+                            HStack {
+                                Text("Q&A")
+                                    .font(.title2)
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                            }
+                            ForEach(storeViewModel.faq.elements, id: \.key) { q, a in
+                                FAQDisclosureGroup(question: q, answer: a)
+                            }
+                        }
+                        .padding(10)
+                    }
+                    .padding(.top, 10)
+                    if let chatURL = storeViewModel.chatURL {
+                        GroupBox("Got A Question? Need Help?") {
+                            HStack {
+                                Spacer()
+                                Link(destination: chatURL) { Label("Chat With Team", systemImage: "message.circle") }
+                                    .font(.headline)
+                                Spacer()
+                            }
                         }
                     }
+                    HStack(spacing: 20) {
+                        Link("Terms of Service", destination: storeViewModel.termsOfService)
+                        //                        .frame(maxWidth: .infinity)
+                        Divider()
+                        Link("Privacy Policy", destination: storeViewModel.privacyPolicy)
+                        //                        .frame(maxWidth: .infinity)
+                    }
+                    .tint(.secondary)
+                    .font(.footnote)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 10)
+                    Spacer()
                 }
-                HStack(spacing: 20) {
-                    Link("Terms of Service", destination: storeViewModel.termsOfService)
-//                        .frame(maxWidth: .infinity)
-                    Divider()
-                    Link("Privacy Policy", destination: storeViewModel.privacyPolicy)
-//                        .frame(maxWidth: .infinity)
-                }
-                .font(.footnote)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.top, 10)
-                Spacer()
+                .padding([.leading, .trailing, .bottom])
+//                .frame(idealWidth: min(componentMaxWidth(geometrySize: geometry.size), storeWidth), maxWidth: componentMaxWidth(geometrySize: geometry.size), minHeight: storeHeight)
             }
-            .padding([.leading, .trailing, .bottom])
-            .frame(idealWidth: storeWidth, minHeight: storeHeight)
         }
         .onChange(of: storeViewModel.isSubscribed) { isSubscribed in
             Task { @MainActor in
@@ -348,23 +371,23 @@ public struct StoreView: View {
         }
     }
     
-    private var productOptionFrameMaxWidth: CGFloat? {
-#if os(iOS)
-        if horizontalSizeClass == .compact {
-            return .infinity
-        } else { }
-#endif
-        return .infinity
-    }
+//    private var productOptionFrameMaxWidth: CGFloat? {
+//#if os(iOS)
+//        if horizontalSizeClass == .compact {
+//            return nil
+//        } else { }
+//#endif
+//        return .infinity
+//    }
     
     public init(isPresented: Binding<Bool>, storeViewModel: StoreViewModel) {
         _isPresented = isPresented
         self.storeViewModel = storeViewModel
     }
     
-    func productOptionView(storeProduct: StoreProduct, product: Product) -> some View {
+    @ViewBuilder func productOptionView(storeProduct: StoreProduct, product: Product, maxWidth: CGFloat) -> some View {
         let priceViewModel = PriceViewModel(storeHelper: storeHelper, purchaseState: $purchaseState)
-        return PurchaseOptionView(storeViewModel: storeViewModel, product: product, purchaseState: $purchaseState, unitsRemaining: storeProduct.unitsRemaining, unitsPurchased: storeProduct.unitsPurchased, unitsName: storeProduct.unitsName, symbolName: storeProduct.iconSymbolName, buyTitle: storeProduct.buyButtonTitle) {
+        PurchaseOptionView(storeViewModel: storeViewModel, product: product, purchaseState: $purchaseState, unitsRemaining: storeProduct.unitsRemaining, unitsPurchased: storeProduct.unitsPurchased, unitsName: storeProduct.unitsName, symbolName: storeProduct.iconSymbolName, buyTitle: storeProduct.buyButtonTitle, maxWidth: maxWidth) {
             guard storeProduct.filterPurchase(storeProduct) else { return }
             purchaseState = .inProgress
             Task {
@@ -375,9 +398,9 @@ public struct StoreView: View {
                 }
             }
         }
-        .frame(maxWidth: productOptionFrameMaxWidth)
+//        .frame(maxWidth: productOptionFrameMaxWidth)
 //            .frame(maxHeight: .infinity)
-            //                            .fixedSize(horizontal: false, vertical: true)
+        .fixedSize(horizontal: false, vertical: true)
             //                            .frame(maxWidth: .infinity)
         }
     }

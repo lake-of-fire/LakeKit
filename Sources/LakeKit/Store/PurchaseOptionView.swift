@@ -24,9 +24,12 @@ public struct PurchaseOptionView: View {
     public let unitsName: String?
     public let symbolName: String
     public let buyTitle: String?
+    public let maxWidth: CGFloat
     public let action: (() -> Void)
     
-    @ScaledMetric(relativeTo: .caption) private var subtitleHeight = 50
+    @ScaledMetric(relativeTo: .caption) private var subtitleWidth = 50
+    @ScaledMetric(relativeTo: .caption) private var subtitleHeight = 40
+    @ScaledMetric(relativeTo: .body) private var buttonHorizontalPadding = 10
     
     @Environment(\.isICloudSyncActive) private var isICloudSyncActive: Bool
     @Environment(\.iCloudSyncStateSummary) private var iCloudSyncStateSummary: SyncMonitor.SyncSummaryStatus
@@ -87,7 +90,7 @@ public struct PurchaseOptionView: View {
                     HStack(spacing: 0) {
                         Circle()
                             .foregroundColor(.accentColor)
-                            .frame(width: 55, height: 55)
+                            .frame(width: 50, height: 50)
                             .overlay {
                                 Image(systemName: symbolName)
                                     .font(.system(size: 21))
@@ -98,8 +101,8 @@ public struct PurchaseOptionView: View {
                             .scaleEffect(1.05)
                             .fixedSize()
                         Spacer()
-                            .frame(minWidth: 5, idealWidth: 20)
-                        VStack {
+                            .frame(minWidth: 5, idealWidth: 15)
+                        VStack(spacing: 0) {
                             Text(displayPrice)
                                 .font(.headline)
                                 .bold()
@@ -120,21 +123,25 @@ public struct PurchaseOptionView: View {
                         Text(product.displayName)
                             .font(.headline)
                             .multilineTextAlignment(.center)
+                            .lineLimit(9001)
                             .padding(.horizontal, 5)
                             .foregroundColor(.primary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     VStack(alignment: .center) {
-                        HStack(alignment: .center) {
+                        Spacer(minLength: 0)
+//                        HStack(alignment: .center) {
                             Text(product.description)
                                 .font(.caption)
                                 .multilineTextAlignment(.center)
-                                .padding(.horizontal, 10)
+                                .lineLimit(9001)
+//                                .padding(.horizontal, 10)
                                 .foregroundColor(.secondary)
-                        }
-                        .frame(minHeight: subtitleHeight)
+                                .fixedSize(horizontal: false, vertical: true)
+//                        }
                         Spacer(minLength: 0)
                     }
+                    .frame(idealWidth: subtitleWidth, minHeight: subtitleHeight)
                     
                     if product.type == .autoRenewable, [PurchaseState.purchased, .pending, .inProgress].contains(purchaseState) {
                         if purchaseState == .inProgress {
@@ -151,17 +158,16 @@ public struct PurchaseOptionView: View {
                         VStack {
 #if os(iOS)
 //                            Text(buyTitle ?? product.displayName)
-                            Text("Unlock")
+                            Text("Upgrade")
 //                                .font(.callout)
 //                                .bold()
                                 .multilineTextAlignment(.center)
                                 .foregroundColor(.white)
-                                .padding(.horizontal, 10)
+                                .padding(.horizontal, buttonHorizontalPadding)
                                 .padding(.vertical, 5)
                                 .fixedSize(horizontal: false, vertical: true)
                                 .background(
-                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-//                                        .stroke(Color.accentColor, lineWidth: 1)
+                                    Capsule()
                                         .foregroundColor(Color.accentColor)
                                 )
 #else
@@ -169,7 +175,7 @@ public struct PurchaseOptionView: View {
                                 submitAction()
                             } label: {
 //                                Text(buyTitle ?? product.displayName)
-                                Text("Unlock")
+                                Text("Upgrade")
                                     .bold()
                                     .padding(.horizontal, 6)
                                     .padding(.vertical, 4)
@@ -193,6 +199,7 @@ public struct PurchaseOptionView: View {
 //            .border(Color.accentColor, width: 2)
 
         }
+        .frame(maxWidth: maxWidth)
 //        .buttonBorderShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         //        .buttonStyle(.borderless)
         .disabled(!canMakePayments || purchaseState == .purchased || purchaseState == .unknown)
@@ -236,7 +243,7 @@ public struct PurchaseOptionView: View {
         })
     }
     
-    public init(storeViewModel: StoreViewModel, product: Product, purchaseState: Binding<PurchaseState>, unitsRemaining: Int? = nil, unitsPurchased: Int? = nil, unitsName: String? = nil, symbolName: String, buyTitle: String?, action: @escaping (() -> Void)) {
+    public init(storeViewModel: StoreViewModel, product: Product, purchaseState: Binding<PurchaseState>, unitsRemaining: Int? = nil, unitsPurchased: Int? = nil, unitsName: String? = nil, symbolName: String, buyTitle: String?, maxWidth: CGFloat, action: @escaping (() -> Void)) {
         self.storeViewModel = storeViewModel
         self.product = product
         self._purchaseState = purchaseState
@@ -245,6 +252,7 @@ public struct PurchaseOptionView: View {
         self.unitsName = unitsName
         self.symbolName = symbolName
         self.buyTitle = buyTitle
+        self.maxWidth = maxWidth
         self.action = action
     }
     
