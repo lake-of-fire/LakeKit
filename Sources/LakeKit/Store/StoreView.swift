@@ -221,9 +221,7 @@ public struct StoreView: View {
             ViewThatFits {
                 HStack(alignment: .top, spacing: 0) {
                     Spacer(minLength: 0)
-                    HStack(alignment: .top, spacing: 0) {
-                        purchaseOptions(products: products, maxWidth: maxWidth)
-                    }
+                    purchaseOptions(products: products, maxWidth: maxWidth)
                     Spacer(minLength: 0)
                 }
                 VStack(alignment: .center) {
@@ -232,8 +230,10 @@ public struct StoreView: View {
             }
             .frame(maxWidth: maxWidth)
         } else {
-            LazyVGrid(columns: productGridColumns, spacing: 10) {
+            HStack(alignment: .top, spacing: 0) {
+                Spacer(minLength: 0)
                 purchaseOptions(products: products, maxWidth: maxWidth)
+                Spacer(minLength: 0)
             }
         }
     }

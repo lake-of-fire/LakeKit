@@ -21,6 +21,9 @@ public struct EnhancedSearchableModifier: ViewModifier {
     let searchAction: ((String) -> Void)
     
     @State private var isEnhancedlySearching = false
+#if os(iOS)
+    @State private var isIOSSearching = false
+#endif
     
     private var promptText: Text? {
         guard let prompt = prompt else { return nil }
@@ -32,6 +35,7 @@ public struct EnhancedSearchableModifier: ViewModifier {
 
     struct InnerContentModifier: ViewModifier {
         @Binding var isEnhancedlySearching: Bool
+        @Binding var isIOSSearching: Bool
 #if os(iOS)
         @Environment(\.isSearching) private var isSearching
 #endif
@@ -39,19 +43,20 @@ public struct EnhancedSearchableModifier: ViewModifier {
         func body(content: Content) -> some View {
             content
 #if os(iOS)
-                .task {
-                    Task { @MainActor in
-                        self.isEnhancedlySearching = isSearching
-                    }
+                .task { @MainActor in
+                    isEnhancedlySearching = isSearching
+                    isIOSSearching = isSearching
                 }
                 .onAppear {
                     Task { @MainActor in
-                        self.isEnhancedlySearching = isSearching
+                        isEnhancedlySearching = isSearching
+                        isIOSSearching = isSearching
                     }
                 }
                 .onChange(of: isSearching) { isSearching in
                     Task { @MainActor in
-                        self.isEnhancedlySearching = isSearching
+                        isEnhancedlySearching = isSearching
+                        isIOSSearching = isSearching
                     }
                 }
 #endif
@@ -76,7 +81,7 @@ public struct EnhancedSearchableModifier: ViewModifier {
         Group {
             if prefersToolbarPlacement {
                 content
-                    .modifier(InnerContentModifier(isEnhancedlySearching: $isEnhancedlySearching))
+                    .modifier(InnerContentModifier(isEnhancedlySearching: $isEnhancedlySearching, isIOSSearching: $isIOSSearching))
                     .searchable(text: $searchText, placement: placement, prompt: promptText)
             } else {
                 VStack {
@@ -123,7 +128,12 @@ public struct EnhancedSearchableModifier: ViewModifier {
     
     private func onSearchTextChange(searchText: String) {
         Task { @MainActor in
-            isEnhancedlySearching = !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            let isTextEmpty = searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+#if os(iOS)
+            isEnhancedlySearching = isIOSSearching || !isTextEmpty
+#else
+            isEnhancedlySearching = !isTextEmpty
+#endif
         }
 
         searchTask?.cancel()
