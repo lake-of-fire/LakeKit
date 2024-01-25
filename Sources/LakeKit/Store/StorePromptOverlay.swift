@@ -3,13 +3,12 @@ import StoreHelper
 import SwiftUtilities
 
 public extension View {
-    func storePromptOverlay(storeViewModel: StoreViewModel, isPresented: Binding<Bool>, isStoreSheetPresented: Binding<Bool>, headlineText: String, bodyText: String, storeButtonText: String, alternativeButtonText: String? = nil, alternativeButtonAction: (() -> Void)? = nil, toDismissFirst: Binding<Bool>? = nil) -> some View {
-        self.modifier(StorePromptOverlayModifier(storeViewModel: storeViewModel, isPresented: isPresented, isStoreSheetPresented: isStoreSheetPresented, headlineText: headlineText, bodyText: bodyText, storeButtonText: storeButtonText, alternativeButtonText: alternativeButtonText, alternativeButtonAction: alternativeButtonAction, toDismissFirst: toDismissFirst))
+    func storePromptOverlay(isPresented: Binding<Bool>, isStoreSheetPresented: Binding<Bool>, headlineText: String, bodyText: String, storeButtonText: String, alternativeButtonText: String? = nil, alternativeButtonAction: (() -> Void)? = nil, toDismissFirst: Binding<Bool>? = nil) -> some View {
+        self.modifier(StorePromptOverlayModifier(isPresented: isPresented, isStoreSheetPresented: isStoreSheetPresented, headlineText: headlineText, bodyText: bodyText, storeButtonText: storeButtonText, alternativeButtonText: alternativeButtonText, alternativeButtonAction: alternativeButtonAction, toDismissFirst: toDismissFirst))
     }
 }
 
 public struct StorePrompt: View {
-    @ObservedObject public var storeViewModel: StoreViewModel
     @Binding public var isPresented: Bool
     public let headlineText: String
     public let bodyText: String
@@ -19,6 +18,7 @@ public struct StorePrompt: View {
     @Binding public var toDismissFirst: Bool
     
     @ScaledMetric(relativeTo: .body) private var maxWidth = 340
+    @EnvironmentObject private var storeViewModel: StoreViewModel
     
     public var body: some View {
         ScrollView {
@@ -81,7 +81,6 @@ public struct StorePrompt: View {
 }
 
 public struct StorePromptOverlayModifier: ViewModifier {
-    @ObservedObject public var storeViewModel: StoreViewModel
     @Binding public var isPresented: Bool
     @Binding public var isStoreSheetPresented: Bool
     public let headlineText: String
@@ -94,6 +93,7 @@ public struct StorePromptOverlayModifier: ViewModifier {
     
     @Environment(\.colorScheme) private var colorScheme
     @EnvironmentObject private var storeHelper: StoreHelper
+    @EnvironmentObject private var storeViewModel: StoreViewModel
  
     private var isOverlayPresented: Bool {
         return storeViewModel.showAds && isPresented
@@ -123,7 +123,7 @@ public struct StorePromptOverlayModifier: ViewModifier {
             }
             .overlay(alignment: .center) {
                 if isOverlayPresented {
-                    StorePrompt(storeViewModel: storeViewModel, isPresented: $isStoreSheetPresented, headlineText: headlineText, bodyText: bodyText, storeButtonText: storeButtonText, alternativeButtonText: alternativeButtonText, alternativeButtonAction: alternativeButtonAction, toDismissFirst: toDismissFirst ?? .constant(false))
+                    StorePrompt(isPresented: $isStoreSheetPresented, headlineText: headlineText, bodyText: bodyText, storeButtonText: storeButtonText, alternativeButtonText: alternativeButtonText, alternativeButtonAction: alternativeButtonAction, toDismissFirst: toDismissFirst ?? .constant(false))
                         .groupBoxShadow(cornerRadius: 12)
                         .padding([.leading, .trailing], 20)
                 }
