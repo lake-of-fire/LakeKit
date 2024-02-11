@@ -88,6 +88,7 @@ public struct EnhancedSearchableModifier: ViewModifier {
                     HStack(spacing: 5) {
                         TextField(prompt ?? "Search", text: $searchText, prompt: promptText)
                             .textFieldStyle(.roundedBorder)
+                            .focused($focusedField, equals: "search")
                         //                    DSFSearchField.SwiftUI(text: $temporarySearchText, placeholderText: prompt, autosaveName: autosaveName, onSearchTermChange: { searchTerm in
                         //                        onSearchTextChange(searchText: searchTerm)
                         //                        Task { @MainActor in
@@ -104,8 +105,7 @@ public struct EnhancedSearchableModifier: ViewModifier {
                                 searchText = ""
 #warning("no focus here")
                             } label: {
-                                Text("Done")
-                                    .bold()
+                                Text("Cancel")
                                     .padding(.horizontal, 5)
                                     .fixedSize()
                             }
