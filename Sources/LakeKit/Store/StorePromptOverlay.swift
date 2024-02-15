@@ -129,6 +129,5 @@ public struct StorePromptOverlayModifier: ViewModifier {
                 }
             }
             .scrollDisabledIfAvailable(isOverlayPresented)
-            .storeSheet(isPresented: $isStoreSheetPresented)
     }
 }

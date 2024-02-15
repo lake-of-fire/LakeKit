@@ -12,6 +12,8 @@ public extension View {
 public struct StoreSheetModifier: ViewModifier {
     @Binding var isPresented: Bool
     
+    @State var isRestoringPurchases = false
+    
     @EnvironmentObject private var storeViewModel: StoreViewModel
 
     public func body(content: Content) -> some View {
@@ -21,6 +23,17 @@ public struct StoreSheetModifier: ViewModifier {
                 NavigationView {
                     StoreView(isPresented: $isPresented, storeViewModel: storeViewModel)
                         .toolbar {
+                            ToolbarItem(placement: .topBarTrailing) {
+                                Button("Restore Purchases") {
+                                    isRestoringPurchases = true
+                                    Task.init { @MainActor in
+                                        defer { isRestoringPurchases = false }
+                                        try? await AppStore.sync()
+                                    }
+                                }
+                                .disabled(isRestoringPurchases)
+                                .fixedSize()
+                            }
                             ToolbarItem(placement: .cancellationAction) {
                                 Button("Cancel", role: .cancel) {
                                     isPresented = false
@@ -35,8 +48,20 @@ public struct StoreSheetModifier: ViewModifier {
                     .padding(.top, 10)
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) {
-                            Button("Cancel", role: .cancel) {
-                                isPresented = false
+                            HStack {
+                                Button("Restore Purchases") {
+                                    isRestoringPurchases = true
+                                    Task.init { @MainActor in
+                                        defer { isRestoringPurchases = false }
+                                        try? await AppStore.sync()
+                                    }
+                                }
+                                .disabled(isRestoringPurchases)
+                                .fixedSize()
+                                Spacer()
+                                Button("Cancel", role: .cancel) {
+                                    isPresented = false
+                                }
                             }
                         }
                     }
@@ -90,7 +115,7 @@ struct StudentDiscountDisclosureGroup<Content: View>: View {
                     .padding(.trailing, 5)
                 
                 VStack(alignment: .leading, spacing: 5) {
-                    Text("Affordable pricing")
+                    Text("Affordably subsidized pricing")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                     Text("Student & Educator Discount") // \(Image(systemName: "chevron.right"))")
@@ -99,7 +124,10 @@ struct StudentDiscountDisclosureGroup<Content: View>: View {
                 }
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
             }
+            .foregroundColor(.accentColor)
+            .background(.secondary.opacity(0.0000000001))
         }
         .onTapGesture(count: 1) {
             withAnimation { isExpanded.toggle() }
@@ -135,7 +163,10 @@ struct FreeTierDisclosureGroup<Content: View>: View {
                 }
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
             }
+            .foregroundColor(.accentColor)
+            .background(.secondary.opacity(0.0000000001))
         }
         .onTapGesture(count: 1) {
             withAnimation { isExpanded.toggle() }
@@ -221,30 +252,36 @@ public struct StoreView: View {
             ViewThatFits {
                 HStack(alignment: .top, spacing: 0) {
                     Spacer(minLength: 0)
-                    purchaseOptions(products: products, maxWidth: maxWidth)
+                    HStack(alignment: .top, spacing: 10) {
+                        purchaseOptions(products: products, maxWidth: maxWidth)
+                    }
+                    .fixedSize()
                     Spacer(minLength: 0)
                 }
                 VStack(alignment: .center) {
                     purchaseOptions(products: products, maxWidth: maxWidth)
                 }
+                .fixedSize()
             }
             .frame(maxWidth: maxWidth)
         } else {
             HStack(alignment: .top, spacing: 0) {
                 Spacer(minLength: 0)
-                purchaseOptions(products: products, maxWidth: maxWidth)
+                HStack(alignment: .top, spacing: 10) {
+                    purchaseOptions(products: products, maxWidth: maxWidth)
+                }
                 Spacer(minLength: 0)
             }
         }
     }
     
     @ViewBuilder private func purchaseOptions(products: [StoreProduct], maxWidth: CGFloat) -> some View {
-        ForEach(products) { (storeProduct: StoreProduct) in
-            if let product = storeProduct.product(storeHelper: storeHelper) {
-                productOptionView(storeProduct: storeProduct, product: product, maxWidth: maxWidth)
-                    .frame(maxHeight: .infinity)
+            ForEach(products) { (storeProduct: StoreProduct) in
+                if let product = storeProduct.product(storeHelper: storeHelper) {
+                    productOptionView(storeProduct: storeProduct, product: product, maxWidth: maxWidth)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
             }
-        }
     }
     
     public var body: some View {
@@ -279,6 +316,7 @@ public struct StoreView: View {
                     purchaseOptionsGrid(products: storeViewModel.products, maxWidth: storeOptionsMaxWidth(geometrySize: geometry.size))
 //                        .padding(.horizontal, secondaryHorizontalPadding)
                         .frame(maxWidth: storeOptionsMaxWidth(geometrySize: geometry.size))
+                        .padding(.bottom, 10)
                     GroupBox {
                         StudentDiscountDisclosureGroup(discountView: {
                             VStack {
@@ -294,6 +332,7 @@ public struct StoreView: View {
                                     .frame(maxWidth: storeOptionsMaxWidth(geometrySize: geometry.size))
                             }
                             .padding(.top, 5)
+                            .padding(.bottom, 10)
                         })
                     }
                     if let freeTierExplanation = storeViewModel.freeTierExplanation {
