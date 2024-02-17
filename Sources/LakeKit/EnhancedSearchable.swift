@@ -13,6 +13,8 @@ public extension EnvironmentValues {
 }
 
 public struct EnhancedSearchableModifier: ViewModifier {
+    @Binding var isPresented: Bool
+    let canHide: Bool
     @Binding var searchText: String
     let autosaveName: String
     let prompt: String?
@@ -64,27 +66,47 @@ public struct EnhancedSearchableModifier: ViewModifier {
     }
     
     public func body(content: Content) -> some View {
-#if os(macOS)
         VStack {
-            DSFSearchField.SwiftUI(text: $searchText, placeholderText: prompt, autosaveName: autosaveName, onSearchTermChange: { searchTerm in
-                onSearchTextChange(searchText: searchTerm)
-//                Task { @MainActor in
-//                    isEnhancedlySearching = !searchTerm.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-//                }
-            })
-            .padding(.horizontal, 5)
-            .frame(maxWidth: 850)
+#if os(macOS)
+            if isPresented {
+                HStack {
+                    DSFSearchField.SwiftUI(text: $searchText, placeholderText: prompt, autosaveName: autosaveName, onSearchTermChange: { searchTerm in
+                        onSearchTextChange(searchText: searchTerm)
+                        //                Task { @MainActor in
+                        //                    isEnhancedlySearching = !searchTerm.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        //                }
+                    })
+                    .focused($focusedField, equals: "search")
+                    .onExitCommand {
+                        withAnimation(.linear(duration: 0.075)) {
+                            isPresented = false
+                            isEnhancedlySearching = false
+                        }
+                    }
+                    
+                    if isPresented {
+                        Button("Cancel") {
+                            withAnimation(.linear(duration: 0.075)) {
+                                isPresented = false
+                                isEnhancedlySearching = false
+                            }
+                        }
+                        .buttonStyle(.borderless)
+                    }
+                }
+                .padding(.horizontal, 5)
+                .frame(maxWidth: 850)
+                .transition(.opacity)
+            }
             content
                 .environment(\.isEnhancedlySearching, isEnhancedlySearching)
-        }
 #else
-        Group {
             if prefersToolbarPlacement {
                 content
                     .modifier(InnerContentModifier(isEnhancedlySearching: $isEnhancedlySearching, isIOSSearching: $isIOSSearching))
                     .searchable(text: $searchText, placement: placement, prompt: promptText)
             } else {
-                VStack {
+                if isPresented {
                     HStack(spacing: 5) {
                         TextField(prompt ?? "Search", text: $searchText, prompt: promptText)
                             .textFieldStyle(.roundedBorder)
@@ -111,19 +133,25 @@ public struct EnhancedSearchableModifier: ViewModifier {
                             }
                         }
                     }
-//                    .fitToReadableContentWidth()
+                    //                    .fitToReadableContentWidth()
                     .padding(.horizontal, 10)
                     .frame(maxWidth: 850)
-                    content
-                        .environment(\.isEnhancedlySearching, isEnhancedlySearching)
                 }
+                content
+                    .environment(\.isEnhancedlySearching, isEnhancedlySearching)
             }
+#endif
         }
         .onChange(of: searchText) { searchText in
             onSearchTextChange(searchText: searchText)
         }
+        .onChange(of: isPresented) { [oldValue = isPresented] isPresented in
+            guard isPresented, oldValue != isPresented else { return }
+            withAnimation {
+                focusedField = "search"
+            }
+        }
         .environment(\.isEnhancedlySearching, isEnhancedlySearching)
-#endif
     }
     
     private func onSearchTextChange(searchText: String) {
@@ -147,7 +175,7 @@ public struct EnhancedSearchableModifier: ViewModifier {
 }
 
 public extension View {
-    func enhancedSearchable(searchText: Binding<String>, autosaveName: String, prompt: String? = nil, placement: SearchFieldPlacement = .automatic, prefersToolbarPlacement: Bool = true, searchAction: @escaping ((String) -> Void)) -> some View {
-        self.modifier(EnhancedSearchableModifier(searchText: searchText, autosaveName: autosaveName, prompt: prompt, placement: placement, prefersToolbarPlacement: prefersToolbarPlacement, searchAction: searchAction))
+    func enhancedSearchable(isPresented: Binding<Bool>? = nil, searchText: Binding<String>, autosaveName: String, prompt: String? = nil, placement: SearchFieldPlacement = .automatic, prefersToolbarPlacement: Bool = true, searchAction: @escaping ((String) -> Void)) -> some View {
+        self.modifier(EnhancedSearchableModifier(isPresented: isPresented ?? .constant(true), canHide: isPresented != nil, searchText: searchText, autosaveName: autosaveName, prompt: prompt, placement: placement, prefersToolbarPlacement: prefersToolbarPlacement, searchAction: searchAction))
     }
 }
