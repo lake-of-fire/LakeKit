@@ -59,6 +59,7 @@ let package = Package(
 //        .package(url: "https://github.com/kean/Pulse.git", branch: "main"),
         .package(url: "https://github.com/stevengharris/SplitView.git", branch: "main"),
         .package(url: "https://github.com/lake-of-fire/VisionLiveText_SwiftUICompatible.git", branch: "main"),
+        .package(url: "https://github.com/SwiftUIX/SwiftUIX.git", branch: "master"),
 //        .package(path: "../FramedScreenshotsTool"),
     ],
     targets: [
@@ -105,6 +106,7 @@ let package = Package(
                 .product(name: "SwiftUtilities", package: "SwiftUtilities"),
                 .product(name: "SplitView", package: "SplitView"),
                 .product(name: "LakeImage", package: "LakeImage"),
+                .product(name: "SwiftUIX", package: "SwiftUIX"),
             ],
             resources: [
 //                .copy("Resources/CSS/Reader.css"),
