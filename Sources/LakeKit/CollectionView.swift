@@ -190,6 +190,8 @@ final class CenteredFlowLayout: NSCollectionViewFlowLayout {
         // Ensure vertical scrolling
         self.scrollDirection = .vertical
         
+        sectionInset = NSEdgeInsets(top: 8, left: 8, bottom: 8, right: 8)
+        
         // Additional configuration here if needed
     }
     
@@ -525,7 +527,6 @@ public struct CollectionView<ItemType, Content: View>: /* NSObject, */ NSViewRep
     }
     
     public func updateNSView(_ scrollView: NSScrollView, context: Context) {
-        print("!! Update grid... \(ItemType.self)")
         let collectionView = scrollView.documentView as! InternalCollectionView
         // self.collection = collectionView
         collectionView.dataSource = context.coordinator
@@ -586,7 +587,7 @@ public struct CollectionView<ItemType, Content: View>: /* NSObject, */ NSViewRep
         collectionView.register(Cell<Content>.self, forItemWithIdentifier: NSUserInterfaceItemIdentifier("Cell"))
         
         collectionView.frame = CGRect(x: 0, y: 0, width: 400, height: 100)
-        print(collectionView.frame)
+//        print(collectionView.frame)
         // TODO: ???
         // layout.itemSize = NSSize(width: 100, height: 100)
         collectionView.frame = CGRect(x: 0, y: 0, width: 400, height: 100)
