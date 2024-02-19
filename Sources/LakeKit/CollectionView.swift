@@ -239,14 +239,14 @@ final class CenteredFlowLayout: NSCollectionViewFlowLayout {
 // NSObject is necessary to implement NSCollectionViewDataSource
 // TODO: ItemType extends identifiable?
 // TODO: Move the delegates to a coordinator.
-public struct CollectionView<ItemType, Content: View>: /* NSObject, */ NSViewRepresentable /* NSCollectionViewDataSource, NSCollectionViewDelegateFlowLayout */ {
+public struct CollectionView<ItemType, Content: View>: /* NSObject, */ NSViewRepresentable /* NSCollectionViewDataSource, NSCollectionViewDelegateFlowLayout */ where ItemType: Equatable {
     var itemWidth: CGFloat?
     var itemHeight: CGFloat?
     
     // TODO: why is this a binding?
 //    @Binding var items: [ItemType]
     var items: [ItemType]
-    
+
     typealias ItemRenderer = (_ item: ItemType) -> Content
     @ViewBuilder var renderer: ItemRenderer
     
@@ -274,6 +274,8 @@ public struct CollectionView<ItemType, Content: View>: /* NSObject, */ NSViewRep
     public final class Coordinator: NSObject, NSCollectionViewDelegate, QLPreviewPanelDelegate, QLPreviewPanelDataSource, NSCollectionViewDataSource {
         var parent: CollectionView<ItemType, Content>
         
+        private var previousItems: [ItemType] = []
+        
         var selectedIndexPaths: Set<IndexPath> = Set<IndexPath>()
         var selectedItems: [ItemType] {
             get {
@@ -287,6 +289,15 @@ public struct CollectionView<ItemType, Content: View>: /* NSObject, */ NSViewRep
         
         init(_ parent: CollectionView<ItemType, Content>) {
             self.parent = parent
+            self.previousItems = parent.items
+        }
+        
+        func itemsDidUpdate(newItems: [ItemType]) -> Bool {
+            if previousItems != newItems {
+                previousItems = newItems
+                return true
+            }
+            return false
         }
         
         // NSCollectionViewDelegate
@@ -514,11 +525,15 @@ public struct CollectionView<ItemType, Content: View>: /* NSObject, */ NSViewRep
     }
     
     public func updateNSView(_ scrollView: NSScrollView, context: Context) {
-        print("Update grid...")
+        print("!! Update grid... \(ItemType.self)")
         let collectionView = scrollView.documentView as! InternalCollectionView
         // self.collection = collectionView
         collectionView.dataSource = context.coordinator
         collectionView.delegate = context.coordinator
+        
+        if context.coordinator.itemsDidUpdate(newItems: items) {
+            collectionView.reloadData()
+        }
         
         // Drag and drop
         // https://www.raywenderlich.com/1047-advanced-collection-views-in-os-x-tutorial#toc-anchor-011
