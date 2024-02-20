@@ -246,14 +246,16 @@ final class CenteredFlowLayout: NSCollectionViewFlowLayout {
 // NSObject is necessary to implement NSCollectionViewDataSource
 // TODO: ItemType extends identifiable?
 // TODO: Move the delegates to a coordinator.
-public struct CollectionView<ItemType, Content: View>: /* NSObject, */ NSViewRepresentable /* NSCollectionViewDataSource, NSCollectionViewDelegateFlowLayout */ where ItemType: Equatable {
+public struct CollectionView<ItemType, Content: View>: /* NSObject, */ NSViewRepresentable /* NSCollectionViewDataSource, NSCollectionViewDelegateFlowLayout */ where ItemType: Equatable, ItemType: Identifiable  {
+    var items: [ItemType]
+    @Binding var selection: Set<ItemType.ID>
     var itemWidth: CGFloat?
     var itemHeight: CGFloat?
     var dataChangeNeeds = 0
     
+    var iddd = UUID().uuidString
     // TODO: why is this a binding?
 //    @Binding var items: [ItemType]
-    var items: [ItemType]
 
     typealias ItemRenderer = (_ item: ItemType) -> Content
     @ViewBuilder var renderer: ItemRenderer
@@ -272,17 +274,19 @@ public struct CollectionView<ItemType, Content: View>: /* NSObject, */ NSViewRep
     
     private var collection: NSCollectionView? = nil
     
-    public init(items: [ItemType], itemWidth: CGFloat? = nil, itemHeight: CGFloat? = nil, dataChangeNeeds: Int = 0, @ViewBuilder renderer: @escaping (_ item: ItemType) -> Content) {
+    public init(items: [ItemType], selection: Binding<Set<ItemType.ID>>, itemWidth: CGFloat? = nil, itemHeight: CGFloat? = nil, dataChangeNeeds: Int = 0, @ViewBuilder renderer: @escaping (_ item: ItemType) -> Content) {
         self.itemWidth = itemWidth
         self.itemHeight = itemHeight
         self.items = items
+        _selection = selection
         self.dataChangeNeeds = dataChangeNeeds
         self.renderer = renderer
     }
     
     public final class Coordinator: NSObject, NSCollectionViewDelegate, QLPreviewPanelDelegate, QLPreviewPanelDataSource, NSCollectionViewDataSource {
         var parent: CollectionView<ItemType, Content>
- 
+        var selection: Binding<Set<ItemType.ID>>
+        
         private var previousItems: [ItemType] = []
         private var previousDataChangeNeeds = 0
         
@@ -303,6 +307,7 @@ public struct CollectionView<ItemType, Content: View>: /* NSObject, */ NSViewRep
             self.parent = parent
             self.previousItems = parent.items
             self.previousDataChangeNeeds = parent.dataChangeNeeds
+            self.selection = parent.$selection
         }
         
         func itemsDidUpdate(newItems: [ItemType], newDataChangeNeeds: Int) -> Bool {
@@ -323,10 +328,12 @@ public struct CollectionView<ItemType, Content: View>: /* NSObject, */ NSViewRep
         }
         
         public func collectionView(_ collectionView: NSCollectionView, didSelectItemsAt indexPaths: Set<IndexPath>) {
+            selection.wrappedValue = Set(collectionView.selectionIndexPaths.compactMap { parent.items[$0.item].id })
+ 
             // Unsure if necessary to queue:
             DispatchQueue.main.async {
                 self.selectedIndexPaths.formUnion(indexPaths)
-                print("Selected items: \(self.selectedIndexPaths) (added \(indexPaths))")
+//                print("Selected items: \(self.selectedIndexPaths) (added \(indexPaths))")
                 
                 if let quickLook = QLPreviewPanel.shared() {
                     if (quickLook.isVisible) {
@@ -337,10 +344,12 @@ public struct CollectionView<ItemType, Content: View>: /* NSObject, */ NSViewRep
         }
         
         public func collectionView(_ collectionView: NSCollectionView, didDeselectItemsAt indexPaths: Set<IndexPath>) {
+            selection.wrappedValue = Set(collectionView.selectionIndexPaths.compactMap { parent.items[$0.item].id })
+            
             // Unsure if necessary to queue:
             DispatchQueue.main.async {
                 self.selectedIndexPaths.subtract(indexPaths)
-                print("Selected items: \(self.selectedIndexPaths) (removed \(indexPaths))")
+//                print("Selected items: \(self.selectedIndexPaths) (removed \(indexPaths))")
                 
                 if let quickLook = QLPreviewPanel.shared() {
                     if (quickLook.isVisible) {
@@ -355,7 +364,7 @@ public struct CollectionView<ItemType, Content: View>: /* NSObject, */ NSViewRep
             DispatchQueue.main.async {
                 // TODO: this fires too much (like when we resize the view). I think that matches actual selection behavior, but I'd like to do better.
                 self.selectedIndexPaths.subtract([indexPath])
-                print("Selected items: \(self.selectedIndexPaths) (removed \(indexPath) because item removed)")
+//                print("Selected items: \(self.selectedIndexPaths) (removed \(indexPath) because item removed)")
             }
         }
         
@@ -542,7 +551,6 @@ public struct CollectionView<ItemType, Content: View>: /* NSObject, */ NSViewRep
     }
     
     public func updateNSView(_ scrollView: NSScrollView, context: Context) {
-//        print("!! update grid...")
         let collectionView = scrollView.documentView as! InternalCollectionView
         // self.collection = collectionView
         collectionView.dataSource = context.coordinator
@@ -604,6 +612,15 @@ public struct CollectionView<ItemType, Content: View>: /* NSObject, */ NSViewRep
             collectionView.register(Cell<Content>.self, forItemWithIdentifier: NSUserInterfaceItemIdentifier("Cell"))
             context.coordinator.didRegisterCells = true
         }
+        
+        let indexPathsToSelect = items.enumerated().compactMap { index, item -> IndexPath? in
+            selection.contains(item.id) ? IndexPath(item: index, section: 0) : nil
+        }
+        let selectedIndexPaths = Set(collectionView.selectionIndexPaths)
+        let indexPathsToDeselect = selectedIndexPaths.subtracting(indexPathsToSelect)
+        indexPathsToDeselect.forEach { collectionView.deselectItems(at: [$0]) }
+        indexPathsToSelect.forEach { collectionView.selectItems(at: [$0], scrollPosition: .nearestHorizontalEdge) }
+
 //        collectionView.frame = CGRect(x: 0, y: 0, width: 400, height: 100)
 //        print(collectionView.frame)
         // TODO: ???
@@ -652,13 +669,13 @@ extension CollectionView {
     }
 }
 
-struct CollectionView_Previews: PreviewProvider {
-    static var previews: some View {
-//        CollectionView(items: Binding.constant(["a", "b"])) { item in
-        CollectionView(items: ["a", "b"]) { item in
-            Text(item)
-        }
-        .frame(width: 100, height: 100, alignment: .center)
-    }
-}
+//struct CollectionView_Previews: PreviewProvider {
+//    static var previews: some View {
+////        CollectionView(items: Binding.constant(["a", "b"])) { item in
+//        CollectionView(items: ["a", "b"]) { item in
+//            Text(item)
+//        }
+//        .frame(width: 100, height: 100, alignment: .center)
+//    }
+//}
 #endif
