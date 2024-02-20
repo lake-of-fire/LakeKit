@@ -177,6 +177,9 @@ private final class InternalCollectionView: NSCollectionView {
 // }
 
 final class CenteredFlowLayout: NSCollectionViewFlowLayout {
+    var itemWidth: CGFloat = 0
+    var itemHeight: CGFloat = 0
+    
     // Initialize with optional itemWidth and itemHeight for flexibility
     init(itemWidth: CGFloat? = nil, itemHeight: CGFloat? = nil) {
         super.init()
@@ -186,6 +189,8 @@ final class CenteredFlowLayout: NSCollectionViewFlowLayout {
         
         // Apply provided itemWidth and itemHeight, fall back to defaults if nil
         self.itemSize = CGSize(width: itemWidth ?? defaultItemSize.width, height: itemHeight ?? defaultItemSize.height)
+        self.itemWidth = itemSize.width
+        self.itemHeight = itemSize.height
         
         // Ensure vertical scrolling
         self.scrollDirection = .vertical
@@ -244,6 +249,7 @@ final class CenteredFlowLayout: NSCollectionViewFlowLayout {
 public struct CollectionView<ItemType, Content: View>: /* NSObject, */ NSViewRepresentable /* NSCollectionViewDataSource, NSCollectionViewDelegateFlowLayout */ where ItemType: Equatable {
     var itemWidth: CGFloat?
     var itemHeight: CGFloat?
+    var dataChangeNeeds = 0
     
     // TODO: why is this a binding?
 //    @Binding var items: [ItemType]
@@ -266,17 +272,21 @@ public struct CollectionView<ItemType, Content: View>: /* NSObject, */ NSViewRep
     
     private var collection: NSCollectionView? = nil
     
-    public init(items: [ItemType], itemWidth: CGFloat? = nil, itemHeight: CGFloat? = nil, @ViewBuilder renderer: @escaping (_ item: ItemType) -> Content) {
+    public init(items: [ItemType], itemWidth: CGFloat? = nil, itemHeight: CGFloat? = nil, dataChangeNeeds: Int = 0, @ViewBuilder renderer: @escaping (_ item: ItemType) -> Content) {
         self.itemWidth = itemWidth
         self.itemHeight = itemHeight
         self.items = items
+        self.dataChangeNeeds = dataChangeNeeds
         self.renderer = renderer
     }
     
     public final class Coordinator: NSObject, NSCollectionViewDelegate, QLPreviewPanelDelegate, QLPreviewPanelDataSource, NSCollectionViewDataSource {
         var parent: CollectionView<ItemType, Content>
-        
+ 
         private var previousItems: [ItemType] = []
+        private var previousDataChangeNeeds = 0
+        
+        var didRegisterCells = false
         
         var selectedIndexPaths: Set<IndexPath> = Set<IndexPath>()
         var selectedItems: [ItemType] {
@@ -292,14 +302,15 @@ public struct CollectionView<ItemType, Content: View>: /* NSObject, */ NSViewRep
         init(_ parent: CollectionView<ItemType, Content>) {
             self.parent = parent
             self.previousItems = parent.items
+            self.previousDataChangeNeeds = parent.dataChangeNeeds
         }
         
-        func itemsDidUpdate(newItems: [ItemType]) -> Bool {
-            if previousItems != newItems {
+        func itemsDidUpdate(newItems: [ItemType], newDataChangeNeeds: Int) -> Bool {
+            defer {
                 previousItems = newItems
-                return true
+                previousDataChangeNeeds = newDataChangeNeeds
             }
-            return false
+            return previousDataChangeNeeds != newDataChangeNeeds || previousItems != newItems
         }
         
         // NSCollectionViewDelegate
@@ -521,19 +532,26 @@ public struct CollectionView<ItemType, Content: View>: /* NSObject, */ NSViewRep
         let collectionView = InternalCollectionView()
         scrollView.documentView = collectionView
         
+        collectionView.backgroundColors = [.clear]
+        collectionView.isSelectable = true
+        collectionView.allowsMultipleSelection = true
+
         updateNSView(scrollView, context: context)
         
         return scrollView
     }
     
     public func updateNSView(_ scrollView: NSScrollView, context: Context) {
+//        print("!! update grid...")
         let collectionView = scrollView.documentView as! InternalCollectionView
         // self.collection = collectionView
         collectionView.dataSource = context.coordinator
         collectionView.delegate = context.coordinator
         
-        if context.coordinator.itemsDidUpdate(newItems: items) {
+        if context.coordinator.itemsDidUpdate(newItems: items, newDataChangeNeeds: dataChangeNeeds) {
+            let selections = collectionView.selectionIndexes
             collectionView.reloadData()
+            collectionView.selectionIndexes = selections
         }
         
         // Drag and drop
@@ -575,22 +593,22 @@ public struct CollectionView<ItemType, Content: View>: /* NSObject, */ NSViewRep
 //        
 //        let layout = NSCollectionViewCompositionalLayout(section: section, configuration: configuration)
 //        collectionView.collectionViewLayout = layout
-        let layout = CenteredFlowLayout(itemWidth: itemWidth, itemHeight: itemHeight)
-        layout.minimumLineSpacing = 8
-        layout.minimumInteritemSpacing = 8
-        collectionView.collectionViewLayout = layout
+        if (collectionView.collectionViewLayout as? CenteredFlowLayout)?.itemWidth != itemWidth || (collectionView.collectionViewLayout as? CenteredFlowLayout)?.itemHeight != itemHeight {
+            let layout = CenteredFlowLayout(itemWidth: itemWidth, itemHeight: itemHeight)
+            layout.minimumLineSpacing = 8
+            layout.minimumInteritemSpacing = 8
+            collectionView.collectionViewLayout = layout
+        }
         
-        collectionView.backgroundColors = [.clear]
-        collectionView.isSelectable = true
-        collectionView.allowsMultipleSelection = true
-        
-        collectionView.register(Cell<Content>.self, forItemWithIdentifier: NSUserInterfaceItemIdentifier("Cell"))
-        
-        collectionView.frame = CGRect(x: 0, y: 0, width: 400, height: 100)
+        if !context.coordinator.didRegisterCells {
+            collectionView.register(Cell<Content>.self, forItemWithIdentifier: NSUserInterfaceItemIdentifier("Cell"))
+            context.coordinator.didRegisterCells = true
+        }
+//        collectionView.frame = CGRect(x: 0, y: 0, width: 400, height: 100)
 //        print(collectionView.frame)
         // TODO: ???
         // layout.itemSize = NSSize(width: 100, height: 100)
-        collectionView.frame = CGRect(x: 0, y: 0, width: 400, height: 100)
+//        collectionView.frame = CGRect(x: 0, y: 0, width: 400, height: 100)
         
         collectionView.setNeedsDisplay(collectionView.frame)
     }
