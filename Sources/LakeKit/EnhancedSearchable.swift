@@ -79,14 +79,16 @@ public struct EnhancedSearchableModifier: ViewModifier {
                     .focused($focusedField, equals: "search")
                     .onExitCommand {
                         withAnimation(.linear(duration: 0.075)) {
+                            searchText = ""
                             isPresented = false
                             isEnhancedlySearching = false
                         }
                     }
                     
-                    if isPresented {
+                    if isPresented && (canHide || isEnhancedlySearching) {
                         Button("Cancel") {
                             withAnimation(.linear(duration: 0.075)) {
+                                searchText = ""
                                 isPresented = false
                                 isEnhancedlySearching = false
                             }
