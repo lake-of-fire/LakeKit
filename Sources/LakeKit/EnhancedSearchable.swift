@@ -125,6 +125,7 @@ public struct EnhancedSearchableModifier: ViewModifier {
                                 withAnimation {
                                     isEnhancedlySearching = false
                                     focusedField = nil
+                                    isPresented = false
                                 }
                                 searchText = ""
 #warning("no focus here")
@@ -147,6 +148,14 @@ public struct EnhancedSearchableModifier: ViewModifier {
         .onChange(of: searchText) { searchText in
             onSearchTextChange(searchText: searchText)
         }
+        #if os(iOS)
+        .onChange(of: focusedField) { focusedField in
+            if !isEnhancedlySearching, focusedField == "search" {
+                isEnhancedlySearching = true
+            }
+        }
+        #endif
+
         .onChange(of: isPresented) { [oldValue = isPresented] isPresented in
             guard isPresented, oldValue != isPresented else { return }
             withAnimation {
