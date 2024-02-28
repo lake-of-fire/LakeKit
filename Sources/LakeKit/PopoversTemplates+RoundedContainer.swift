@@ -65,6 +65,7 @@ public extension Templates {
 //                        .background(.ultraThickMaterial)
 //                    )
                     .clipShape(RoundedRectangle(cornerRadius: 24))
+                    .popoverShadow(shadow: .init(color: Color.black.opacity(0.2), radius: 20, x: 0, y: 4 ))
 //                    .background {
 //                        Color.clear
 //                            .popoverShadowIfNeeded(shadow: shadow)
