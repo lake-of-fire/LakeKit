@@ -59,13 +59,13 @@ public struct SplitAssistantView<Primary: View, Secondary: View>: View {
                         SplitInternalView(splitViewModel: splitViewModel) {
                             dividerLayout {
                                 primary
-                                if splitViewModel.assistantSide == .primary {
+                                if splitViewModel.assistantSide == .secondary {
                                     Divider()
                                 }
                             }
                         } secondary: {
                             dividerLayout {
-                                if splitViewModel.assistantSide == .secondary {
+                                if splitViewModel.assistantSide == .primary {
                                     Divider()
                                 }
                                 secondary
