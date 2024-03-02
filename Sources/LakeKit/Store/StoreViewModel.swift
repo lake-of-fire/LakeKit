@@ -16,6 +16,10 @@ public class StoreViewModel: NSObject, ObservableObject {
     @Published public var productGroupHeading: String
     @Published public var productGroupSubtitle: String = ""
     @Published public var freeTierExplanation: String?
+    @Published public var testimonialTitle: String?
+    @Published public var testimonialImage: Image?
+    @Published public var testimonial: String?
+    @Published public var testimonialLink: URL?
     @Published public var benefits: [String]
     @Published public var termsOfService: URL
     @Published public var privacyPolicy: URL
@@ -26,7 +30,7 @@ public class StoreViewModel: NSObject, ObservableObject {
     @MainActor var isSubscribedFromElsewhereCallback: ((StoreViewModel) async -> Bool)? = nil
     private var subscriptionRefreshTask: Task<Void, Never>? = nil
     
-    public init(satisfyingPrerequisite: @escaping () async -> Bool = { true }, products: [StoreProduct], studentProducts: [StoreProduct], appAccountToken: UUID? = nil, headline: String, subheadline: String, productGroupHeading: String, productGroupSubtitle: String = "", freeTierExplanation: String? = nil, benefits: [String], termsOfService: URL, privacyPolicy: URL, chatURL: URL? = nil, faq: OrderedDictionary<String, String>, isSubscribedFromElsewhereCallback: ((StoreViewModel) async -> Bool)? = nil) {
+    public init(satisfyingPrerequisite: @escaping () async -> Bool = { true }, products: [StoreProduct], studentProducts: [StoreProduct], appAccountToken: UUID? = nil, headline: String, subheadline: String, productGroupHeading: String, productGroupSubtitle: String = "", freeTierExplanation: String? = nil, testimonialTitle: String?, testimonialImage: Image?,  testimonial: String, testimonialLink: URL?, benefits: [String], termsOfService: URL, privacyPolicy: URL, chatURL: URL? = nil, faq: OrderedDictionary<String, String>, isSubscribedFromElsewhereCallback: ((StoreViewModel) async -> Bool)? = nil) {
         self.satisfyingPrerequisite = satisfyingPrerequisite
         self.products = products
         self.studentProducts = studentProducts
@@ -36,6 +40,10 @@ public class StoreViewModel: NSObject, ObservableObject {
         self.productGroupHeading = productGroupHeading
         self.productGroupSubtitle = productGroupSubtitle
         self.freeTierExplanation = freeTierExplanation
+        self.testimonialTitle = testimonialTitle
+        self.testimonialImage = testimonialImage
+        self.testimonial = testimonial
+        self.testimonialLink = testimonialLink
         self.benefits = benefits
         self.termsOfService = termsOfService
         self.privacyPolicy = privacyPolicy

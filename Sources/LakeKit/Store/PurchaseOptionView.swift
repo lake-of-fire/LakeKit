@@ -10,7 +10,8 @@ fileprivate struct BuyButtonStyle: ButtonStyle {
 ///           .font(.buttonLabel)
 //            .frame(maxWidth: .infinity, minHeight: height, maxHeight: height)
 //            .foregroundColor(.primaryButtonLabel)
-            .background(configuration.isPressed ? Color.accentColor : Color.white.opacity(0.0000001))
+            .background(configuration.isPressed ? Color.accentColor.opacity(0.8) : Color.white.opacity(0.0000001))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
 //            .cornerRadius(.infinity)
     }
 }
@@ -27,9 +28,10 @@ public struct PurchaseOptionView: View {
     public let maxWidth: CGFloat
     public let action: (() -> Void)
     
-    @ScaledMetric(relativeTo: .caption) private var subtitleWidth = 50
-    @ScaledMetric(relativeTo: .caption) private var subtitleHeight = 40
-    @ScaledMetric(relativeTo: .body) private var buttonHorizontalPadding = 10
+//    @ScaledMetric(relativeTo: .caption) private var subtitleWidth = 50
+//    @ScaledMetric(relativeTo: .caption) private var subtitleHeight = 40
+    @ScaledMetric(relativeTo: .body) private var buttonIdealWidth = 130
+    @ScaledMetric(relativeTo: .body) private var buttonHorizontalPadding = 16
     
     @Environment(\.isICloudSyncActive) private var isICloudSyncActive: Bool
     @Environment(\.iCloudSyncStateSummary) private var iCloudSyncStateSummary: SyncMonitor.SyncSummaryStatus
@@ -89,16 +91,21 @@ public struct PurchaseOptionView: View {
                 VStack(spacing: 0) {
                     HStack(spacing: 0) {
                         Circle()
-                            .foregroundColor(.accentColor)
-                            .frame(width: 50, height: 50)
+                            .modifier {
+                                if #available(iOS 16, macOS 13, *) {
+                                    $0.fill(Color.accentColor.gradient)
+                                } else {
+                                    $0.foregroundColor(.accentColor)
+                                }
+                            }
+                            .frame(width: 40, height: 40)
                             .overlay {
                                 Image(systemName: symbolName)
-                                    .font(.system(size: 21))
+                                    .font(.system(size: 18))
                                     .foregroundColor(.white)
                                     .fixedSize()
                             }
                             .clipShape(Circle())
-                            .scaleEffect(1.05)
                             .fixedSize()
                         Spacer()
                             .frame(minWidth: 5, idealWidth: 15)
@@ -128,25 +135,19 @@ public struct PurchaseOptionView: View {
                             .foregroundColor(.primary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
-                    VStack(alignment: .center) {
-                        Spacer(minLength: 0)
-//                        HStack(alignment: .center) {
-                            Text(product.description)
-                                .font(.caption)
-                                .multilineTextAlignment(.center)
-                                .lineLimit(9001)
-//                                .padding(.horizontal, 10)
-                                .foregroundColor(.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
-//                        }
-                        Spacer(minLength: 0)
-                    }
-                    .frame(idealWidth: subtitleWidth, minHeight: subtitleHeight)
+                    
+                    Text(product.description)
+                        .font(.caption)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(9001)
+                        .foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.vertical, 12)
                     
                     if product.type == .autoRenewable, [PurchaseState.purchased, .pending, .inProgress].contains(purchaseState) {
                         if purchaseState == .inProgress {
                             ProgressView()
-                                .padding()
+                            //                                    .padding()
                         } else {
                             Text(purchaseState.shortDescription())
                                 .bold()
@@ -157,14 +158,14 @@ public struct PurchaseOptionView: View {
                     } else {
                         VStack {
 #if os(iOS)
-//                            Text(buyTitle ?? product.displayName)
+                            //                            Text(buyTitle ?? product.displayName)
                             Text("Upgrade")
-//                                .font(.callout)
-//                                .bold()
+                            //                                .font(.callout)
+                                .bold()
                                 .multilineTextAlignment(.center)
                                 .foregroundColor(.white)
                                 .padding(.horizontal, buttonHorizontalPadding)
-                                .padding(.vertical, 5)
+                                .padding(.vertical, 4)
                                 .fixedSize(horizontal: false, vertical: true)
                                 .background(
                                     Capsule()
@@ -174,7 +175,7 @@ public struct PurchaseOptionView: View {
                             Button {
                                 submitAction()
                             } label: {
-//                                Text(buyTitle ?? product.displayName)
+                                //                                Text(buyTitle ?? product.displayName)
                                 Text("Upgrade")
                                     .bold()
                                     .padding(.horizontal, 6)
@@ -196,10 +197,13 @@ public struct PurchaseOptionView: View {
                 }
             }
             .buttonStyle(BuyButtonStyle())
-//            .border(Color.accentColor, width: 2)
-
+//            .buttonStyle(.bordered)
+//            .backgroundStyle(.secondary)
+//            .foregroundStyle(.primary)
+            .frame(idealWidth: buttonIdealWidth)
+            .fixedSize()
         }
-        .frame(maxWidth: maxWidth)
+//        .frame(maxWidth: maxWidth)
 //        .buttonBorderShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         //        .buttonStyle(.borderless)
         .disabled(!canMakePayments || purchaseState == .purchased || purchaseState == .unknown)

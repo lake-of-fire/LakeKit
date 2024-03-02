@@ -115,7 +115,7 @@ struct StudentDiscountDisclosureGroup<Content: View>: View {
                     .padding(.trailing, 5)
                 
                 VStack(alignment: .leading, spacing: 5) {
-                    Text("Affordably subsidized pricing")
+                    Text("Affordable subsidized pricing")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                     Text("Student & Educator Discount") // \(Image(systemName: "chevron.right"))")
@@ -289,7 +289,7 @@ public struct StoreView: View {
             ScrollView {
                 VStack(spacing: 10) {
                     Text(storeViewModel.headline)
-                        .font(.largeTitle)
+                        .font(.title)
                         .bold()
                         .foregroundColor(.primary)
                         .multilineTextAlignment(.center)
@@ -306,6 +306,9 @@ public struct StoreView: View {
                         .bold()
                         .multilineTextAlignment(.center)
                         .fixedSize(horizontal: false, vertical: true)
+                    purchaseOptionsGrid(products: storeViewModel.products, maxWidth: storeOptionsMaxWidth(geometrySize: geometry.size))
+//                        .padding(.horizontal, secondaryHorizontalPadding)
+                        .frame(maxWidth: storeOptionsMaxWidth(geometrySize: geometry.size))
                     if !storeViewModel.productGroupSubtitle.isEmpty {
                         Text(storeViewModel.productGroupSubtitle)
                             .foregroundColor(.secondary)
@@ -313,14 +316,10 @@ public struct StoreView: View {
                             .font(.caption)
                             .fixedSize(horizontal: false, vertical: true)
                     }
-                    purchaseOptionsGrid(products: storeViewModel.products, maxWidth: storeOptionsMaxWidth(geometrySize: geometry.size))
-//                        .padding(.horizontal, secondaryHorizontalPadding)
-                        .frame(maxWidth: storeOptionsMaxWidth(geometrySize: geometry.size))
-                        .padding(.bottom, 10)
                     GroupBox {
                         StudentDiscountDisclosureGroup(discountView: {
                             VStack {
-                                Text("Students and educators already have enough expenses to manage. We hope to help ease the burden. If you're not in education and can afford it, please use the regular rate options. Your payment goes directly to the developers to support ongoing app improvements.")
+                                Text("Students and educators already have enough expenses to manage. Let's ease the burden. If you're not in education and can afford it, please use the regular rate options.")
                                     .font(.subheadline)
                                     .padding()
                                     .multilineTextAlignment(.leading)
@@ -348,12 +347,59 @@ public struct StoreView: View {
                             }
                         }
                     }
+                    if let testimonial = storeViewModel.testimonial {
+                        VStack {
+                            if let testimonialTitle = storeViewModel.testimonialTitle {
+                                Text(testimonialTitle)
+                                    .font(.headline)
+                                    .foregroundStyle(.secondary)
+                            }
+                            if let testimonialImage = storeViewModel.testimonialImage {
+                                Group {
+                                    if let testimonialLink = storeViewModel.testimonialLink {
+                                        Link(destination: testimonialLink) {
+                                            testimonialImage
+                                                .resizable()
+                                                .aspectRatio(contentMode: .fit)
+                                                .frame(maxHeight: 45)
+                                        }
+                                    } else {
+                                        testimonialImage
+                                            .resizable()
+                                            .aspectRatio(contentMode: .fit)
+                                            .frame(maxHeight: 45)
+                                    }
+                                }
+                                .padding(.bottom, 4)
+                            }
+                            if let testimonialLink = storeViewModel.testimonialLink {
+                                Link(destination: testimonialLink) {
+                                    Text("“\(testimonial)”") + Text("  \(Image(systemName: "link"))")
+                                }
+//                                Link("“\(testimonial)”  ", destination: testimonialLink)
+                                    .modifier {
+                                        if #available(iOS 16, macOS 13, *) {
+                                            $0.italic()
+                                        } else { $0 }
+                                    }
+                                    .font(.subheadline)
+                                    .foregroundStyle(.primary)
+                            } else {
+                                Text("“\(testimonial)”")
+                                    .italic()
+                                    .font(.subheadline)
+                            }
+                        }
+                        .padding()
+                        Divider()
+                    }
                     VStack(alignment: .leading, spacing: 15) {
                         ForEach(storeViewModel.benefits, id: \.self) { benefit in
-                            Text(Image(systemName: "checkmark.circle"))
+                            Text(Image(systemName: "checkmark.circle.fill"))
                                 .bold()
                                 .foregroundColor(.green)
-                            + Text(" ") + Text(.init(benefit))
+                            + Text(" ")
+                            + Text(.init(benefit))
                         }
                     }
                     .font(.callout)
