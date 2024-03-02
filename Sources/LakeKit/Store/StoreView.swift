@@ -322,7 +322,7 @@ public struct StoreView: View {
                                 scrollValue.scrollTo("education-discount", anchor: .top)
                             } label: {
                                 (Text("More purchase options") + Text(" \(Image(systemName: "chevron.right.circle.fill"))"))
-                                    .font(.callout)
+                                    .font(.footnote)
                                     .bold()
                                     .lineLimit(9001)
                                     .multilineTextAlignment(.center)
@@ -331,8 +331,8 @@ public struct StoreView: View {
                             .buttonStyle(.borderless)
                         }
                         if let testimonial = storeViewModel.testimonial {
+                            Divider()
                             VStack {
-                                Divider()
                                 if let testimonialTitle = storeViewModel.testimonialTitle {
                                     Text(testimonialTitle)
                                         .font(.headline)
@@ -373,9 +373,9 @@ public struct StoreView: View {
                                         .italic()
                                         .font(.subheadline)
                                 }
-                                Divider()
                             }
                             .padding()
+                            Divider()
                         }
                         GroupBox {
                             StudentDiscountDisclosureGroup(discountView: {
