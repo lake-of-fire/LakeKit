@@ -354,7 +354,7 @@ public struct StoreView: View {
                                                 .frame(maxHeight: 55)
                                         }
                                     }
-                                    .padding(.bottom, 4)
+                                    .padding(.bottom, 8)
                                 }
                                 if let testimonialLink = storeViewModel.testimonialLink {
                                     Link(destination: testimonialLink) {
@@ -437,14 +437,13 @@ public struct StoreView: View {
                         }
                         .padding(.top, 10)
                         if let chatURL = storeViewModel.chatURL {
-                            GroupBox("Got A Question? Need Help?") {
-                                HStack {
-                                    Spacer()
-                                    Link(destination: chatURL) { Label("Chat With Team", systemImage: "message.circle") }
-                                        .font(.headline)
-                                    Spacer()
-                                }
+                            GroupBox {
+                                Text("Got a question? Need help?")
+                                    .font(.headline)
+                                Link(destination: chatURL) { Label("Chat With Team", systemImage: "message.circle") }
+                                    .font(.subheadline)
                             }
+                            .padding(.top, 8)
                         }
                         HStack(spacing: 20) {
                             Link("Terms of Service", destination: storeViewModel.termsOfService)
