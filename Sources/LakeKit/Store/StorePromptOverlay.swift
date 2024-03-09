@@ -22,7 +22,7 @@ public struct StorePrompt: View {
     
     public var body: some View {
         ScrollView {
-            VStack(alignment: .center, spacing: 15) {
+            VStack(alignment: .center, spacing: 12) {
                 VStack(alignment: .center, spacing: 5) {
                     Text("Preview".uppercased())
                         .font(.caption)
@@ -56,6 +56,7 @@ public struct StorePrompt: View {
                 if let alternativeButtonText = alternativeButtonText, let alternativeButtonAction = alternativeButtonAction {
                     Button(action: alternativeButtonAction, label: {
                         Text(alternativeButtonText)
+                            .bold()
                             .frame(maxWidth: .infinity)
                     })
                     .buttonStyle(.bordered)
@@ -63,7 +64,7 @@ public struct StorePrompt: View {
                 }
                 
                 Text(bodyText)
-                    .font(.callout)
+                    .font(.caption)
                     .foregroundColor(.secondary)
             }
             .multilineTextAlignment(.center)
