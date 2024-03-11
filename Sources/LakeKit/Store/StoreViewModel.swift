@@ -66,15 +66,15 @@ public class StoreViewModel: NSObject, ObservableObject {
         subscriptionRefreshTask = Task { @MainActor in
             do {
                 try Task.checkCancellation()
-//#if DEBUG
-//                isSubscribedFromElsewhere = true
-//#else
+#if DEBUG
+                isSubscribedFromElsewhere = true
+#else
                 if ProcessInfo.processInfo.arguments.contains("pretend-subscribed"), !isSubscribedFromElsewhere {
                     isSubscribedFromElsewhere = true
                 } else if let isSubscribedFromElsewhereCallback = isSubscribedFromElsewhereCallback {
                     isSubscribedFromElsewhere = await isSubscribedFromElsewhereCallback(self)
                 }
-//#endif
+#endif
                 
                 if isSubscribedFromElsewhere {
                     try Task.checkCancellation()
