@@ -3,14 +3,14 @@ import LRUCache
 
 open class LRUFileCache<I: Hashable, O: Codable>: ObservableObject {
     @Published public var cacheDirectory: URL
-    private let cache: LRUCache<String, O>
+    private let cache: LRUCache<Int, O>
     
     public init(namespace: String, version: Int, totalBytesLimit: Int = .max, countLimit: Int = .max) {
         assert(!namespace.isEmpty, "LRUFileCache namespace must not be empty")
         
         let fileManager = FileManager.default
         let cacheRoot = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first!
-        cacheDirectory = cacheRoot.appendingPathComponent(namespace)
+        cacheDirectory = cacheRoot.appendingPathComponent("LRUFileCache").appendingPathComponent(namespace)
         
         cache = LRUCache(totalCostLimit: totalBytesLimit, countLimit: countLimit)
         
@@ -29,25 +29,30 @@ open class LRUFileCache<I: Hashable, O: Codable>: ObservableObject {
     }
     
     private func cacheURL(forKey key: I) -> URL {
-        return cacheDirectory.appendingPathComponent(String(key.hashValue)).appendingPathExtension("json")
+        return cacheDirectory.appendingPathComponent("hash-" + String(key.hashValue)).appendingPathExtension("json")
     }
     
     public func value(forKey key: I) -> O? {
-        return cache.value(forKey: String(describing: key))
+        return cache.value(forKey: key.hashValue)
     }
     
     public func setValue(_ value: O?, forKey key: I) {
-        let keyString = String(describing: key)
         let url = cacheURL(forKey: key)
         if let value = value {
             if let encoded = try? JSONEncoder().encode(value) {
-                try? encoded.write(to: url, options: .atomic)
-                cache.setValue(value, forKey: keyString, cost: encoded.count)
+                do {
+                    try encoded.write(to: url, options: .atomic)
+                } catch {
+                    print(error)
+                }
+                cache.setValue(value, forKey: key.hashValue, cost: encoded.count)
             }
         } else {
             try? FileManager.default.removeItem(at: url)
-            cache.removeValue(forKey: keyString)
+            cache.removeValue(forKey: key.hashValue)
         }
+        
+        try? deleteOrphanFiles()
     }
     
     private func rebuild() {
@@ -56,23 +61,27 @@ open class LRUFileCache<I: Hashable, O: Codable>: ObservableObject {
             let fileManager = FileManager.default
             if let contents = try? fileManager.contentsOfDirectory(at: self.cacheDirectory, includingPropertiesForKeys: nil, options: .skipsHiddenFiles) {
                 for item in contents where item.pathExtension == "json" {
-                    if let data = try? Data(contentsOf: item), let decodedValue = try? JSONDecoder().decode(O.self, from: data) {
-                        let keyString = item.deletingPathExtension().lastPathComponent
-                        self.cache.setValue(decodedValue, forKey: keyString, cost: data.count)
+                    if let data = try? Data(contentsOf: item), let decodedValue = try? JSONDecoder().decode(O.self, from: data), let key = Int(item.deletingPathExtension().lastPathComponent) {
+                        self.cache.setValue(decodedValue, forKey: key, cost: data.count)
                     }
                 }
             }
+            
+            try? deleteOrphanFiles()
         }
     }
     
     private func deleteOrphanFiles() throws {
         let fileManager = FileManager.default
         let contents = try fileManager.contentsOfDirectory(at: cacheDirectory, includingPropertiesForKeys: nil)
-        let cacheKeys = Set(cache.allKeys)
+        let existing = Set(cache.allKeys)
         
         for item in contents where item.pathExtension == "json" {
-            let key = item.deletingPathExtension().lastPathComponent
-            if !cacheKeys.contains(key) {
+            guard let hashValue = Int(String(item.deletingPathExtension().lastPathComponent.dropFirst("hash-".count))) else {
+                try fileManager.removeItem(at: item)
+                continue
+            }
+            if !existing.contains(hashValue) {
                 try fileManager.removeItem(at: item)
             }
         }
