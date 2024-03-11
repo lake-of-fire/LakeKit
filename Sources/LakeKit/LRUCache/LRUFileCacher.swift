@@ -1,9 +1,16 @@
 import Foundation
 import LRUCache
+import SwiftUtilities
 
-open class LRUFileCache<I: Hashable, O: Codable>: ObservableObject {
+open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
     @Published public var cacheDirectory: URL
-    private let cache: LRUCache<Int, O>
+    private let cache: LRUCache<UInt64, O>
+    
+    private lazy var jsonEncoder: JSONEncoder = {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
+        return encoder
+    }()
     
     public init(namespace: String, version: Int, totalBytesLimit: Int = .max, countLimit: Int = .max) {
         assert(!namespace.isEmpty, "LRUFileCache namespace must not be empty")
@@ -28,28 +35,39 @@ open class LRUFileCache<I: Hashable, O: Codable>: ObservableObject {
         rebuild()
     }
     
-    private func cacheURL(forKey key: I) -> URL {
-        return cacheDirectory.appendingPathComponent("hash-" + String(key.hashValue)).appendingPathExtension("json")
+    private func cacheURL(forKeyHash keyHash: UInt64) -> URL {
+        return cacheDirectory.appendingPathComponent("hash-" + String(keyHash)).appendingPathExtension("json")
+    }
+    
+    private func cacheKeyHash(_ key: I) -> UInt64? {
+        guard let data = try? jsonEncoder.encode(key) else { return nil }
+        let hash = stableHash(data: data)
+        print("!!! \(key) === \(String(data: data, encoding: .utf8) ?? "") === \(hash)")
+        return hash
     }
     
     public func value(forKey key: I) -> O? {
-        return cache.value(forKey: key.hashValue)
+        guard let hash = cacheKeyHash(key) else { return nil }
+        print("!! get \(cache.value(forKey: hash).debugDescription.prefix(100)) for hash \(hash) key \(String(describing: key).prefix(100))")
+        return cache.value(forKey: hash)
     }
     
     public func setValue(_ value: O?, forKey key: I) {
-        let url = cacheURL(forKey: key)
+        guard let keyHash = cacheKeyHash(key) else { return }
+        let url = cacheURL(forKeyHash: keyHash)
         if let value = value {
-            if let encoded = try? JSONEncoder().encode(value) {
+            if let encoded = try? jsonEncoder.encode(value) {
                 do {
                     try encoded.write(to: url, options: .atomic)
                 } catch {
                     print(error)
                 }
-                cache.setValue(value, forKey: key.hashValue, cost: encoded.count)
+                print("!! set \(String(describing: value).prefix(100)) for hash \(keyHash) key \(String(describing: key).prefix(100))")
+                cache.setValue(value, forKey: keyHash, cost: encoded.count)
             }
         } else {
             try? FileManager.default.removeItem(at: url)
-            cache.removeValue(forKey: key.hashValue)
+            cache.removeValue(forKey: keyHash)
         }
         
         try? deleteOrphanFiles()
@@ -61,13 +79,12 @@ open class LRUFileCache<I: Hashable, O: Codable>: ObservableObject {
             let fileManager = FileManager.default
             if let contents = try? fileManager.contentsOfDirectory(at: self.cacheDirectory, includingPropertiesForKeys: nil, options: .skipsHiddenFiles) {
                 for item in contents where item.pathExtension == "json" {
-                    if let data = try? Data(contentsOf: item), let decodedValue = try? JSONDecoder().decode(O.self, from: data), let key = Int(item.deletingPathExtension().lastPathComponent) {
-                        self.cache.setValue(decodedValue, forKey: key, cost: data.count)
+                    if let data = try? Data(contentsOf: item), let decodedValue = try? JSONDecoder().decode(O.self, from: data), let keyHash = UInt64(item.deletingPathExtension().lastPathComponent) {
+                        cache.setValue(decodedValue, forKey: keyHash, cost: data.count)
                     }
                 }
+                try? deleteOrphanFiles()
             }
-            
-            try? deleteOrphanFiles()
         }
     }
     
@@ -77,11 +94,12 @@ open class LRUFileCache<I: Hashable, O: Codable>: ObservableObject {
         let existing = Set(cache.allKeys)
         
         for item in contents where item.pathExtension == "json" {
-            guard let hashValue = Int(String(item.deletingPathExtension().lastPathComponent.dropFirst("hash-".count))) else {
+            guard let keyHash = UInt64(String(item.deletingPathExtension().lastPathComponent.dropFirst("hash-".count))) else {
                 try fileManager.removeItem(at: item)
                 continue
             }
-            if !existing.contains(hashValue) {
+            if !existing.contains(keyHash) {
+                print("!! delete \(keyHash)")
                 try fileManager.removeItem(at: item)
             }
         }
