@@ -6,11 +6,11 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
     @Published public var cacheDirectory: URL
     private let cache: LRUCache<UInt64, Any?>
     
-    private lazy var jsonEncoder: JSONEncoder = {
+    private var jsonEncoder: JSONEncoder {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
         return encoder
-    }()
+    }
     
     public init(namespace: String, version: Int, totalBytesLimit: Int = .max, countLimit: Int = .max) {
         assert(!namespace.isEmpty, "LRUFileCache namespace must not be empty")

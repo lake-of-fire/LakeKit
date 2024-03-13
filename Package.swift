@@ -48,7 +48,6 @@ let package = Package(
 //        .package(url: "https://github.com/JiHoonAHN/XcodeSnippet.git", branch: "main"),
 //        .package(url: "https://github.com/russell-archer/StoreHelper", branch: "main"),
         .package(url: "https://github.com/lake-of-fire/StoreHelper", branch: "main"),
-        .package(url: "https://github.com/ggruen/CloudKitSyncMonitor.git", branch: "main"),
         .package(url: "https://github.com/shaps80/SwiftUIBackports.git", branch: "main"),
 //        .package(url: "https://github.com/ryanlintott/FrameUp.git", branch: "main"),
 //        .package(url: "https://github.com/tevelee/SwiftUI-Flow.git", branch: "main"),
@@ -60,7 +59,10 @@ let package = Package(
         .package(url: "https://github.com/stevengharris/SplitView.git", branch: "main"),
         .package(url: "https://github.com/lake-of-fire/VisionLiveText_SwiftUICompatible.git", branch: "main"),
         .package(url: "https://github.com/SwiftUIX/SwiftUIX.git", branch: "master"),
-//        .package(path: "../FramedScreenshotsTool"),
+        .package(url: "https://github.com/apple/swift-log.git", branch: "main"),
+        .package(url: "https://github.com/sushichop/Puppy.git", branch: "main"),
+        .package(url: "https://github.com/ggruen/CloudKitSyncMonitor.git", branch: "main"),
+        //        .package(path: "../FramedScreenshotsTool"),
     ],
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.
@@ -92,7 +94,6 @@ let package = Package(
 //                .product(name: "ExyteGrid", package: "Grid"),
 //                .product(name: "XcodeSnippet", package: "XcodeSnippet"),
                 .product(name: "StoreHelper", package: "StoreHelper"),
-                .product(name: "CloudKitSyncMonitor", package: "CloudKitSyncMonitor"),
                 .product(name: "SwiftUIBackports", package: "SwiftUIBackports"),
 //                .product(name: "FrameUp", package: "FrameUp"),
 //                .product(name: "Flow", package: "SwiftUI-Flow"),
@@ -107,6 +108,9 @@ let package = Package(
                 .product(name: "SplitView", package: "SplitView"),
                 .product(name: "LakeImage", package: "LakeImage"),
                 .product(name: "SwiftUIX", package: "SwiftUIX"),
+                .product(name: "Logging", package: "swift-log"),
+                .product(name: "Puppy", package: "Puppy"),
+                .product(name: "CloudKitSyncMonitor", package: "CloudKitSyncMonitor"),
             ],
             resources: [
 //                .copy("Resources/CSS/Reader.css"),
