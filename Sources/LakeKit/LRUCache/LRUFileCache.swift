@@ -2,6 +2,15 @@ import Foundation
 import LRUCache
 import SwiftUtilities
 
+extension Bundle {
+    var appVersionLong: String    { getInfo("CFBundleShortVersionString") }
+    var appBuild: String          { getInfo("CFBundleVersion") }
+    
+    private func getInfo(_ str: String) -> String {
+        infoDictionary?[str] as? String ?? "UNKNOWN-VERSION"
+    }
+}
+
 open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
     @Published public var cacheDirectory: URL
     private let cache: LRUCache<UInt64, Any?>
@@ -12,7 +21,7 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
         return encoder
     }
     
-    public init(namespace: String, version: Int, totalBytesLimit: Int = .max, countLimit: Int = .max) {
+    public init(namespace: String, version: Int? = nil, totalBytesLimit: Int = .max, countLimit: Int = .max) {
         assert(!namespace.isEmpty, "LRUFileCache namespace must not be empty")
         
         let fileManager = FileManager.default
@@ -26,7 +35,14 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
         }
         
         let versionFileURL = cacheDirectory.appendingPathComponent(".lru_cache_version")
-        if let versionData = try? Data(contentsOf: versionFileURL), String(data: versionData, encoding: .utf8) != "\(version)" {
+        var versionString = ""
+        if let version = version {
+            versionString = String(version)
+        } else {
+            versionString = Bundle.main.appVersionLong + Bundle.main.appBuild
+        }
+
+        if let versionData = try? Data(contentsOf: versionFileURL), String(data: versionData, encoding: .utf8) != versionString {
             try? fileManager.removeItem(at: cacheDirectory)
             try? fileManager.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
         }
