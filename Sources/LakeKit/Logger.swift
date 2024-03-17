@@ -94,7 +94,7 @@ public class Logger: ObservableObject {
         let rotationConfig = RotationConfig(
             suffixExtension: .date_uuid,
             maxFileSize: 2 * 1_024 * 1_024,
-            maxArchivedFilesCount: 2)
+            maxArchivedFilesCount: 1)
         
 #if DEBUG
         let logLevel: LogLevel = .trace
