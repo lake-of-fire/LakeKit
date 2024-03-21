@@ -49,6 +49,7 @@ public enum LocationBarAction: Equatable {
 public struct LocationBar: View, Equatable {
     @Binding var action: LocationBarAction
     @Binding var locationText: String
+    @Binding var selectAll: Bool
     private let onSubmit: ((URL?, String) async throws -> Void)
     @EnvironmentObject private var locationController: LocationController
     @Environment(\.colorScheme) private var colorScheme
@@ -69,6 +70,17 @@ public struct LocationBar: View, Equatable {
             TextField("", text: $locationText, prompt: Text("Search or enter website address")
                 .accessibilityLabel("Location")
                 .foregroundColor(.secondary))
+#if os(iOS)
+            .introspect(.textField, on: .iOS(.v15...)) { textField in
+                if selectAll {
+                    Task { @MainActor in
+                        selectAll = false
+                        try await Task.sleep(nanoseconds: UInt64(0.1 * 1_000_000_000))
+                        textField.selectAll(nil)
+                    }
+                }
+            }
+#endif
             .truncationMode(.tail)
             .submitLabel((url == nil && !locationText.isEmpty) ? .search : .go)
 #if os(macOS)
@@ -141,9 +153,10 @@ public struct LocationBar: View, Equatable {
         }
     }
     
-    public init(action: Binding<LocationBarAction>, locationText: Binding<String>, onSubmit: @escaping ((URL?, String) async throws -> Void)) {
+    public init(action: Binding<LocationBarAction>, locationText: Binding<String>, selectAll: Binding<Bool>, onSubmit: @escaping ((URL?, String) async throws -> Void)) {
         _action = action
         _locationText = locationText
+        _selectAll = selectAll
         self.onSubmit = onSubmit
     }
     
