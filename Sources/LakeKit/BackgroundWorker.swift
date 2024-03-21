@@ -5,6 +5,9 @@ open class BackgroundWorker: NSObject, ObservableObject {
     private var thread: Thread!
     private var block: (()->Void)!
     
+    private let operationQueue: OperationQueue = OperationQueue()
+    public var scheduler: OperationQueue { operationQueue }
+    
     @objc internal func runBlock() { block() }
     
     deinit {
@@ -13,6 +16,8 @@ open class BackgroundWorker: NSObject, ObservableObject {
     
     public func start(_ block: @escaping () -> Void) {
         self.block = block
+        
+        operationQueue.maxConcurrentOperationCount = 1
         
         let threadName = String(describing: self)
             .components(separatedBy: .punctuationCharacters)[1]
