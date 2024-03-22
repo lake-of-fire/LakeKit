@@ -107,6 +107,7 @@ public struct LocationBar: View, Equatable {
                     try await onSubmit(url, locationText)
                 }
             }
+//            .selectAllOnBeginEditing()
 #if os(macOS)
             .introspect(.textField, on: .macOS(.v12...)) { textField in
                 // See: https://developer.apple.com/forums/thread/74372
