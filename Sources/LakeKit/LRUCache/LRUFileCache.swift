@@ -121,13 +121,13 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
     
     public func setValue(_ value: O?, forKey key: I) {
         guard let keyHash = cacheKeyHash(key) else { return }
-        let baseURL = cacheDirectory.appendingPathComponent(keyHash)
-        let finalURL = value == nil ? baseURL.appendingPathExtension("nil") :
-        O.self == String.self ? baseURL.appendingPathExtension("lzfse") :
-        baseURL.appendingPathExtension("json")
+        let cacheDirectory = cacheDirectory
         
         serialQueue.async {
-            var finalURL = finalURL
+            let baseURL = cacheDirectory.appendingPathComponent(keyHash)
+            var finalURL = value == nil ? baseURL.appendingPathExtension("nil") :
+            O.self == String.self ? baseURL.appendingPathExtension("lzfse") :
+            baseURL.appendingPathExtension("json")
             do {
                 if let value = value {
                     let data: Data

@@ -1,5 +1,10 @@
 import SwiftUI
 @_spi(Advanced) import SwiftUIIntrospect
+#if os(iOS)
+import UIKit
+#elseif os(macOS)
+import AppKit
+#endif
 
 public class LocationController: ObservableObject {
     @Published public var isPresentingLocationOpening = false
@@ -49,11 +54,12 @@ public enum LocationBarAction: Equatable {
 public struct LocationBar: View, Equatable {
     @Binding var action: LocationBarAction
     @Binding var locationText: String
+//    @Binding var locationTitle: String
     @Binding var selectAll: Bool
     private let onSubmit: ((URL?, String) async throws -> Void)
     @EnvironmentObject private var locationController: LocationController
     @Environment(\.colorScheme) private var colorScheme
-
+    
     var url: URL? {
         get {
             guard let url = URL(string: locationText) else { return nil }
@@ -107,7 +113,6 @@ public struct LocationBar: View, Equatable {
                     try await onSubmit(url, locationText)
                 }
             }
-//            .selectAllOnBeginEditing()
 #if os(macOS)
             .introspect(.textField, on: .macOS(.v12...)) { textField in
                 // See: https://developer.apple.com/forums/thread/74372
@@ -182,3 +187,61 @@ public struct LocationBar: View, Equatable {
         }
     }
 }
+//
+//struct BrowserStyleTextFieldModifier: ViewModifier {
+//    var placeholder: String
+//    @Binding var text: String
+//    @State private var isButtonVisible: Bool = true
+//    
+//    func body(content: Content) -> some View {
+//        ZStack {
+//            if isButtonVisible {
+//                Button(placeholder) {
+//                    isButtonVisible = false
+//                    // The button's action will trigger focus and text selection via introspect below.
+//                }
+//                .buttonStyle(PlainButtonStyle())
+//                .frame(maxWidth: .infinity, maxHeight: .infinity)
+//                .transition(.opacity)
+//                .zIndex(1) // Ensure the button is above the TextField until it's hidden.
+//            }
+//            
+//            content
+//                .opacity(isButtonVisible ? 0 : 1)
+//#if os(iOS)
+//                .introspect(.textField, on: .iOS(.v15...)) { textField in
+//                    textField.addTarget(TextFieldFocusHandler.shared, action: #selector(TextFieldFocusHandler.handleFocus(_:)), for: .editingDidBegin)
+//                }
+//#elseif os(macOS)
+//                .introspect(.textField, on: .macOS(.v12...)) { textField in
+//                    if !isButtonVisible {
+//                        DispatchQueue.main.async {
+//                            textField.becomeFirstResponder()
+//                            textField.currentEditor()?.selectAll(nil)
+//                        }
+//                    }
+//                }
+//#endif
+//                .onChange(of: text) { newValue in
+//                    isButtonVisible = newValue.isEmpty
+//                }
+//        }
+//        .animation(.default, value: isButtonVisible)
+//    }
+//}
+//    
+//#if os(iOS)
+//fileprivate class TextFieldFocusHandler: NSObject {
+//    static let shared = TextFieldFocusHandler()
+//    
+//    @objc func handleFocus(_ textField: UITextField) {
+//        textField.selectAll(nil)
+//    }
+//}
+//#endif
+//
+//extension View {
+//    func browserStyleTextField(isFocused: Binding<Bool>, placeholder: String) -> some View {
+//        self.modifier(BrowserStyleTextFieldModifier(isFocused: isFocused, placeholder: placeholder))
+//    }
+//}
