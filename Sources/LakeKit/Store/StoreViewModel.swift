@@ -4,8 +4,9 @@ import StoreHelper
 
 public class StoreViewModel: NSObject, ObservableObject {
     /// For server overrides, other apps, etc.
-    @Published public var isSubscribed = false
     @Published public var isInitialized = false
+    
+    @Published public var isRestoringPurchases = false
     
     let satisfyingPrerequisite: () async -> Bool
     @Published public var products: [StoreProduct]
@@ -26,6 +27,7 @@ public class StoreViewModel: NSObject, ObservableObject {
     @Published public var chatURL: URL? = nil
     @Published public var faq = OrderedDictionary<String, String>()
     
+    @AppStorage("LakeKit.isSubscribed") public var isSubscribed = false
     @AppStorage("LakeKit.isSubscribedFromElsewhere") public var isSubscribedFromElsewhere = false
     @MainActor var isSubscribedFromElsewhereCallback: ((StoreViewModel) async -> Bool)? = nil
     private var subscriptionRefreshTask: Task<Void, Never>? = nil
@@ -100,7 +102,9 @@ public class StoreViewModel: NSObject, ObservableObject {
                 }
                 
                 try Task.checkCancellation()
-                isSubscribed = subscriptionState == .inBillingRetryPeriod || subscriptionState == .inGracePeriod || subscriptionState == .subscribed
+                
+                let isSubscribed = subscriptionState == .inBillingRetryPeriod || subscriptionState == .inGracePeriod || subscriptionState == .subscribed
+                self.isSubscribed = isSubscribed
                 isInitialized = true
             } catch {
             }
