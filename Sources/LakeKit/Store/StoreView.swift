@@ -15,6 +15,7 @@ public struct StoreSheetModifier: ViewModifier {
     @State var isRestoringPurchases = false
     
     @EnvironmentObject private var storeViewModel: StoreViewModel
+    @Environment(\.dismiss) var dismiss
 
     public func body(content: Content) -> some View {
         content
@@ -36,13 +37,18 @@ public struct StoreSheetModifier: ViewModifier {
                             }
                             ToolbarItem(placement: .cancellationAction) {
                                 Button("Cancel", role: .cancel) {
-                                    isPresented = false
+                                    dismiss()
                                 }
                             }
                         }
                         .navigationBarTitleDisplayMode(.inline)
                 }
                 .navigationViewStyle(.stack)
+                .onChange(of: storeViewModel.isSubscribed) { isSubscribed in
+                    if isSubscribed {
+                        dismiss()
+                    }
+                }
 #else
                 StoreView(isPresented: $isPresented, storeViewModel: storeViewModel)
                     .padding(.top, 10)
@@ -65,7 +71,12 @@ public struct StoreSheetModifier: ViewModifier {
                             }
                         }
                     }
-                .frame(minWidth: 500, idealWidth: 600, minHeight: 400, idealHeight: 760)
+                    .frame(minWidth: 500, idealWidth: 600, minHeight: 400, idealHeight: 760)
+                    .onChange(of: storeViewModel.isSubscribed) { isSubscribed in
+                        if isSubscribed {
+                            dismiss()
+                        }
+                    }
 #endif
             }
     }
@@ -321,8 +332,8 @@ public struct StoreView: View {
                             Button {
                                 scrollValue.scrollTo("education-discount", anchor: .top)
                             } label: {
-                                (Text("More purchase options") + Text(" \(Image(systemName: "chevron.right.circle.fill"))"))
-                                    .font(.footnote)
+                                (Text("View eligibility for discounts") + Text(" \(Image(systemName: "chevron.right.circle.fill"))"))
+                                    .font(.callout)
                                     .bold()
                                     .lineLimit(9001)
                                     .multilineTextAlignment(.center)
@@ -354,6 +365,7 @@ public struct StoreView: View {
                                                 .frame(maxHeight: 55)
                                         }
                                     }
+                                    .foregroundStyle(.primary)
                                     .padding(.bottom, 8)
                                 }
                                 if let testimonialLink = storeViewModel.testimonialLink {
@@ -442,6 +454,7 @@ public struct StoreView: View {
                                     .font(.headline)
                                 Link(destination: chatURL) { Label("Chat With Team", systemImage: "message.circle") }
                                     .font(.subheadline)
+                                    .padding(.top, 8)
                             }
                             .padding(.top, 8)
                         }
