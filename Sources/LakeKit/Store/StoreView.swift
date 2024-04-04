@@ -9,74 +9,85 @@ public extension View {
     }
 }
 
-public struct StoreSheetModifier: ViewModifier {
+fileprivate struct StoreViewForSheet: View {
     @Binding var isPresented: Bool
-    
-    @State var isRestoringPurchases = false
-    
     @EnvironmentObject private var storeViewModel: StoreViewModel
     @Environment(\.dismiss) var dismiss
+
+    @State var isRestoringPurchases = false
+    
+    var body: some View {
+#if os(iOS)
+        StoreView(isPresented: $isPresented, storeViewModel: storeViewModel)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Restore Purchases") {
+                        isRestoringPurchases = true
+                        Task.init { @MainActor in
+                            defer { isRestoringPurchases = false }
+                            try? await AppStore.sync()
+                        }
+                    }
+                    .disabled(isRestoringPurchases)
+                    .fixedSize()
+                }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel", role: .cancel) {
+                        dismiss()
+                    }
+                }
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .onChange(of: storeViewModel.isSubscribed) { isSubscribed in
+                if isSubscribed {
+                    dismiss()
+                }
+            }
+#elseif os(macOS)
+        StoreView(isPresented: $isPresented, storeViewModel: storeViewModel)
+            .padding(.top, 10)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    HStack {
+                        Button("Restore Purchases") {
+                            isRestoringPurchases = true
+                            Task.init { @MainActor in
+                                defer { isRestoringPurchases = false }
+                                try? await AppStore.sync()
+                            }
+                        }
+                        .disabled(isRestoringPurchases)
+                        .fixedSize()
+                        Spacer()
+                        Button("Cancel", role: .cancel) {
+                            dismiss()
+                        }
+                    }
+                }
+            }
+            .frame(minWidth: 500, idealWidth: 600, minHeight: 400, idealHeight: 760)
+            .onChange(of: storeViewModel.isSubscribed) { isSubscribed in
+                if isSubscribed {
+                    dismiss()
+                }
+            }
+#endif
+    }
+}
+
+public struct StoreSheetModifier: ViewModifier {
+    @Binding var isPresented: Bool
 
     public func body(content: Content) -> some View {
         content
             .sheet(isPresented: $isPresented) {
 #if os(iOS)
                 NavigationView {
-                    StoreView(isPresented: $isPresented, storeViewModel: storeViewModel)
-                        .toolbar {
-                            ToolbarItem(placement: .topBarTrailing) {
-                                Button("Restore Purchases") {
-                                    isRestoringPurchases = true
-                                    Task.init { @MainActor in
-                                        defer { isRestoringPurchases = false }
-                                        try? await AppStore.sync()
-                                    }
-                                }
-                                .disabled(isRestoringPurchases)
-                                .fixedSize()
-                            }
-                            ToolbarItem(placement: .cancellationAction) {
-                                Button("Cancel", role: .cancel) {
-                                    dismiss()
-                                }
-                            }
-                        }
-                        .navigationBarTitleDisplayMode(.inline)
+                    StoreViewForSheet(isPresented: $isPresented)
                 }
                 .navigationViewStyle(.stack)
-                .onChange(of: storeViewModel.isSubscribed) { isSubscribed in
-                    if isSubscribed {
-                        dismiss()
-                    }
-                }
 #else
-                StoreView(isPresented: $isPresented, storeViewModel: storeViewModel)
-                    .padding(.top, 10)
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            HStack {
-                                Button("Restore Purchases") {
-                                    isRestoringPurchases = true
-                                    Task.init { @MainActor in
-                                        defer { isRestoringPurchases = false }
-                                        try? await AppStore.sync()
-                                    }
-                                }
-                                .disabled(isRestoringPurchases)
-                                .fixedSize()
-                                Spacer()
-                                Button("Cancel", role: .cancel) {
-                                    isPresented = false
-                                }
-                            }
-                        }
-                    }
-                    .frame(minWidth: 500, idealWidth: 600, minHeight: 400, idealHeight: 760)
-                    .onChange(of: storeViewModel.isSubscribed) { isSubscribed in
-                        if isSubscribed {
-                            dismiss()
-                        }
-                    }
+                StoreViewForSheet(isPresented: $isPresented)
 #endif
             }
     }

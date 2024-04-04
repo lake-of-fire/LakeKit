@@ -31,6 +31,9 @@ public struct StorePrompt: View {
                     Text(headlineText)
                         .font(.headline)
                         .bold()
+                        .multilineTextAlignment(.center)
+                        .lineLimit(9001)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 
                 Button {
@@ -56,7 +59,6 @@ public struct StorePrompt: View {
                 if let alternativeButtonText = alternativeButtonText, let alternativeButtonAction = alternativeButtonAction {
                     Button(action: alternativeButtonAction, label: {
                         Text(alternativeButtonText)
-                            .bold()
                             .frame(maxWidth: .infinity)
                     })
                     .buttonStyle(.bordered)
