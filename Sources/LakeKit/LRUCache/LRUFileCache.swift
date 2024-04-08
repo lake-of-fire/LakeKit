@@ -57,6 +57,7 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
 
         if let versionData = try? Data(contentsOf: versionFileURL) {
             if String(data: versionData, encoding: .utf8) != versionString {
+                removeAll()
                 try? fileManager.removeItem(at: cacheDirectory)
                 try? fileManager.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
             }
@@ -68,6 +69,7 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
         
         rebuild()
     }
+    
     private func cacheKeyHash(_ key: I) -> String? {
         guard let data = try? jsonEncoder.encode(key) else { return nil }
         let hash = stableHash(data: data)
@@ -94,6 +96,15 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
             }
         }
         return safeBase64String
+    }
+    
+    public func removeAll() {
+        let fileManager = FileManager.default
+        if let files = try? fileManager.contentsOfDirectory(at: cacheDirectory, includingPropertiesForKeys: nil) {
+            for file in files where !file.lastPathComponent.hasPrefix(".") {
+                try? fileManager.removeItem(at: file)
+            }
+        }
     }
 
     public func value(forKey key: I) -> O? {

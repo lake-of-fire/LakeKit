@@ -343,14 +343,14 @@ public struct StoreView: View {
                             Button {
                                 scrollValue.scrollTo("education-discount", anchor: .top)
                             } label: {
-                                (Text("View eligibility for discounts") + Text(" \(Image(systemName: "chevron.right.circle.fill"))"))
+                                (Text("View eligibility for discounts") + Text("  \(Image(systemName: "chevron.right.circle.fill"))"))
                                     .font(.callout)
                                     .bold()
                                     .lineLimit(9001)
                                     .multilineTextAlignment(.center)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
-                            .buttonStyle(.borderless)
+                            .buttonStyle(.borderedProminent)
                         }
                         if let testimonial = storeViewModel.testimonial {
                             Divider()
