@@ -123,9 +123,8 @@ struct FAQDisclosureGroup: View {
 }
 
 struct StudentDiscountDisclosureGroup<Content: View>: View {
+    @Binding var isExpanded: Bool
     let discountView: Content
-    
-    @State private var isExpanded = false
     
     var body: some View {
         DisclosureGroup(isExpanded: $isExpanded) {
@@ -156,7 +155,8 @@ struct StudentDiscountDisclosureGroup<Content: View>: View {
         }
     }
     
-    public init(discountView contentBuilder: () -> Content) {
+    public init(isExpanded: Binding<Bool>, discountView contentBuilder: () -> Content) {
+        _isExpanded = isExpanded
         discountView = contentBuilder()
     }
 }
@@ -243,6 +243,7 @@ public struct StoreView: View {
     @EnvironmentObject private var storeHelper: StoreHelper
     @State private var purchaseState: PurchaseState = .unknown
     @State private var isPresentingTokenLimitError = false
+    @State private var isStudentDiscountExpanded = false
 
     public var productGridColumns: [GridItem] {
 #if os(iOS)
@@ -342,6 +343,7 @@ public struct StoreView: View {
                         if storeViewModel.testimonial != nil {
                             Button {
                                 scrollValue.scrollTo("education-discount", anchor: .top)
+                                isStudentDiscountExpanded = true
                             } label: {
                                 (Text("View eligibility for discounts") + Text("  \(Image(systemName: "chevron.right.circle.fill"))"))
                                     .font(.callout)
@@ -354,14 +356,15 @@ public struct StoreView: View {
                         }
                         if let testimonial = storeViewModel.testimonial {
                             Divider()
-                            VStack {
+                            VStack(alignment: .center) {
                                 if let testimonialTitle = storeViewModel.testimonialTitle {
                                     Text(testimonialTitle)
                                         .font(.headline)
                                         .foregroundStyle(.secondary)
                                 }
                                 if let testimonialImage = storeViewModel.testimonialImage {
-                                    Group {
+                                    HStack {
+                                        Spacer(minLength: 0)
                                         if let testimonialLink = storeViewModel.testimonialLink {
                                             Link(destination: testimonialLink) {
                                                 testimonialImage
@@ -369,19 +372,21 @@ public struct StoreView: View {
                                                     .aspectRatio(contentMode: .fit)
                                                     .frame(maxHeight: 55)
                                             }
+                                            .fixedSize()
                                         } else {
                                             testimonialImage
                                                 .resizable()
                                                 .aspectRatio(contentMode: .fit)
                                                 .frame(maxHeight: 55)
                                         }
+                                        Spacer(minLength: 0)
                                     }
                                     .foregroundStyle(.primary)
                                     .padding(.bottom, 8)
                                 }
                                 if let testimonialLink = storeViewModel.testimonialLink {
                                     Link(destination: testimonialLink) {
-                                        Text("“\(testimonial)”") + Text(" \(Image(systemName: "chevron.right.circle"))")
+                                        Text("“\(testimonial)”") + Text("  \(Image(systemName: "chevron.right.circle"))")
                                     }
                                     //                                Link("“\(testimonial)”  ", destination: testimonialLink)
                                     .modifier {
@@ -401,7 +406,7 @@ public struct StoreView: View {
                             Divider()
                         }
                         GroupBox {
-                            StudentDiscountDisclosureGroup(discountView: {
+                            StudentDiscountDisclosureGroup(isExpanded: $isStudentDiscountExpanded, discountView: {
                                 VStack {
                                     Text("Students and educators already have enough expenses to manage. Let's ease the burden. If you're not in education and can afford it, please use the regular rate options.")
                                         .font(.subheadline)
