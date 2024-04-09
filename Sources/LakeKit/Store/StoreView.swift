@@ -353,6 +353,11 @@ public struct StoreView: View {
                                     .fixedSize(horizontal: false, vertical: true)
                             }
                             .buttonStyle(.borderedProminent)
+                            .modifier {
+                                if #available(iOS 15, macOS 14, *) {
+                                    $0.buttonBorderShape(.capsule)
+                                } else { $0 }
+                            }
                         }
                         if let testimonial = storeViewModel.testimonial {
                             Divider()
