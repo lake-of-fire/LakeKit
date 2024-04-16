@@ -3,6 +3,7 @@ import StoreHelper
 import StoreKit
 import CloudKit
 import CloudKitSyncMonitor
+import SwiftUtilities
 
 fileprivate struct BuyButtonStyle: ButtonStyle {
     func makeBody(configuration: Self.Configuration) -> some View {
@@ -95,7 +96,7 @@ public struct PurchaseOptionView: View {
                                 if #available(iOS 16, macOS 13, *) {
                                     $0.fill(Color.accentColor.gradient)
                                 } else {
-                                    $0.foregroundColor(.accentColor)
+                                    $0.foregroundColor(Color.accentColor)
                                 }
                             }
                             .frame(width: 40, height: 40)

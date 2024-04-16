@@ -353,11 +353,13 @@ public struct StoreView: View {
                                     .fixedSize(horizontal: false, vertical: true)
                             }
                             .buttonStyle(.borderedProminent)
+#if os(iOS)
                             .modifier {
                                 if #available(iOS 15, macOS 14, *) {
                                     $0.buttonBorderShape(.capsule)
                                 } else { $0 }
                             }
+#endif
                         }
                         if let testimonial = storeViewModel.testimonial {
                             Divider()
@@ -392,13 +394,9 @@ public struct StoreView: View {
                                 if let testimonialLink = storeViewModel.testimonialLink {
                                     Link(destination: testimonialLink) {
                                         Text("“\(testimonial)”") + Text("  \(Image(systemName: "chevron.right.circle"))")
+                                            .italic()
                                     }
                                     //                                Link("“\(testimonial)”  ", destination: testimonialLink)
-                                    .modifier {
-                                        if #available(iOS 16, macOS 13, *) {
-                                            $0.italic()
-                                        } else { $0 }
-                                    }
                                     .font(.subheadline)
                                     .foregroundStyle(.primary)
                                 } else {
