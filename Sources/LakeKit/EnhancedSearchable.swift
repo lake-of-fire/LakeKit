@@ -1,5 +1,6 @@
 import SwiftUI
 import DSFSearchField
+@_spi(Advanced) import SwiftUIIntrospect
 
 struct IsEnhancedlySearchingKey: EnvironmentKey {
     static let defaultValue = false
@@ -101,7 +102,6 @@ public struct EnhancedSearchableModifier: ViewModifier {
                 .transition(.opacity)
             }
             content
-                .environment(\.isEnhancedlySearching, isEnhancedlySearching)
 #else
             if prefersToolbarPlacement {
                 content
@@ -109,39 +109,95 @@ public struct EnhancedSearchableModifier: ViewModifier {
                     .searchable(text: $searchText, placement: placement, prompt: promptText)
             } else {
                 if isPresented {
-                    HStack(spacing: 5) {
-                        TextField(prompt ?? "Search", text: $searchText, prompt: promptText)
-                            .textFieldStyle(.roundedBorder)
-                            .focused($focusedField, equals: "search")
-                        //                    DSFSearchField.SwiftUI(text: $temporarySearchText, placeholderText: prompt, autosaveName: autosaveName, onSearchTermChange: { searchTerm in
-                        //                        onSearchTextChange(searchText: searchTerm)
-                        //                        Task { @MainActor in
-                        //                            isEnhancedlySearching = !searchTerm.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                        //                        }
-                        //                    })
-                        //                    .padding(.horizontal, 5)
-                        if isEnhancedlySearching {
+                    if #available(iOS 17, *) {
+                        if !isEnhancedlySearching {
                             Button {
-                                withAnimation {
-                                    isEnhancedlySearching = false
-                                    focusedField = nil
-                                    isPresented = false
-                                }
-                                searchText = ""
-#warning("no focus here")
+                                isEnhancedlySearching = true
                             } label: {
-                                Text("Cancel")
-                                    .padding(.horizontal, 5)
-                                    .fixedSize()
+                                HStack(spacing: 0) {
+                                    Label(prompt ?? "Search", systemImage: "magnifyingglass")
+                                        .labelStyle(CustomSpacingLabel(spacing: 5))
+//                                        .fixedSize()
+                                    Spacer(minLength: 0)
+                                }
+                                .padding(.top, 0.5)
+                                .padding(.bottom, 0.5)
+                                .offset(x: -6)
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(.secondary)
+                            .buttonBorderShape(.roundedRectangle(radius: 10))
+                            .padding(.horizontal, 16)
+                        }
+                    } else {
+                        HStack(spacing: 5) {
+                            HStack(spacing: 0) {
+                                TextField(prompt ?? "Search", text: $searchText, prompt: promptText)
+                                    .foregroundStyle(.secondary)
+                                    .textFieldStyle(.roundedBorder)
+                                    .focused($focusedField, equals: "search")
+                            }
+                            if isEnhancedlySearching {
+                                Button {
+                                    withAnimation {
+                                        isEnhancedlySearching = false
+                                        focusedField = nil
+                                        isPresented = false
+                                    }
+                                    searchText = ""
+#warning("no focus here")
+                                } label: {
+                                    Text("Cancel")
+                                        .padding(.horizontal, 5)
+                                        .fixedSize()
+                                }
                             }
                         }
+                        //                    .fitToReadableContentWidth()
+                        .padding(.horizontal, 10)
+                        .padding(.bottom, 5)
+                        .frame(maxWidth: 850)
                     }
-                    //                    .fitToReadableContentWidth()
-                    .padding(.horizontal, 10)
-                    .frame(maxWidth: 850)
                 }
                 content
-                    .environment(\.isEnhancedlySearching, isEnhancedlySearching)
+                    .modifier {
+                        if #available(iOS 17, *) {
+                            $0.searchable(text: $searchText, isPresented: Binding(
+                                get: {
+                                    return true
+                                }, set: { newValue in
+                                    isEnhancedlySearching = newValue
+                                }
+                            ), placement: placement, prompt: promptText)
+                        } else { $0 }
+                    }
+//                    .modifier(InnerContentModifier(isEnhancedlySearching: $isEnhancedlySearching, isIOSSearching: $isIOSSearching))
+//                    .navigationSearchBar(
+//                        text: $searchText,
+////                        scopeSelection: $scopeSelection,
+//                        options: [
+//                            .automaticallyShowsSearchBar: true,
+//                            .obscuresBackgroundDuringPresentation: true,
+//                            .hidesNavigationBarDuringPresentation: true,
+//                            .hidesSearchBarWhenScrolling: false,
+//                            .placeholder: prompt ?? "Search",
+//                            .showsBookmarkButton: true,
+////                            .scopeButtonTitles: ["All", "Missed", "Other"]
+//                        ],
+//                        actions: [
+//                            .onCancelButtonClicked: {
+//                                print("Cancel")
+//                            },
+//                            .onSearchButtonClicked: {
+//                                print("Search")
+//                            },
+////                            .onBookmarkButtonClicked: {
+////                                print("Present Bookmarks")
+////                            }
+//                        ],
+//                        searchResultsContent: {
+//                            EmptyView()
+//                        })
             }
 #endif
         }
@@ -155,7 +211,6 @@ public struct EnhancedSearchableModifier: ViewModifier {
             }
         }
         #endif
-
         .onChange(of: isPresented) { [oldValue = isPresented] isPresented in
             guard isPresented, oldValue != isPresented else { return }
             withAnimation {
@@ -184,6 +239,19 @@ public struct EnhancedSearchableModifier: ViewModifier {
         }
     }
 }
+
+#if os(iOS)
+struct CustomSpacingLabel: LabelStyle {
+    var spacing: Double = 0.0
+    
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: spacing) {
+            configuration.icon
+            configuration.title
+        }
+    }
+}
+#endif
 
 public extension View {
     func enhancedSearchable(isPresented: Binding<Bool>? = nil, searchText: Binding<String>, autosaveName: String, prompt: String? = nil, placement: SearchFieldPlacement = .automatic, prefersToolbarPlacement: Bool = true, searchAction: @escaping ((String) -> Void)) -> some View {
