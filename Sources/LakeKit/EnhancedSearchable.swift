@@ -29,6 +29,7 @@ public struct EnhancedSearchableModifier: ViewModifier {
     @State private var isEnhancedlySearching = false
 #if os(iOS)
     @State private var isIOSSearching = false
+    @State private var isExecutingSearchFieldFocusWorkaround = false
 #endif
     
     private var promptText: Text? {
@@ -187,7 +188,7 @@ public struct EnhancedSearchableModifier: ViewModifier {
         .onChange(of: focusedField) { [oldValue = focusedField] focusedField in
             if !isEnhancedlySearching, focusedField == "search" {
                 isEnhancedlySearching = true
-            } else if oldValue == "search" && focusedField != "search" && isEnhancedlySearching {
+            } else if !isExecutingSearchFieldFocusWorkaround && oldValue == "search" && focusedField != "search" && isEnhancedlySearching {
                 isEnhancedlySearching = false
                 if canHideSearchBar {
                     isPresented = false
@@ -197,12 +198,15 @@ public struct EnhancedSearchableModifier: ViewModifier {
         .onChange(of: isPresented) { [oldValue = isPresented] isPresented in
             guard isPresented, oldValue != isPresented else { return }
             Task { @MainActor in
+                guard !isExecutingSearchFieldFocusWorkaround else { return }
+                isExecutingSearchFieldFocusWorkaround = true
                 // Hack to trigger correct focused state triggering.
                 focusedField = "search"
                 try await Task.sleep(nanoseconds: UInt64(0.06) * 1_000_000_000)
                 focusedField = nil
                 try await Task.sleep(nanoseconds: UInt64(0.06) * 1_000_000_000)
                 focusedField = "search"
+                isExecutingSearchFieldFocusWorkaround = false
             }
         }
 #endif
