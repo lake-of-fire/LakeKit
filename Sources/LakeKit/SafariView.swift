@@ -34,10 +34,9 @@ fileprivate struct SafariViewModifier: ViewModifier {
                 VStack {
                     HStack(spacing: 0) {
                         Spacer(minLength: 0)
-                        Button("") {
+                        DismissButton {
                             isPresented = false
                         }
-                        .buttonStyle(DismissButtonStyle())
                         .padding(.top, 1)
                         .padding(.trailing, 0)
                     }

@@ -1,5 +1,29 @@
 import SwiftUI
 
+public struct DismissButton: View {
+    private let action: (() -> Void)?
+    
+    @Environment(\.dismiss) private var dismiss
+    
+    public var body: some View {
+#if os(iOS)
+        Button("") {
+            action?() ?? dismiss()
+        }
+        .buttonStyle(DismissButtonStyle())
+#elseif os(macOS)
+        Button("Done") {
+            action?() ?? dismiss()
+        }
+#endif
+    }
+    
+    public init(action: (() -> Void)? = nil) {
+        self.action = action
+    }
+}
+
+#if os(iOS)
 public struct DismissButtonStyle: ButtonStyle {
     @Environment(\.colorScheme) private var colorScheme
     
@@ -31,3 +55,4 @@ public struct DismissButtonStyle: ButtonStyle {
             .opacity(isPressed ? 0.18 : 1)
     }
 }
+#endif
