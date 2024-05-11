@@ -65,7 +65,11 @@ public struct XMarkDismissButtonStyle: DismissButtonStyle {
             Image(systemName: "xmark")
 //                .resizable()
 //                .scaledToFit()
+#if os(macOS)
                 .font(.system(size: circleSize * 0.46875, weight: .bold, design: .rounded))
+#else
+                .font(.system(size: circleSize * 0.44, weight: .bold, design: .rounded))
+#endif
 //                .scaleEffect(0.416)
                 .foregroundColor(Color(white: colorScheme == .dark ? 0.62 : 0.51))
                 .opacity(configuration.isPressed ? 0.7 : 1)

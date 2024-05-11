@@ -71,7 +71,6 @@ public struct WindowReader<Content: View>: View {
     }
 
     public var body: some View {
-        let _ = Self._printChanges()
         view(windowViewModel.window)
 //            .id(windowViewModel.window)
             .background(
