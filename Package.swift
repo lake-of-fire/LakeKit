@@ -62,6 +62,7 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-log.git", branch: "main"),
         .package(url: "https://github.com/sushichop/Puppy.git", branch: "main"),
         .package(url: "https://github.com/lake-of-fire/CloudKitSyncMonitor.git", branch: "main"),
+        .package(url: "https://github.com/johnpatrickmorgan/NavigationBackport.git", branch: "main"),
         //        .package(path: "../FramedScreenshotsTool"),
     ],
     targets: [
@@ -111,6 +112,7 @@ let package = Package(
                 .product(name: "Logging", package: "swift-log"),
                 .product(name: "Puppy", package: "Puppy"),
                 .product(name: "CloudKitSyncMonitor", package: "CloudKitSyncMonitor"),
+                .product(name: "NavigationBackport", package: "NavigationBackport"),
             ],
             resources: [
 //                .copy("Resources/CSS/Reader.css"),
