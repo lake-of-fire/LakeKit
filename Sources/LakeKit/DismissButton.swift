@@ -44,17 +44,41 @@ public struct DismissButton: View {
 
 public struct XMarkDismissButtonStyle: DismissButtonStyle {
     @Environment(\.colorScheme) var colorScheme
-    
+    @Environment(\.controlSize) var controlSize
+
     @State private var isHovered = false
     
     public init() {}
     
-    private var circleSize: CGFloat {
+    private var fontSize: CGFloat {
 #if os(iOS)
-        return 32
+        return circleSize * 0.44
 #else
-        return 20
+        return circleSize * 0.46875
 #endif
+    }
+    
+    private var circleSize: CGFloat {
+        var size: CGFloat
+#if os(iOS)
+        size = 32
+#else
+        size = 20
+#endif
+        switch controlSize {
+        case .extraLarge:
+            return size * 1.75
+        case .large:
+            return size * 1.5
+        case .regular:
+            return size
+        case .small:
+            return size * 0.85
+        case .mini:
+            return size * 0.85
+        @unknown default:
+            return size
+        }
     }
     
     public func makeBody(configuration: Configuration) -> some View {
@@ -65,11 +89,7 @@ public struct XMarkDismissButtonStyle: DismissButtonStyle {
             Image(systemName: "xmark")
 //                .resizable()
 //                .scaledToFit()
-#if os(macOS)
-                .font(.system(size: circleSize * 0.46875, weight: .bold, design: .rounded))
-#else
-                .font(.system(size: circleSize * 0.44, weight: .bold, design: .rounded))
-#endif
+                .font(.system(size: fontSize, weight: .bold, design: .rounded))
 //                .scaleEffect(0.416)
                 .foregroundColor(Color(white: colorScheme == .dark ? 0.62 : 0.51))
                 .opacity(configuration.isPressed ? 0.7 : 1)
