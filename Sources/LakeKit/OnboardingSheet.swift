@@ -25,57 +25,116 @@ public class OnboardingViewModel: ObservableObject {
 public struct OnboardingView: View {
     @ObservedObject var viewModel: OnboardingViewModel
     @State private var currentIndex = 0
+    @State private var topVisibleCardId: String?
+    @State private var cardFrames: [String: CGRect] = [:]
+    
+    private var cardMinHeight: CGFloat = 400
+    
+    @ViewBuilder private func cardView(card: OnboardingCard) -> some View {
+        OnboardingCardView(card: card, isTopVisible: topVisibleCardId == card.id)
+            .frame(minHeight: cardMinHeight)
+            .modifier {
+                if #available(iOS 17, macOS 14, *) {
+                    $0.scrollTargetLayout()
+                } else { $0 }
+            }
+            .id(card.id)
+    }
+    
+    @ViewBuilder private var scrollView: some View {
+        if #available(iOS 17, macOS 14, *) {
+            GeometryReader { wheelGeometry in
+                WheelScroll(axis: .vertical, contentSpacing: 10) {
+                    Group {
+                        ForEach(viewModel.cards) { card in
+                            cardView(card: card)
+                        }
+                        Color.clear.frame(height: max(0, wheelGeometry.size.height - cardMinHeight - 10 - wheelGeometry.safeAreaInsets.top - wheelGeometry.safeAreaInsets.bottom))
+                            .overlay {
+                                VStack {
+                                    Text("\(wheelGeometry.size.height)")
+                                    Text("\(cardMinHeight)")
+                                }
+                            }
+                            .id("empty-wheel")
+                    }
+                }
+            }
+            .scrollTargetBehavior(.viewAligned)
+            .background {
+                GeometryReader { geo in
+                    Color.clear
+                        .onAppear {
+                            Task { @MainActor in
+                                refresh(geo: geo)
+                            }
+                        }
+                }
+            }
+        } else {
+            ScrollView {
+                
+            }
+        }
+    }
     
     public var body: some View {
-        VStack {
-            ScrollViewReader { proxy in
-                ScrollView(.vertical) {
-                    VStack(spacing: 40) {
-                        ForEach(viewModel.cards) { card in
-                            OnboardingCardView(card: card)
-                                .frame(height: 400)
-                                .id(card.id)
+        scrollView
+            .safeAreaInset(edge: .bottom) {
+                VStack {
+                    PageIndicator(currentIndex: $currentIndex, count: viewModel.cards.count)
+                        .padding(.bottom, 20)
+                        .background(.regularMaterial)
+                    HStack {
+                        Button(action: {
+                            // Add your action here
+                        }) {
+                            Text("Skip")
+                        }
+                        Spacer()
+                        Button(action: {
+                            if currentIndex < viewModel.cards.count - 1 {
+                                currentIndex += 1
+                            }
+                        }) {
+                            Text("Next")
                         }
                     }
-                    .padding()
-                    .onChange(of: currentIndex) { newIndex in
-                        withAnimation {
-                            proxy.scrollTo(viewModel.cards[newIndex].id, anchor: .center)
-                        }
-                    }
+                    .padding(.horizontal)
+                    .padding(.bottom)
+                    .background(.regularMaterial)
                 }
             }
-            
-            PageIndicator(currentIndex: $currentIndex, count: viewModel.cards.count)
-                .padding(.top, 20)
-            
-            HStack {
-                Button(action: {
-                    // Add your action here
-                }) {
-                    Text("Skip")
-                }
-                Spacer()
-                Button(action: {
-                    if currentIndex < viewModel.cards.count - 1 {
-                        currentIndex += 1
-                    }
-                }) {
-                    Text("Next")
-                }
-            }
-            .padding(.horizontal)
-            .padding(.bottom)
-        }
     }
     
     public init(cards: [OnboardingCard]) {
         self.viewModel = OnboardingViewModel(cards: cards)
     }
+    
+    func refresh(geo: GeometryProxy) {
+        let visibleFrame = geo.frame(in: .named("scrollView"))
+        if let topCard = viewModel.cards.first(where: {
+            let cardFrame = cardFrames[$0.id]
+            return cardFrame?.minY ?? 0 <= visibleFrame.midY && cardFrame?.maxY ?? 0 >= visibleFrame.midY
+        }) {
+            currentIndex = viewModel.cards.firstIndex(where: { $0.id == topCard.id }) ?? 0
+        }
+    }
+}
+
+struct CardFramePreferenceKey: PreferenceKey {
+    typealias Value = [String: CGRect]
+    
+    static var defaultValue: [String: CGRect] = [:]
+    
+    static func reduce(value: inout [String: CGRect], nextValue: () -> [String: CGRect]) {
+        value.merge(nextValue(), uniquingKeysWith: { $1 })
+    }
 }
 
 struct OnboardingCardView: View {
     let card: OnboardingCard
+    let isTopVisible: Bool
     
     var body: some View {
         VStack {
@@ -97,7 +156,12 @@ struct OnboardingCardView: View {
         .padding()
         .background(Color.white)
         .cornerRadius(15)
-        .shadow(radius: 10)
+        .shadow(radius: isTopVisible ? 20 : 10)
+        .scaleEffect(isTopVisible ? 1.05 : 1.0)
+        .animation(.easeInOut, value: isTopVisible)
+        .background(GeometryReader { proxy in
+            Color.clear.preference(key: CardFramePreferenceKey.self, value: [card.id: proxy.frame(in: .named("scrollView"))])
+        })
     }
 }
 
@@ -123,6 +187,9 @@ struct PageIndicator: View {
                 Circle()
                     .fill(index == currentIndex ? Color.blue : Color.gray)
                     .frame(width: 8, height: 8)
+                    .onTapGesture {
+                        currentIndex = index
+                    }
             }
         }
     }
@@ -133,12 +200,11 @@ public struct OnboardingSheet: ViewModifier {
     @AppStorage("hasRespondedToOnboarding") var hasRespondedToOnboarding = false
     @State private var hasInitialized = false
     @State private var dismissedWithoutResponse = false
-
+    
     let cards: [OnboardingCard]
     
     public func body(content: Content) -> some View {
         content
-            .overlay { Text("\(isActive) \(hasInitialized)").background(.red) }
             .sheet(isPresented: Binding<Bool>(
                 get: {
                     hasInitialized
@@ -169,6 +235,7 @@ public struct OnboardingSheet: ViewModifier {
             if !isActive {
                 hasInitialized = false
             } else {
+                try? await Task.sleep(nanoseconds: 10_000_000)
                 hasInitialized = true
             }
         }
