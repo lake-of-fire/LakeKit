@@ -214,42 +214,48 @@ struct PageIndicator: View {
 }
 
 public struct OnboardingSheet: ViewModifier {
+    static var dismissedWithoutResponse = false
+    
     let isActive: Bool
     @AppStorage("hasRespondedToOnboarding") var hasRespondedToOnboarding = false
     @State private var hasInitialized = false
-    @State private var dismissedWithoutResponse = false
-    
+
     let cards: [OnboardingCard]
     
     public func body(content: Content) -> some View {
         content
             .sheet(isPresented: Binding<Bool>(
                 get: {
-                    hasInitialized
+                return hasInitialized
                     && isActive
-                    && (!hasRespondedToOnboarding)// || dismissedWithoutResponse)
+                    && !(hasRespondedToOnboarding || Self.dismissedWithoutResponse)
                 },
                 set: { newValue in
-                    dismissedWithoutResponse = !newValue && !hasRespondedToOnboarding
+                    Self.dismissedWithoutResponse = !newValue && !hasRespondedToOnboarding
                 }
             )) {
                 OnboardingView(cards: cards)
+                    .onDisappear {
+                        if !hasRespondedToOnboarding {
+                            Self.dismissedWithoutResponse = true
+                        }
+                    }
                 // TODO: track onDisappear (after tracking onAppear to make sure it was seen for long enough too) timestamp as last seen date in AppStorage to avoid re-showing onboarding within seconds or minute of last seeing it again. Avoids annoying the user.
             }
             .task {
                 refresh()
             }
             .onChange(of: isActive) { isActive in
-                refresh()
+                refresh(isActive: isActive)
             }
             .onChange(of: hasRespondedToOnboarding) { hasRespondedToOnboarding in
                 refresh()
             }
     }
     
-    private func refresh() {
+    private func refresh(isActive: Bool? = nil) {
+        let isActive = isActive ?? self.isActive
         Task { @MainActor in
-            print("!! \(isActive) isac \(hasInitialized) hasin")
             if !isActive {
                 hasInitialized = false
             } else {
