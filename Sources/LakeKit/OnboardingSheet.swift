@@ -14,75 +14,85 @@ public struct OnboardingCard: Identifiable {
     }
 }
 
-public class OnboardingViewModel: ObservableObject {
-    @Published var cards: [OnboardingCard]
+struct OnboardingView: View {
+    let cards: [OnboardingCard]
     
-    public init(cards: [OnboardingCard]) {
-        self.cards = cards
-    }
-}
-
-public struct OnboardingView: View {
-    @ObservedObject var viewModel: OnboardingViewModel
     @State private var currentIndex = 0
     @State private var topVisibleCardId: String?
     @State private var cardFrames: [String: CGRect] = [:]
     
-    private var cardMinHeight: CGFloat = 400
+    private var cardMinHeight: CGFloat = 360
+    
+    private var appName: String? {
+        return Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String
+    }
     
     @ViewBuilder private func cardView(card: OnboardingCard) -> some View {
         OnboardingCardView(card: card, isTopVisible: topVisibleCardId == card.id)
             .frame(minHeight: cardMinHeight)
-            .modifier {
-                if #available(iOS 17, macOS 14, *) {
-                    $0.scrollTargetLayout()
-                } else { $0 }
-            }
             .id(card.id)
     }
     
+    @ViewBuilder private func scrollViewInner(wheelGeometry: GeometryProxy) -> some View {
+        Group {
+            if let appName = appName {
+                Text(
+            """
+            Welcome to
+            \(Text(appName).foregroundColor(.accentColor))
+            """
+                )
+            }
+        }
+        .font(.largeTitle.weight(.heavy))
+        .multilineTextAlignment(.center)
+        .padding(.horizontal)
+        .padding(.bottom)
+        .id("wheel-welcome")
+        
+        ForEach(cards) { card in
+            cardView(card: card)
+        }
+        Color.clear.frame(height: max(0, wheelGeometry.size.height - cardMinHeight - wheelGeometry.safeAreaInsets.top - wheelGeometry.safeAreaInsets.bottom))
+            .id("empty-wheel")
+    }
+    
     @ViewBuilder private var scrollView: some View {
-        if #available(iOS 17, macOS 14, *) {
-            GeometryReader { wheelGeometry in
-                WheelScroll(axis: .vertical, contentSpacing: 10) {
-                    Group {
-                        ForEach(viewModel.cards) { card in
-                            cardView(card: card)
-                        }
-                        Color.clear.frame(height: max(0, wheelGeometry.size.height - cardMinHeight - 10 - wheelGeometry.safeAreaInsets.top - wheelGeometry.safeAreaInsets.bottom))
-                            .overlay {
-                                VStack {
-                                    Text("\(wheelGeometry.size.height)")
-                                    Text("\(cardMinHeight)")
-                                }
-                            }
-                            .id("empty-wheel")
+        Group {
+            if #available(iOS 17, macOS 14, *) {
+                GeometryReader { wheelGeometry in
+                    WheelScroll(axis: .vertical, contentSpacing: 10) {
+                        scrollViewInner(wheelGeometry: wheelGeometry)
+                    }
+                    .scrollTargetBehavior(.viewAligned)
+                    .defaultScrollAnchor(.top)                    .scrollClipDisabled()
+                }
+            } else {
+                GeometryReader { wheelGeometry in
+                    ScrollView {
+                        
+                        scrollViewInner(wheelGeometry: wheelGeometry)
                     }
                 }
             }
-            .scrollTargetBehavior(.viewAligned)
-            .background {
-                GeometryReader { geo in
-                    Color.clear
-                        .onAppear {
-                            Task { @MainActor in
-                                refresh(geo: geo)
-                            }
+        }       
+        .background {
+            GeometryReader { geo in
+                Color.clear
+                    .onAppear {
+                        Task { @MainActor in
+//                            refresh(geo: geo)
                         }
-                }
-            }
-        } else {
-            ScrollView {
-                
+                    }
             }
         }
     }
     
-    public var body: some View {
+    var body: some View {
         scrollView
             .safeAreaInset(edge: .bottom) {
                 VStack {
-                    PageIndicator(currentIndex: $currentIndex, count: viewModel.cards.count)
+                    PageIndicator(currentIndex: $currentIndex, count: cards.count)
                         .padding(.bottom, 20)
                         .background(.regularMaterial)
                     HStack {
@@ -93,7 +103,7 @@ public struct OnboardingView: View {
                         }
                         Spacer()
                         Button(action: {
-                            if currentIndex < viewModel.cards.count - 1 {
+                            if currentIndex < cards.count - 1 {
                                 currentIndex += 1
                             }
                         }) {
@@ -107,19 +117,19 @@ public struct OnboardingView: View {
             }
     }
     
-    public init(cards: [OnboardingCard]) {
-        self.viewModel = OnboardingViewModel(cards: cards)
+    init(cards: [OnboardingCard]) {
+        self.cards = cards
     }
     
-    func refresh(geo: GeometryProxy) {
-        let visibleFrame = geo.frame(in: .named("scrollView"))
-        if let topCard = viewModel.cards.first(where: {
-            let cardFrame = cardFrames[$0.id]
-            return cardFrame?.minY ?? 0 <= visibleFrame.midY && cardFrame?.maxY ?? 0 >= visibleFrame.midY
-        }) {
-            currentIndex = viewModel.cards.firstIndex(where: { $0.id == topCard.id }) ?? 0
-        }
-    }
+//    func refresh(geo: GeometryProxy) {
+//        let visibleFrame = geo.frame(in: .named("scrollView"))
+//        if let topCard = cards.first(where: {
+//            let cardFrame = cardFrames[$0.id]
+//            return cardFrame?.minY ?? 0 <= visibleFrame.midY && cardFrame?.maxY ?? 0 >= visibleFrame.midY
+//        }) {
+//            currentIndex = cards.firstIndex(where: { $0.id == topCard.id }) ?? 0
+//        }
+//    }
 }
 
 struct CardFramePreferenceKey: PreferenceKey {
@@ -137,31 +147,39 @@ struct OnboardingCardView: View {
     let isTopVisible: Bool
     
     var body: some View {
-        VStack {
-            Image(card.imageName)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .padding()
-                .overlay(SquiggleLine().stroke(Color.blue, lineWidth: 2))
-            
-            Text(card.title)
-                .font(.title)
-                .bold()
-            
-            Text(card.description)
-                .font(.body)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal)
+        ScrollView {
+            VStack {
+                Image(card.imageName)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .padding()
+                    .overlay(SquiggleLine().stroke(Color.blue, lineWidth: 2))
+                
+                Text(card.title)
+                    .font(.title)
+                    .bold()
+                
+                Text(card.description)
+                    .font(.headline)
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal)
+            }
+            .padding()
         }
-        .padding()
         .background(Color.white)
         .cornerRadius(15)
+        .modifier {
+            if #available(iOS 17, macOS 14, *) {
+                $0
+                    .scrollContentBackground(.hidden)
+                    .scrollBounceBehavior(.basedOnSize)
+                    .scrollTargetLayout()
+            } else { $0 }
+        }
         .shadow(radius: isTopVisible ? 20 : 10)
         .scaleEffect(isTopVisible ? 1.05 : 1.0)
         .animation(.easeInOut, value: isTopVisible)
-        .background(GeometryReader { proxy in
-            Color.clear.preference(key: CardFramePreferenceKey.self, value: [card.id: proxy.frame(in: .named("scrollView"))])
-        })
     }
 }
 
