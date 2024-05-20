@@ -7,15 +7,19 @@
 import SwiftUI
 
 @available(iOS 17, macOS 14, *)
-public struct WheelScroll<Content: View>: View {
+public struct WheelScroll<Header: View, Footer: View, Content: View>: View {
     let axis: Axis.Set
     let contentSpacing: CGFloat
     
+    @ViewBuilder let header: () -> Header
+    @ViewBuilder let footer: () -> Footer
     @ViewBuilder let content: () -> Content
-    
-    public init(axis: Axis.Set = .vertical, contentSpacing: CGFloat = 15, content: @escaping () -> Content) {
+
+    public init(axis: Axis.Set = .vertical, contentSpacing: CGFloat = 15, header: @escaping () -> Header, footer: @escaping () -> Footer, content: @escaping () -> Content) {
         self.axis = axis
         self.contentSpacing = contentSpacing
+        self.header = header
+        self.footer = footer
         self.content = content
     }
     
@@ -29,6 +33,8 @@ public struct WheelScroll<Content: View>: View {
     
     public var body: some View {
         ScrollView(axis, showsIndicators: false) {
+            header()
+            
             content()
                 .scrollTransition(
                     .interactive(timingCurve: .easeIn),
@@ -54,6 +60,13 @@ public struct WheelScroll<Content: View>: View {
                     effect.opacity(phase.isIdentity ? 1 : 0)
                 }
                 .embedInStack(axis, spacing: contentSpacing)
+                .modifier {
+                    if #available(iOS 17, macOS 14, *) {
+                        $0.scrollTargetLayout()
+                    } else { $0 }
+                }
+            
+            footer()
         }
         .defaultScrollAnchor(.topLeading)
         .scrollClipDisabled()
@@ -104,9 +117,9 @@ fileprivate extension View {
     func embedInStack(_ axis: Axis.Set, spacing: CGFloat) -> some View {
         switch axis {
         case .horizontal:
-            HStack(spacing: spacing, content: { self })
+            LazyHStack(spacing: spacing, content: { self })
         default:
-            VStack(spacing: spacing, content: { self })
+            LazyVStack(spacing: spacing, content: { self })
         }
     }
 }
