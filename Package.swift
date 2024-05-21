@@ -111,7 +111,7 @@ let package = Package(
                 .product(name: "SplitView", package: "SplitView"),
                 .product(name: "LakeImage", package: "LakeImage"),
                 .product(name: "SwiftUIX", package: "SwiftUIX"),
-//                .product(name: "MarkdownWebView", package: "markdown-webview"),
+                .product(name: "MarkdownWebView", package: "markdown-webview"),
                 .product(name: "Logging", package: "swift-log"),
                 .product(name: "Puppy", package: "Puppy"),
                 .product(name: "Inferno", package: "Inferno"),

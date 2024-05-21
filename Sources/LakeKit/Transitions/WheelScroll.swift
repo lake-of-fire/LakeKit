@@ -72,7 +72,7 @@ public struct WheelScroll<Header: View, Footer: View, Content: View>: View {
         .scrollClipDisabled()
         .frame(maxWidth: .infinity)
         .padding(20)
-        .clipShape(.rect)
+//        .clipShape(.rect)
     }
     
     @Sendable
@@ -117,9 +117,9 @@ fileprivate extension View {
     func embedInStack(_ axis: Axis.Set, spacing: CGFloat) -> some View {
         switch axis {
         case .horizontal:
-            LazyHStack(spacing: spacing, content: { self })
+            HStack(spacing: spacing, content: { self })
         default:
-            LazyVStack(spacing: spacing, content: { self })
+            VStack(spacing: spacing, content: { self })
         }
     }
 }
