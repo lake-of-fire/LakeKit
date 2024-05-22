@@ -2,7 +2,7 @@ import SwiftUI
 import NavigationBackport
 import MarkdownWebView
 
-public struct OnboardingCard: Identifiable {
+public struct OnboardingCard: Identifiable, Hashable {
     public let id: String
     public let title: String
     public let color: Color
@@ -99,7 +99,10 @@ struct OnboardingPrimaryButtons: View {
 
     @EnvironmentObject private var storeViewModel: StoreViewModel
     @Environment(\.dismiss) private var dismiss
-    
+#if os(iOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+#endif
+
     var body: some View {
         if storeViewModel.isSubscribed {
             PrimaryButton(title: "Continue", systemImage: nil) {
@@ -130,6 +133,9 @@ struct OnboardingPrimaryButtons: View {
                     }
                 }
                 .padding(.horizontal)
+#if os(iOS)
+                .padding(.vertical, (horizontalSizeClass == .compact ? 0: nil) as CGFloat?)
+#endif
 
                 PrimaryButton(title: "Continue to Upgrades", systemImage: nil) {
                     isPresentingStoreSheet.toggle()
@@ -156,8 +162,9 @@ struct OnboardingCardsView<CardContent: View>: View {
     
     @State private var scrolledID: String?
 
-    private var cardMinHeight: CGFloat = 360
-    
+//    private var cardMinHeight: CGFloat = 330
+    private var cardHeightFactor: CGFloat = 0.75
+
     private var appName: String? {
         return Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String
     }
@@ -168,10 +175,12 @@ struct OnboardingCardsView<CardContent: View>: View {
     }
     
     @Environment(\.colorScheme) private var colorScheme
+#if os(iOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+#endif
 
     @ViewBuilder private func cardView(card: OnboardingCard) -> some View {
         OnboardingCardView(card: card, isTopVisible: scrolledID == card.id, cardContent: cardContent)
-            .frame(minHeight: cardMinHeight)
     }
     
     @ViewBuilder private func scrollViewHeader() -> some View {
@@ -187,20 +196,29 @@ struct OnboardingCardsView<CardContent: View>: View {
         }
         .font(.largeTitle.weight(.heavy))
         .multilineTextAlignment(.center)
-        .padding(.horizontal)
-        .padding(.bottom)
-//        .id("wheel-welcome")
+        .padding()
     }
         
-    @ViewBuilder private func scrollViewInner() -> some View {
-        ForEach(cards, id: \.id) { card in
-            cardView(card: card)
+    @ViewBuilder private func scrollViewInner(geometry: GeometryProxy) -> some View {
+//        ForEach(Array(cards.enumerated()), id: \.element.id) { index, card in
+        ForEach(Array(cards.enumerated()), id: \.element.id) { index, card in
+            VStack {
+                if index == 0 {
+                    scrollViewHeader()
+                }
+                
+                let geoHeight = max(0, (geometry.size.height - (geometry.safeAreaInsets.top + geometry.safeAreaInsets.bottom)))
+                cardView(card: card)
+                    .padding(.horizontal)
+                    .frame(height: cardHeightFactor * geoHeight)
+//                    .padding(.top, index == 0 ? 0 : ((1 - cardHeightFactor) / 1) * geoHeight)
+            }
+            .id(card.id)
         }
     }
         
     @ViewBuilder private func scrollViewFooter(wheelGeometry: GeometryProxy) -> some View {
-        Color.clear.frame(height: max(0, wheelGeometry.size.height - cardMinHeight - wheelGeometry.safeAreaInsets.top - wheelGeometry.safeAreaInsets.bottom))
-//            .id("empty-wheel")
+        Color.clear.frame(height: max(0, cardHeightFactor * wheelGeometry.size.height  - wheelGeometry.safeAreaInsets.top - wheelGeometry.safeAreaInsets.bottom))
     }
     
     @ViewBuilder private var scrollView: some View {
@@ -219,15 +237,16 @@ struct OnboardingCardsView<CardContent: View>: View {
                     .animation(.easeIn, value: scrolledID)
                 }
             }
+            .ignoresSafeArea()
             
             if #available(iOS 17, macOS 14, *) {
                 GeometryReader { wheelGeometry in
-                    WheelScroll(axis: .vertical, contentSpacing: 10, header: {
-                        scrollViewHeader()
-                    }, footer: {
+                    WheelScroll(axis: .vertical, contentSpacing: 0, footer: {
                         scrollViewFooter(wheelGeometry: wheelGeometry)
+                            .padding(.horizontal)
                     }) {
-                        scrollViewInner()
+                        scrollViewInner(geometry: wheelGeometry)
+                            .scrollTargetLayout()
                     }
                     .scrollPosition(id: $scrolledID)
                     .scrollTargetBehavior(.viewAligned(limitBehavior: .always)) // always needed for top alignment for some reason
@@ -239,42 +258,74 @@ struct OnboardingCardsView<CardContent: View>: View {
             } else {
                 GeometryReader { wheelGeometry in
                     ScrollView {
-                        scrollViewHeader()
-                        scrollViewFooter(wheelGeometry: wheelGeometry)
-                        scrollViewInner()
+                        Group {
+                            scrollViewHeader()
+                            scrollViewFooter(wheelGeometry: wheelGeometry)
+                            scrollViewInner(geometry: wheelGeometry)
+                        }
+                        .padding(.horizontal)
                     }
                 }
             }
+            
+            Text(scrolledID ?? "--")
+                .bold()
+                .background(.red)
         }
-        .modifier {
-            if let currentColor = currentCard?.color {
-                if #available(iOS 16, macOS 13, *) {
-                    $0.background(currentColor.gradient)
-                } else {
-                    $0.background(currentColor)
-                }
-            } else { $0 }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if #available(iOS 17, macOS 14, *) {
+                PageNavigator(scrolledID: $scrolledID, cards: cards)
+                    .frame(maxWidth: .infinity)
+            }
         }
     }
     
+    @ViewBuilder private var callToActionView: some View {
+        VStack {
+            OnboardingPrimaryButtons(isPresentingStoreSheet: $isPresentingStoreSheet, navigationPath: $navigationPath)
+        }
+        .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(.regularMaterial)
+    }
+    
     var body: some View {
-        scrollView
-//            .ignoresSafeArea(edges: .vertical)
-            .safeAreaInset(edge: .bottom, spacing: 0) {
-                VStack {
-                    if #available(iOS 17, macOS 14, *) {
-                        PageNavigator(scrolledID: $scrolledID, cards: cards)
+        ZStack {
+            if let currentColor = currentCard?.color {
+                Group {
+                    if #available(iOS 16, macOS 13, *) {
+                        Rectangle()
+                            .fill(currentColor.gradient)
+                    } else {
+                        currentColor
                     }
-                    
-                    VStack {
-                        OnboardingPrimaryButtons(isPresentingStoreSheet: $isPresentingStoreSheet, navigationPath: $navigationPath)
-                    }
-                    .padding()
-                    .frame(maxWidth: .infinity)
-                    .background(.regularMaterial)
                 }
-                .frame(maxWidth: .infinity)
+                .ignoresSafeArea()
             }
+            
+#if os(macOS)
+            scrollView
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    callToActionView
+                }
+#elseif os(iOS)
+            GeometryReader { geometry in
+                HStack(spacing: 0) {
+                    if horizontalSizeClass == .regular {
+                        callToActionView
+                    }
+                    scrollView
+                        .frame(minWidth: 0.6 * geometry.size.width - (geometry.safeAreaInsets.magnitude + geometry.safeAreaInsets.bottom))
+                }
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if horizontalSizeClass == .compact {
+                    callToActionView
+                }
+            }
+#endif
+        }
     }
     
     init(cards: [OnboardingCard], isPresentingStoreSheet: Binding<Bool>, navigationPath: Binding<NBNavigationPath>, cardContent: @escaping (OnboardingCard) -> CardContent) {
@@ -385,7 +436,7 @@ struct OnboardingCardView<CardContent: View>: View {
     
     var body: some View {
         VStack {
-            ScrollView {
+//            ScrollView {
                 VStack {
                     Text(card.title)
                         .font(.title)
@@ -404,14 +455,14 @@ struct OnboardingCardView<CardContent: View>: View {
                 }
                 .multilineTextAlignment(.center)
                 .padding()
-            }
-            .modifier {
-                if #available(iOS 17, macOS 14, *) {
-                    $0
-                        .scrollContentBackground(.hidden)
-                        .scrollBounceBehavior(.basedOnSize)
-                } else { $0 }
-            }
+//            }
+//            .modifier {
+//                if #available(iOS 17, macOS 14, *) {
+//                    $0
+//                        .scrollContentBackground(.hidden)
+//                        .scrollBounceBehavior(.basedOnSize)
+//                } else { $0 }
+//            }
         }
         .background(colorScheme == .dark ? .black : .white)
         .cornerRadius(15)
