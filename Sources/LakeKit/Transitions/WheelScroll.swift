@@ -58,10 +58,12 @@ public struct WheelScroll<Footer: View, Content: View>: View {
                 }
              */
                 .embedInStack(axis, spacing: contentSpacing)
-            
-            footer()
+                .scrollTargetLayout()
+
+            Text("") // scrollTargetLayout bug workaround
+//            footer()
         }
-        .defaultScrollAnchor(.topLeading)
+//        .defaultScrollAnchor(.topLeading)
 //        .scrollClipDisabled()
         .frame(maxWidth: .infinity)
 //        .padding(20)
@@ -112,22 +114,22 @@ fileprivate extension View {
         case .horizontal:
             HStack(spacing: spacing, content: { self })
         default:
-            LazyVStack(spacing: spacing, content: { self })
+            VStack(spacing: spacing, content: { self })
         }
     }
 }
-
-extension Image {
-    static func whiteToClearGradient(size: CGSize) -> Image {
-        let renderer = UIGraphicsImageRenderer(size: size)
-        let image = renderer.image { context in
-            let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(),
-                                      colors: [UIColor.white.cgColor, UIColor.clear.cgColor] as CFArray,
-                                      locations: [0, 1])!
-            let startPoint = CGPoint(x: size.width / 2, y: 0)
-            let endPoint = CGPoint(x: size.width / 2, y: size.height)
-            context.cgContext.drawLinearGradient(gradient, start: startPoint, end: endPoint, options: [])
-        }
-        return Image(uiImage: image)
-    }
-}
+//
+//extension Image {
+//    static func whiteToClearGradient(size: CGSize) -> Image {
+//        let renderer = UIGraphicsImageRenderer(size: size)
+//        let image = renderer.image { context in
+//            let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(),
+//                                      colors: [UIColor.white.cgColor, UIColor.clear.cgColor] as CFArray,
+//                                      locations: [0, 1])!
+//            let startPoint = CGPoint(x: size.width / 2, y: 0)
+//            let endPoint = CGPoint(x: size.width / 2, y: size.height)
+//            context.cgContext.drawLinearGradient(gradient, start: startPoint, end: endPoint, options: [])
+//        }
+//        return Image(uiImage: image)
+//    }
+//}

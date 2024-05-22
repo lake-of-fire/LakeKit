@@ -163,7 +163,7 @@ struct OnboardingCardsView<CardContent: View>: View {
     @State private var scrolledID: String?
 
 //    private var cardMinHeight: CGFloat = 330
-    private var cardHeightFactor: CGFloat = 0.75
+    private var cardHeightFactor: CGFloat = 1
 
     private var appName: String? {
         return Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String
@@ -200,26 +200,27 @@ struct OnboardingCardsView<CardContent: View>: View {
     }
         
     @ViewBuilder private func scrollViewInner(geometry: GeometryProxy) -> some View {
-//        ForEach(Array(cards.enumerated()), id: \.element.id) { index, card in
+        let geoHeight = max(0, (geometry.size.height - (geometry.safeAreaInsets.top + geometry.safeAreaInsets.bottom)))
         ForEach(Array(cards.enumerated()), id: \.element.id) { index, card in
             VStack {
-                if index == 0 {
-                    scrollViewHeader()
-                }
-                
-                let geoHeight = max(0, (geometry.size.height - (geometry.safeAreaInsets.top + geometry.safeAreaInsets.bottom)))
+                Text(" ")
+//                if index == 0 {
+//                    scrollViewHeader()
+//                }
                 cardView(card: card)
                     .padding(.horizontal)
                     .frame(height: cardHeightFactor * geoHeight)
-//                    .padding(.top, index == 0 ? 0 : ((1 - cardHeightFactor) / 1) * geoHeight)
+//                    .padding(.top, index == 0 ? 0 : ((1 - cardHeightFactor) / 3) * geoHeight)
+                    .padding(.vertical, ((1 - cardHeightFactor) / 3) * geoHeight)
+                Text(" ")
             }
-            .id(card.id)
+//            .id(card.id)
         }
     }
         
-    @ViewBuilder private func scrollViewFooter(wheelGeometry: GeometryProxy) -> some View {
-        Color.clear.frame(height: max(0, cardHeightFactor * wheelGeometry.size.height  - wheelGeometry.safeAreaInsets.top - wheelGeometry.safeAreaInsets.bottom))
-    }
+//    @ViewBuilder private func scrollViewFooter(wheelGeometry: GeometryProxy) -> some View {
+//        Color.clear.frame(height: max(0, cardHeightFactor * wheelGeometry.size.height  - wheelGeometry.safeAreaInsets.top - wheelGeometry.safeAreaInsets.bottom))
+//    }
     
     @ViewBuilder private var scrollView: some View {
         ZStack {
@@ -241,16 +242,16 @@ struct OnboardingCardsView<CardContent: View>: View {
             
             if #available(iOS 17, macOS 14, *) {
                 GeometryReader { wheelGeometry in
-                    WheelScroll(axis: .vertical, contentSpacing: 0, footer: {
-                        scrollViewFooter(wheelGeometry: wheelGeometry)
-                            .padding(.horizontal)
+                    WheelScroll(axis: .vertical, contentSpacing: 40, footer: {
+                        EmptyView()
+                        //                        scrollViewFooter(wheelGeometry: wheelGeometry)
+//                            .padding(.horizontal)
                     }) {
                         scrollViewInner(geometry: wheelGeometry)
-                            .scrollTargetLayout()
                     }
                     .scrollPosition(id: $scrolledID)
+                    .defaultScrollAnchor(.center)
                     .scrollTargetBehavior(.viewAligned(limitBehavior: .always)) // always needed for top alignment for some reason
-                    .defaultScrollAnchor(.top)
                     .onAppear {
                         scrolledID = cards.first?.id
                     }
@@ -260,7 +261,7 @@ struct OnboardingCardsView<CardContent: View>: View {
                     ScrollView {
                         Group {
                             scrollViewHeader()
-                            scrollViewFooter(wheelGeometry: wheelGeometry)
+//                            scrollViewFooter(wheelGeometry: wheelGeometry)
                             scrollViewInner(geometry: wheelGeometry)
                         }
                         .padding(.horizontal)
