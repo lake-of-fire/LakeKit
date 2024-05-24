@@ -276,6 +276,7 @@ struct OnboardingCardsView<CardContent: View>: View {
             if #available(iOS 17, macOS 14, *) {
                 PageNavigator(scrolledID: $scrolledID, cards: cards)
                     .frame(maxWidth: .infinity)
+                Divider()
             }
         }
     }

@@ -28,7 +28,7 @@ public struct Marquee<Content: View>: View {
     }
     
     public var body: some View {
-        TimelineView(.animation) { context in
+        TimelineView(.animation(minimumInterval: 0.01 * targetVelocity, paused: !model.isAnimating)) { context in
             HStack(spacing: model.spacing) {
                 HStack(spacing: model.spacing) {
                     content
@@ -41,15 +41,14 @@ public struct Marquee<Content: View>: View {
             .offset(x: model.offset)
             .fixedSize()
             .onChange(of: context.date) { newDate in
-                DispatchQueue.main.async {
-                    model.tick(at: newDate)
-                    
-                }
+                model.tick(at: newDate)
             }
         }
         .measureWidth { containerWidth = $0 }
         .gesture(dragGesture)
         .onAppear { model.previousTick = .now }
+        .onAppear { model.isAnimating = true }
+        .onDisappear { model.isAnimating = false }
         .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
     }
     
@@ -61,14 +60,7 @@ public struct Marquee<Content: View>: View {
                 model.dragEnded(value)
             }
     }
-    
-    private func throttle(delay: Double, action: @escaping () -> Void) {
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-            action()
-        }
-    }
 }
-
 
 struct MarqueeModel {
     var contentWidth: CGFloat? = nil
@@ -76,16 +68,20 @@ struct MarqueeModel {
     var dragStartOffset: CGFloat? = nil
     var dragTranslation: CGFloat = 0
     var currentVelocity: CGFloat = 0
+    var isAnimating: Bool = true
     
     var previousTick: Date = .now
     var targetVelocity: Double
     var spacing: CGFloat
+    
     init(targetVelocity: Double, spacing: CGFloat) {
         self.targetVelocity = targetVelocity
         self.spacing = spacing
     }
     
     mutating func tick(at time: Date) {
+        guard isAnimating else { return }
+        
         let delta = time.timeIntervalSince(previousTick)
         defer { previousTick = time }
         currentVelocity += (targetVelocity - currentVelocity) * delta * 3
@@ -99,7 +95,6 @@ struct MarqueeModel {
             while offset > 0 {
                 offset -= c + spacing
             }
-            
         }
     }
     
@@ -114,7 +109,6 @@ struct MarqueeModel {
         offset = dragStartOffset! + value.translation.width
         dragStartOffset = nil
     }
-    
 }
 
 extension View {
