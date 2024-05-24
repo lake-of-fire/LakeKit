@@ -272,7 +272,7 @@ struct OnboardingCardsView<CardContent: View>: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .safeAreaInset(edge: .bottom, spacing: 0) {
+        .safeAreaInset(edge: .bottom) {
             if #available(iOS 17, macOS 14, *) {
                 PageNavigator(scrolledID: $scrolledID, cards: cards)
                     .frame(maxWidth: .infinity)

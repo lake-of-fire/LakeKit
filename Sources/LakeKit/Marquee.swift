@@ -1,4 +1,3 @@
-// From: https://github.com/nainamaharjan/MarqueeSwiftUI
 //
 //  MarqueeView.swift
 //  MarqueeSwiftUI
@@ -12,14 +11,12 @@ public struct Marquee<Content: View>: View {
     @ViewBuilder var content: Content
     @State private var containerWidth: CGFloat? = nil
     @State private var model: MarqueeModel
-    private var horizontalInset: CGFloat
     private var targetVelocity: Double
     private var spacing: CGFloat
     
-    public init(horizontalInset: CGFloat = 0, targetVelocity: Double, spacing: CGFloat = 10, @ViewBuilder content: () -> Content) {
-        self.horizontalInset = horizontalInset
+    public init(targetVelocity: Double, spacing: CGFloat = 10, @ViewBuilder content: () -> Content) {
         self.content = content()
-        self._model = .init(wrappedValue: MarqueeModel(horizontalInset: horizontalInset, targetVelocity: targetVelocity, spacing: spacing))
+        self._model = .init(wrappedValue: MarqueeModel(targetVelocity: targetVelocity, spacing: spacing))
         self.targetVelocity = targetVelocity
         self.spacing = spacing
     }
@@ -27,7 +24,7 @@ public struct Marquee<Content: View>: View {
     var extraContentInstances: Int {
         let contentPlusSpacing = ((model.contentWidth ?? 0) + model.spacing)
         guard contentPlusSpacing != 0 else { return 1 }
-        return Int(((containerWidth ?? 0) / contentPlusSpacing).rounded(.up)) + 1
+        return Int(((containerWidth ?? 0) / contentPlusSpacing).rounded(.up))
     }
     
     public var body: some View {
@@ -36,10 +33,7 @@ public struct Marquee<Content: View>: View {
                 HStack(spacing: model.spacing) {
                     content
                 }
-                .measureWidth {
-                    model.contentWidth = $0
-                    model.horizontalInset = horizontalInset
-                }
+                .measureWidth { model.contentWidth = $0 }
                 ForEach(Array(0..<extraContentInstances), id: \.self) { _ in
                     content
                 }
@@ -67,11 +61,17 @@ public struct Marquee<Content: View>: View {
                 model.dragEnded(value)
             }
     }
+    
+    private func throttle(delay: Double, action: @escaping () -> Void) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+            action()
+        }
+    }
 }
+
 
 struct MarqueeModel {
     var contentWidth: CGFloat? = nil
-    var horizontalInset: CGFloat = 0
     var offset: CGFloat = 0
     var dragStartOffset: CGFloat? = nil
     var dragTranslation: CGFloat = 0
@@ -80,8 +80,7 @@ struct MarqueeModel {
     var previousTick: Date = .now
     var targetVelocity: Double
     var spacing: CGFloat
-    init(horizontalInset: CGFloat, targetVelocity: Double, spacing: CGFloat) {
-        self.horizontalInset = horizontalInset
+    init(targetVelocity: Double, spacing: CGFloat) {
         self.targetVelocity = targetVelocity
         self.spacing = spacing
     }
@@ -95,12 +94,12 @@ struct MarqueeModel {
         } else {
             offset -= delta * currentVelocity
         }
-        if let cWidth = contentWidth {
-            let c = cWidth
+        if let c = contentWidth {
             offset.formTruncatingRemainder(dividingBy: c + spacing)
             while offset > 0 {
                 offset -= c + spacing
             }
+            
         }
     }
     
