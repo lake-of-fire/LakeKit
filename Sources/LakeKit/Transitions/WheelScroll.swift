@@ -7,65 +7,64 @@
 import SwiftUI
 
 @available(iOS 17, macOS 14, *)
-public struct WheelScroll<Footer: View, Content: View>: View {
+public struct WheelScroll<Content: View>: View {
     let axis: Axis.Set
     let contentSpacing: CGFloat
     
-    @ViewBuilder let footer: () -> Footer
     @ViewBuilder let content: () -> Content
 
-    public init(axis: Axis.Set = .vertical, contentSpacing: CGFloat = 15, footer: @escaping () -> Footer, content: @escaping () -> Content) {
+    public init(axis: Axis.Set = .vertical, contentSpacing: CGFloat = 15, content: @escaping () -> Content) {
         self.axis = axis
         self.contentSpacing = contentSpacing
-        self.footer = footer
         self.content = content
     }
     
     private var timingCurve: UnitCurve { axis.isVertical ? .easeIn : .easeOut }
     private var opacityThreshold: ScrollTransitionConfiguration.Threshold {
-        axis.isVertical ? .visible(0.3) : .visible
+        axis.isVertical ? .visible(0.4) : .visible
     }
     private var blurThreshold: ScrollTransitionConfiguration.Threshold {
         axis.isVertical ? .visible(0.6) : .visible(0.8)
     }
     
     public var body: some View {
-        ScrollView(axis, showsIndicators: false) {
-            content()
-            /*
-                .scrollTransition(
-                    .interactive(timingCurve: .easeIn),
-                    transition: scrollTransitionRoll
-                )
-                .scrollTransition(
-                    .interactive(timingCurve: timingCurve).threshold(blurThreshold)
-                ) { effect, phase in
-                    effect
-                        .blur(radius: phase.isIdentity ? 0 : 3)
-                        .scaleEffect(
-                            x: phase.isIdentity
-                            ? 1
-                            : axis.isVertical ? 0.85 : 1,
-                            y: phase.isIdentity
-                            ? 1
-                            : axis == .horizontal ? 0.9 : 1
-                        )
-                }
-                .scrollTransition(
-                    .interactive(timingCurve: timingCurve).threshold(opacityThreshold)
-                ) { effect, phase in
-                    effect.opacity(phase.isIdentity ? 1 : 0)
-                }
-             */
-                .embedInStack(axis, spacing: contentSpacing)
-                .scrollTargetLayout()
-
-            Text("") // scrollTargetLayout bug workaround
-//            footer()
+        ScrollView(axis, showsIndicators: true) {
+            VStack(spacing: 0) {
+                content()
+                    .scrollTransition(
+                        .interactive(timingCurve: .easeIn),
+                        transition: scrollTransitionRoll
+                    )
+                    .scrollTransition(
+                        .interactive(timingCurve: timingCurve).threshold(blurThreshold)
+                    ) { effect, phase in
+                        effect
+                            .blur(radius: phase.isIdentity ? 0 : 3)
+                            .scaleEffect(
+                                x: phase.isIdentity
+                                ? 1
+                                : axis.isVertical ? 0.85 : 1,
+                                y: phase.isIdentity
+                                ? 1
+                                : axis == .horizontal ? 0.9 : 1
+                            )
+                    }
+                    .scrollTransition(
+                        .interactive(timingCurve: timingCurve).threshold(opacityThreshold)
+                    ) { effect, phase in
+                        effect.opacity(phase.isIdentity ? 1 : 0)
+                    }
+                    .embedInStack(axis, spacing: contentSpacing)
+                    .scrollTargetLayout()
+                
+                Text("") // scrollTargetLayout bug workaround
+                    .frame(width: 0, height: 0)
+            }
         }
 //        .defaultScrollAnchor(.topLeading)
 //        .scrollClipDisabled()
         .frame(maxWidth: .infinity)
+        .defaultScrollAnchor(.topLeading) // used by scrollTransitionRoll
 //        .padding(20)
 //        .clipShape(.rect)
     }

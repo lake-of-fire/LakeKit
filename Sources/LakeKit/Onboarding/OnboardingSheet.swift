@@ -1,6 +1,8 @@
 import SwiftUI
+import SwiftUIX
 import NavigationBackport
 import MarkdownWebView
+import Pow
 
 public struct OnboardingCard: Identifiable, Hashable {
     public let id: String
@@ -15,29 +17,6 @@ public struct OnboardingCard: Identifiable, Hashable {
         self.color = color
         self.description = description
         self.imageName = imageName
-    }
-}
-
-public struct UnfinishedOnboardingReminder: View {
-    @AppStorage("hasRespondedToOnboarding") var hasRespondedToOnboarding = false
-    @EnvironmentObject private var storeViewModel: StoreViewModel
- 
-    public var body: some View {
-        if !hasRespondedToOnboarding && OnboardingSheetStatus.dismissedWithoutResponse && !storeViewModel.isSubscribed {
-            Button {
-                OnboardingSheetStatus.dismissedWithoutResponse = false
-            } label: {
-                GroupBox(label: Image(systemName: "info.circle.fill").resizable().frame(width: 25, height: 25).foregroundColor(.accentColor)) {
-                    VStack(alignment: .leading) {
-                        (Text("You're in Free Mode. ").foregroundColor(.secondary) + Text("View Upgrades").foregroundColor(Color.accentColor))
-                            .bold()
-                            .padding(EdgeInsets(top: 10, leading: 0, bottom: 0, trailing: 15))
-                    }
-                }
-                .frame(maxWidth: .infinity)
-//                .backgroundStyle(Color(red: 0.1, green: 0.1, blue: 0.1))
-            }
-        }
     }
 }
 
@@ -94,6 +73,7 @@ fileprivate struct PrimaryButton: View {
 }
 
 struct OnboardingPrimaryButtons: View {
+    let isFinishedOnboarding: Bool
     @Binding var isPresentingStoreSheet: Bool
     @Binding var navigationPath: NBNavigationPath
 
@@ -142,6 +122,12 @@ struct OnboardingPrimaryButtons: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.accentColor)
+                .conditionalEffect(
+                    .repeat(
+                        .shine.delay(0.5),
+                        every: 4
+                    ),
+                    condition: isFinishedOnboarding)
             }
             
             PrimaryButton(title: "Skip Upgrades", systemImage: nil) {
@@ -163,7 +149,14 @@ struct OnboardingCardsView<CardContent: View>: View {
     @State private var scrolledID: String?
 
 //    private var cardMinHeight: CGFloat = 330
-    private var cardHeightFactor: CGFloat = 1
+    private var cardHeightFactor: CGFloat {
+#if os(iOS)
+        if horizontalSizeClass == .compact {
+            return 0.75
+        }
+#endif
+        return 0.8
+    }
 
     private var appName: String? {
         return Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String
@@ -179,10 +172,6 @@ struct OnboardingCardsView<CardContent: View>: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 #endif
 
-    @ViewBuilder private func cardView(card: OnboardingCard) -> some View {
-        OnboardingCardView(card: card, isTopVisible: scrolledID == card.id, cardContent: cardContent)
-    }
-    
     @ViewBuilder private func scrollViewHeader() -> some View {
         Group {
             if let appName = appName {
@@ -198,21 +187,37 @@ struct OnboardingCardsView<CardContent: View>: View {
         .multilineTextAlignment(.center)
         .padding()
     }
-        
+    
     @ViewBuilder private func scrollViewInner(geometry: GeometryProxy) -> some View {
-        let geoHeight = max(0, (geometry.size.height - (geometry.safeAreaInsets.top + geometry.safeAreaInsets.bottom)))
         ForEach(Array(cards.enumerated()), id: \.element.id) { index, card in
             VStack {
                 Text(" ")
-//                if index == 0 {
-//                    scrollViewHeader()
-//                }
-                cardView(card: card)
-                    .padding(.horizontal)
-                    .frame(height: cardHeightFactor * geoHeight)
-//                    .padding(.top, index == 0 ? 0 : ((1 - cardHeightFactor) / 3) * geoHeight)
-                    .padding(.vertical, ((1 - cardHeightFactor) / 3) * geoHeight)
+                
+//                let frameHeight: CGFloat = (cardHeightFactor * geometry.insetAdjustedSize.height).rounded()
+//                let paddingVertical: CGFloat = (((1 - cardHeightFactor) / 2) * geometry.insetAdjustedSize.height).rounded()
+                let frameHeight: CGFloat = (cardHeightFactor * geometry.size.height).rounded()
+                let paddingVertical: CGFloat = (((1 - cardHeightFactor) / 4) * geometry.size.height).rounded()
+                OnboardingCardView(card: card, isTopVisible: scrolledID == card.id, cardContent: cardContent)
+                    .padding(.horizontal, 30)
+                    .frame(height: frameHeight)
+                    .padding(.top, paddingVertical)
+//                    .padding(.bottom, paddingVertical)
+
                 Text(" ")
+            }
+            .onSwipe { direction in
+                guard let currentIndex = cards.firstIndex(where: { $0.id == scrolledID }) else { return }
+                withAnimation {
+                    switch direction {
+                    case .left:
+                        guard currentIndex < (cards.count - 1) else { return }
+                        scrolledID = cards[currentIndex + 1].id
+                    case .right:
+                        guard currentIndex > 0 else { return }
+                        scrolledID = cards[currentIndex - 1].id
+                    default: break
+                    }
+                }
             }
 //            .id(card.id)
         }
@@ -242,15 +247,11 @@ struct OnboardingCardsView<CardContent: View>: View {
             
             if #available(iOS 17, macOS 14, *) {
                 GeometryReader { wheelGeometry in
-                    WheelScroll(axis: .vertical, contentSpacing: 40, footer: {
-                        EmptyView()
-                        //                        scrollViewFooter(wheelGeometry: wheelGeometry)
-//                            .padding(.horizontal)
-                    }) {
+                    WheelScroll(axis: .vertical, contentSpacing: 40) {
                         scrollViewInner(geometry: wheelGeometry)
                     }
                     .scrollPosition(id: $scrolledID)
-                    .defaultScrollAnchor(.center)
+                    .scrollClipDisabled()
                     .scrollTargetBehavior(.viewAligned(limitBehavior: .always)) // always needed for top alignment for some reason
                     .onAppear {
                         scrolledID = cards.first?.id
@@ -260,18 +261,15 @@ struct OnboardingCardsView<CardContent: View>: View {
                 GeometryReader { wheelGeometry in
                     ScrollView {
                         Group {
-                            scrollViewHeader()
+//                            scrollViewHeader()
 //                            scrollViewFooter(wheelGeometry: wheelGeometry)
                             scrollViewInner(geometry: wheelGeometry)
                         }
                         .padding(.horizontal)
                     }
                 }
-            }
-            
-            Text(scrolledID ?? "--")
-                .bold()
                 .background(.red)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -284,11 +282,10 @@ struct OnboardingCardsView<CardContent: View>: View {
     
     @ViewBuilder private var callToActionView: some View {
         VStack {
-            OnboardingPrimaryButtons(isPresentingStoreSheet: $isPresentingStoreSheet, navigationPath: $navigationPath)
+            OnboardingPrimaryButtons(isFinishedOnboarding: scrolledID == cards.last?.id, isPresentingStoreSheet: $isPresentingStoreSheet, navigationPath: $navigationPath)
         }
         .padding()
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(.regularMaterial)
+        .frame(maxWidth: .infinity)
     }
     
     var body: some View {
@@ -309,23 +306,30 @@ struct OnboardingCardsView<CardContent: View>: View {
             scrollView
                 .safeAreaInset(edge: .bottom, spacing: 0) {
                     callToActionView
+                        .background(.regularMaterial)
                 }
 #elseif os(iOS)
             GeometryReader { geometry in
                 HStack(spacing: 0) {
                     if horizontalSizeClass == .regular {
                         callToActionView
+                            .frame(maxHeight: .infinity)
+                            .background(.regularMaterial)
                     }
                     scrollView
-                        .frame(minWidth: 0.6 * geometry.size.width - (geometry.safeAreaInsets.magnitude + geometry.safeAreaInsets.bottom))
+                        .frame(width: horizontalSizeClass == .regular ? 0.666 * geometry.insetAdjustedSize.width : nil)
                 }
             }
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 if horizontalSizeClass == .compact {
                     callToActionView
+                        .background(.regularMaterial)
                 }
             }
 #endif
+        }
+        .onAppear {
+            scrolledID = "welcome"
         }
     }
     
@@ -433,6 +437,8 @@ struct OnboardingCardView<CardContent: View>: View {
     let isTopVisible: Bool
     @ViewBuilder let cardContent: (OnboardingCard) -> CardContent
 
+    @State private var cardSize: CGSize?
+    
     @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
@@ -465,7 +471,19 @@ struct OnboardingCardView<CardContent: View>: View {
 //                } else { $0 }
 //            }
         }
-        .background(colorScheme == .dark ? .black : .white)
+        .background {
+            GeometryReader { geometry in
+                Color.clear
+                    .task { @MainActor in
+                        cardSize = geometry.insetAdjustedSize
+                    }
+                    .onChange(of: geometry.insetAdjustedSize) { insetAdjustedSize in
+                        cardSize = insetAdjustedSize
+                    }
+            }
+        }
+        .frame(maxWidth: cardSize?.height ?? .infinity)
+        .background(Color.systemGroupedBackground)
         .cornerRadius(15)
         .shadow(radius: isTopVisible ? 16 : 8)
         .scaleEffect(isTopVisible ? 1.02 : 1.0)
@@ -485,6 +503,14 @@ fileprivate struct PageNavigator: View {
     private var currentIndex: Int? {
         guard let scrolledID = scrolledID else { return nil }
         return cards.firstIndex(where: { $0.id == scrolledID })
+    }
+    
+    private var canGoPrevious: Bool {
+        return (currentIndex ?? -1) > 0
+    }
+    
+    private var canGoNext: Bool {
+        return ((currentIndex ?? cards.count) + 1) < cards.count
     }
 
     func scrollTo(index: Int) {
@@ -550,7 +576,7 @@ fileprivate struct PageNavigator: View {
             ForEach(0..<cards.count, id: \.self) { index in
                 Circle()
                     .fill(.primary)
-                    .opacity(index == currentIndex ? 1 : 0.5)
+                    .opacity(index == currentIndex ? 1 : 0.4)
                     .frame(width: 7, height: 7)
                     .padding(.vertical, 9)
                     .padding(.horizontal, 4)
@@ -563,27 +589,38 @@ fileprivate struct PageNavigator: View {
         .background(.regularMaterial)
         .clipShape(.capsule)
     }
+    
     var body: some View {
         ZStack {
             indicatorView
 
+            let canGoPrevious = canGoPrevious
+            let canGoNext = canGoNext
             HStack {
-                pageTurnButton(title: "Previous", systemImage: "chevron.backward", isEnabled: (currentIndex ?? -1) > 0, isAnimated: false) {
+                pageTurnButton(title: "Previous", systemImage: "chevron.backward", isEnabled: canGoPrevious, isAnimated: false) {
                     guard let currentIndex = currentIndex else { return }
                     scrollTo(index: currentIndex - 1)
                 }
                 .labelStyle(.iconOnly)
                 .clipShape(.circle)
+                .foregroundStyle(Color.accentColor)
 
                 Spacer()
                 
-                pageTurnButton(title: "Next", systemImage: "chevron.forward", isEnabled: ((currentIndex ?? cards.count) + 1) < cards.count, isAnimated: true) {
+                pageTurnButton(title: "Next", systemImage: "chevron.forward", isEnabled: canGoNext, isAnimated: true) {
                     guard let currentIndex = currentIndex else { return }
                     scrollTo(index: currentIndex + 1)
                 }
                 .labelStyle(.titleAndIcon)
-                .tint(.accentColor)
+                .foregroundStyle(Color.accentColor)
                 .clipShape(.capsule)
+                .animation(.default, value: canGoNext)
+                .conditionalEffect(
+                    .repeat(
+                        .glow(color: .systemBackground, radius: 30),
+                        every: 1.75
+                    ),
+                    condition: canGoNext && !canGoPrevious)
             }
         }
         .padding(.horizontal)
@@ -656,4 +693,32 @@ public extension View {
     func onboardingSheet(isActive: Bool = true, cards: [OnboardingCard], cardContent: @escaping (OnboardingCard) -> some View) -> some View {
         self.modifier(OnboardingSheet(isActive: isActive, cards: cards, cardContent: cardContent))
     }
+}
+
+// From: https://stackoverflow.com/questions/60885532/how-to-detect-swiping-up-down-left-and-right-with-swiftui-on-a-view
+fileprivate typealias SwipeDirectionAction = (SwipeDirection) -> Void
+
+fileprivate extension View {
+    /// Adds an action to perform when swipe end.
+    /// - Parameters:
+    ///   - action: The action to perform when this swipe ends.
+    ///   - minimumDistance: The minimum dragging distance for the gesture to succeed.
+    func onSwipe(action: @escaping SwipeDirectionAction, minimumDistance: Double = 20) -> some View {
+        self
+            .gesture(DragGesture(minimumDistance: minimumDistance, coordinateSpace: .global)
+                .onEnded { value in
+                    let horizontalAmount = value.translation.width
+                    let verticalAmount = value.translation.height
+                    
+                    if abs(horizontalAmount) > abs(verticalAmount) {
+                        horizontalAmount < 0 ? action(.left) : action(.right)
+                    } else {
+                        verticalAmount < 0 ? action(.up) : action(.bottom)
+                    }
+                })
+    }
+}
+
+fileprivate enum SwipeDirection {
+    case up, bottom, left, right
 }

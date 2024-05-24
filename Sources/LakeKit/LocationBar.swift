@@ -71,91 +71,95 @@ public struct LocationBar: View, Equatable {
         }
     }
     
-    public var body: some View {
-        HStack{
-            TextField("", text: $locationText, prompt: Text("Search or enter website address")
-                .accessibilityLabel("Location")
-                .foregroundColor(.secondary))
+    @ViewBuilder private var textField: some View {
+        TextField("", text: $locationText, prompt: Text("Search or enter website address")
+            .accessibilityLabel("Location")
+            .foregroundColor(.secondary))
 #if os(iOS)
-            .introspect(.textField, on: .iOS(.v15...)) { textField in
-                if selectAll {
-                    Task { @MainActor in
-                        selectAll = false
-                        try await Task.sleep(nanoseconds: UInt64(0.1 * 1_000_000_000))
-                        textField.selectAll(nil)
-                    }
+        .introspect(.textField, on: .iOS(.v15...)) { textField in
+            if selectAll {
+                Task { @MainActor in
+                    selectAll = false
+                    try await Task.sleep(nanoseconds: UInt64(0.1 * 1_000_000_000))
+                    textField.selectAll(nil)
                 }
             }
+        }
 #endif
-            .truncationMode(.tail)
-            .submitLabel((url == nil && !locationText.isEmpty) ? .search : .go)
+        .truncationMode(.tail)
+        .submitLabel((url == nil && !locationText.isEmpty) ? .search : .go)
 #if os(macOS)
-            .textFieldStyle(.roundedBorder)
+        .textFieldStyle(.roundedBorder)
 #else
-            .textContentType(.URL)
-//            .keyboardType(.URL)
-            .textInputAutocapitalization(.never)
-            .autocorrectionDisabled()
-            .textFieldStyle(.plain)
-            .padding(EdgeInsets(top: 8, leading: 10, bottom: 8, trailing: 10))
-//            .padding(EdgeInsets(top: 6, leading: 8, bottom: 6, trailing: 8))
-            .background(colorScheme == .dark ? Color.secondary.opacity(0.2232) : Color.white) //(white: 239.0 / 255.0))
-//            .textFieldStyle(.roundedBorder)
-            .cornerRadius(12)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(.secondary.opacity(0.1), lineWidth: 1)
-            )
-            .submitLabel(.go)
+        .textContentType(.URL)
+        //            .keyboardType(.URL)
+        .textInputAutocapitalization(.never)
+        .autocorrectionDisabled()
+        .textFieldStyle(.plain)
+        .padding(EdgeInsets(top: 8, leading: 10, bottom: 8, trailing: 10))
+        //            .padding(EdgeInsets(top: 6, leading: 8, bottom: 6, trailing: 8))
+        .background(colorScheme == .dark ? Color.secondary.opacity(0.2232) : Color.white) //(white: 239.0 / 255.0))
+                                                                                          //            .textFieldStyle(.roundedBorder)
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(.secondary.opacity(0.1), lineWidth: 1)
+        )
+        .submitLabel(.go)
 #endif
-            .onSubmit {
-                Task {
-                    try await onSubmit(url, locationText)
+        .onSubmit {
+            Task {
+                try await onSubmit(url, locationText)
+            }
+        }
+#if os(macOS)
+        .introspect(.textField, on: .macOS(.v12...)) { textField in
+            // See: https://developer.apple.com/forums/thread/74372
+            if locationController.isPresentingLocationOpening {
+                if textField.currentEditor() == nil {
+                    textField.becomeFirstResponder()
+                } else {
+                    locationController.isPresentingLocationOpening = false
+                    textField.resignFirstResponder()
                 }
             }
-#if os(macOS)
-            .introspect(.textField, on: .macOS(.v12...)) { textField in
-                // See: https://developer.apple.com/forums/thread/74372
-                if locationController.isPresentingLocationOpening {
-                    if textField.currentEditor() == nil {
-                        textField.becomeFirstResponder()
-                    } else {
+        }
+#else
+        .introspect(.textField, on: .iOS(.v15...)) { textField in
+            if locationController.isPresentingLocationOpening {
+                Task { @MainActor in
+                    // See: https://developer.apple.com/forums/thread/74372
+                    if textField.isFirstResponder {
                         locationController.isPresentingLocationOpening = false
                         textField.resignFirstResponder()
+                    } else {
+                        textField.becomeFirstResponder()
                     }
                 }
             }
-#else
-            .introspect(.textField, on: .iOS(.v15...)) { textField in
-                if locationController.isPresentingLocationOpening {
-                    Task { @MainActor in
-                        // See: https://developer.apple.com/forums/thread/74372
-                        if textField.isFirstResponder {
-                            locationController.isPresentingLocationOpening = false
-                            textField.resignFirstResponder()
-                        } else {
-                            textField.becomeFirstResponder()
-                        }
-                    }
-                }
-            }
+        }
 #endif
 #if os(iOS)
-            // See: https://stackoverflow.com/a/67502495/89373
-            .onReceive(NotificationCenter.default.publisher(for: UITextField.textDidBeginEditingNotification)) { obj in
-                Task { @MainActor in
-                    if let textField = obj.object as? UITextField {
-                        textField.selectedTextRange = textField.textRange(from: textField.beginningOfDocument, to: textField.endOfDocument)
-                    }
+        // See: https://stackoverflow.com/a/67502495/89373
+        .onReceive(NotificationCenter.default.publisher(for: UITextField.textDidBeginEditingNotification)) { obj in
+            Task { @MainActor in
+                if let textField = obj.object as? UITextField {
+                    textField.selectedTextRange = textField.textRange(from: textField.beginningOfDocument, to: textField.endOfDocument)
                 }
             }
+        }
 #endif
-            .onChange(of: action) { action in
-                refreshAction(action: action)
-            }
-            .task {
-                refreshAction()
-            }
+    }
+    
+    public var body: some View {
+        HStack{
+            textField
+                .onChange(of: action) { action in
+                    refreshAction(action: action)
+                }
+                .task { @MainActor in
+                    refreshAction()
+                }
         }
     }
     
