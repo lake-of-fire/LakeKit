@@ -111,9 +111,9 @@ fileprivate extension View {
     func embedInStack(_ axis: Axis.Set, spacing: CGFloat) -> some View {
         switch axis {
         case .horizontal:
-            HStack(spacing: spacing, content: { self })
+            LazyHStack(spacing: spacing, content: { self })
         default:
-            VStack(spacing: spacing, content: { self })
+            LazyVStack(spacing: spacing, content: { self })
         }
     }
 }

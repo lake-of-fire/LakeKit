@@ -10,13 +10,15 @@ public struct OnboardingCard: Identifiable, Hashable {
     public let color: Color
     public let description: String
     public let imageName: String
-    
-    public init(id: String, title: String, color: Color, description: String, imageName: String) {
+    public let breakoutCard: Bool
+
+    public init(id: String, title: String, color: Color, description: String, imageName: String, breakoutCard: Bool = false) {
         self.id = id
         self.title = title
         self.color = color
         self.description = description
         self.imageName = imageName
+        self.breakoutCard = breakoutCard
     }
 }
 
@@ -144,7 +146,7 @@ struct OnboardingCardsView<CardContent: View>: View {
     let cards: [OnboardingCard]
     @Binding var navigationPath: NBNavigationPath
     @Binding var isPresentingStoreSheet: Bool
-    @ViewBuilder let cardContent: (OnboardingCard) -> CardContent
+    @ViewBuilder let cardContent: (OnboardingCard, Bool) -> CardContent
     
     @State private var scrolledID: String?
 
@@ -155,7 +157,7 @@ struct OnboardingCardsView<CardContent: View>: View {
             return 0.75
         }
 #endif
-        return 0.8
+        return 0.85
     }
 
     private var appName: String? {
@@ -191,20 +193,23 @@ struct OnboardingCardsView<CardContent: View>: View {
     @ViewBuilder private func scrollViewInner(geometry: GeometryProxy) -> some View {
         ForEach(Array(cards.enumerated()), id: \.element.id) { index, card in
             VStack {
-                Text(" ")
-                
+//                Text(" ")
+//                
 //                let frameHeight: CGFloat = (cardHeightFactor * geometry.insetAdjustedSize.height).rounded()
 //                let paddingVertical: CGFloat = (((1 - cardHeightFactor) / 2) * geometry.insetAdjustedSize.height).rounded()
-                let frameHeight: CGFloat = (cardHeightFactor * geometry.size.height).rounded()
-                let paddingVertical: CGFloat = (((1 - cardHeightFactor) / 4) * geometry.size.height).rounded()
+//                let frameHeight: CGFloat = (cardHeightFactor * geometry.size.height).rounded()
+                let paddingVertical: CGFloat = (((1 - cardHeightFactor) / 6) * geometry.size.height).rounded()
+                let frameHeight: CGFloat = geometry.size.height - (paddingVertical * 2)
                 OnboardingCardView(card: card, isTopVisible: scrolledID == card.id, cardContent: cardContent)
-                    .padding(.horizontal, 30)
+//                    .padding(.horizontal, 20)
                     .frame(height: frameHeight)
                     .padding(.top, paddingVertical)
 //                    .padding(.bottom, paddingVertical)
-
-                Text(" ")
+//
+//                Text(" ")
             }
+//            .frame(maxWidth: geometry.insetAdjustedSize.width)
+            .frame(width: geometry.insetAdjustedSize.width)
             .onSwipe { direction in
                 guard let currentIndex = cards.firstIndex(where: { $0.id == scrolledID }) else { return }
                 withAnimation {
@@ -251,7 +256,7 @@ struct OnboardingCardsView<CardContent: View>: View {
                         scrollViewInner(geometry: wheelGeometry)
                     }
                     .scrollPosition(id: $scrolledID)
-                    .scrollClipDisabled()
+//                    .scrollClipDisabled()
                     .scrollTargetBehavior(.viewAligned(limitBehavior: .always)) // always needed for top alignment for some reason
                     .onAppear {
                         scrolledID = cards.first?.id
@@ -334,7 +339,7 @@ struct OnboardingCardsView<CardContent: View>: View {
         }
     }
     
-    init(cards: [OnboardingCard], isPresentingStoreSheet: Binding<Bool>, navigationPath: Binding<NBNavigationPath>, cardContent: @escaping (OnboardingCard) -> CardContent) {
+    init(cards: [OnboardingCard], isPresentingStoreSheet: Binding<Bool>, navigationPath: Binding<NBNavigationPath>, cardContent: @escaping (OnboardingCard, Bool) -> CardContent) {
         self.cards = cards
         _isPresentingStoreSheet = isPresentingStoreSheet
         _navigationPath = navigationPath
@@ -409,7 +414,7 @@ fileprivate struct FreeModeView: View {
 struct OnboardingView<CardContent: View>: View {
     let cards: [OnboardingCard]
     @Binding var isPresentingStoreSheet: Bool
-    @ViewBuilder let cardContent: (OnboardingCard) -> CardContent
+    @ViewBuilder let cardContent: (OnboardingCard, Bool) -> CardContent
     
     @State private var navigationPath = NBNavigationPath()
     
@@ -426,7 +431,7 @@ struct OnboardingView<CardContent: View>: View {
         }
     }
     
-    init(cards: [OnboardingCard], isPresentingStoreSheet: Binding<Bool>, cardContent: @escaping (OnboardingCard) -> CardContent) {
+    init(cards: [OnboardingCard], isPresentingStoreSheet: Binding<Bool>, cardContent: @escaping (OnboardingCard, Bool) -> CardContent) {
         self.cards = cards
         _isPresentingStoreSheet = isPresentingStoreSheet
         self.cardContent = cardContent
@@ -436,59 +441,46 @@ struct OnboardingView<CardContent: View>: View {
 struct OnboardingCardView<CardContent: View>: View {
     let card: OnboardingCard
     let isTopVisible: Bool
-    @ViewBuilder let cardContent: (OnboardingCard) -> CardContent
+    @ViewBuilder let cardContent: (OnboardingCard, Bool) -> CardContent
 
-    @State private var cardSize: CGSize?
-    
     @Environment(\.colorScheme) private var colorScheme
     
-    var body: some View {
-        VStack {
-//            ScrollView {
-                VStack {
-                    Text(card.title)
-                        .font(.title)
-                        .bold()
-                        .lineLimit(9001)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    cardContent(card)
-                    
-                    Text(card.description)
-                        .font(.headline)
-                        .lineLimit(9001)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal)
-                }
-                .multilineTextAlignment(.center)
-                .padding()
-//            }
-//            .modifier {
-//                if #available(iOS 17, macOS 14, *) {
-//                    $0
-//                        .scrollContentBackground(.hidden)
-//                        .scrollBounceBehavior(.basedOnSize)
-//                } else { $0 }
-//            }
+    @ViewBuilder private var innerView: some View {
+        VStack(spacing: 16) {
+            Text(card.title)
+                .font(.title)
+                .bold()
+                .lineLimit(9001)
+                .fixedSize(horizontal: false, vertical: true)
+            
+            cardContent(card, isTopVisible)
+            
+            Text(card.description)
+                .font(.headline)
+                .lineLimit(9001)
+                .fixedSize(horizontal: false, vertical: true)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal)
         }
-        .background {
-            GeometryReader { geometry in
-                Color.clear
-                    .task { @MainActor in
-                        cardSize = geometry.insetAdjustedSize
-                    }
-                    .onChange(of: geometry.insetAdjustedSize) { insetAdjustedSize in
-                        cardSize = insetAdjustedSize
-                    }
+        .multilineTextAlignment(.center)
+        .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    var body: some View {
+        Group {
+            if card.breakoutCard {
+                innerView
+                    .background(.purple)
+            } else {
+                innerView
+                    .background(Color.systemGroupedBackground)
+                    .scaleEffect(isTopVisible ? 1 : 0.92)
+                    .cornerRadius(15)
+                    .shadow(radius: isTopVisible ? 16 : 8)
+                    .animation(.easeInOut, value: isTopVisible)
             }
         }
-        .frame(maxWidth: cardSize?.height ?? .infinity)
-        .background(Color.systemGroupedBackground)
-        .cornerRadius(15)
-        .shadow(radius: isTopVisible ? 16 : 8)
-        .scaleEffect(isTopVisible ? 1.02 : 1.0)
-        .animation(.easeInOut, value: isTopVisible)
     }
 }
 
@@ -581,6 +573,7 @@ fileprivate struct PageNavigator: View {
                     .frame(width: 7, height: 7)
                     .padding(.vertical, 9)
                     .padding(.horizontal, 4)
+                    .background(.white.opacity(0.00000000001))
                     .onTapGesture {
                         scrollTo(index: index)
                     }
@@ -639,7 +632,7 @@ public struct OnboardingSheet<CardContent: View>: ViewModifier {
     let isActive: Bool
     @State var isPresentingStoreSheet = false
     let cards: [OnboardingCard]
-    @ViewBuilder let cardContent: (OnboardingCard) -> CardContent
+    @ViewBuilder let cardContent: (OnboardingCard, Bool) -> CardContent
     
     @AppStorage("hasRespondedToOnboarding") var hasRespondedToOnboarding = false
     @State private var hasInitialized = false
@@ -691,7 +684,7 @@ public struct OnboardingSheet<CardContent: View>: ViewModifier {
 }
 
 public extension View {
-    func onboardingSheet(isActive: Bool = true, cards: [OnboardingCard], cardContent: @escaping (OnboardingCard) -> some View) -> some View {
+    func onboardingSheet(isActive: Bool = true, cards: [OnboardingCard], cardContent: @escaping (OnboardingCard, Bool) -> some View) -> some View {
         self.modifier(OnboardingSheet(isActive: isActive, cards: cards, cardContent: cardContent))
     }
 }
