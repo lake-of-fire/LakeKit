@@ -98,9 +98,9 @@ struct OnboardingPrimaryButtons: View {
                     isPresentingStoreSheet.toggle()
                 } label: {
                     VStack {
-                        Text("As low as $1 per month")
+                        Text("As low as $0.99 per month")
                             .font(.headline)
-                        Text("$1 US per month or $10 US per year with discount")
+                        Text("$0.99 US per month or $9.99 US per year with discount")
                             .foregroundStyle(.secondary)
                             .font(.footnote)
                     }
@@ -173,6 +173,8 @@ struct OnboardingCardsView<CardContent: View>: View {
 #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 #endif
+    @ScaledMetric(relativeTo: .body) private var maxCardWidth: CGFloat = 500
+    @ScaledMetric(relativeTo: .body) private var maxCardHeight: CGFloat = 500
 
     @ViewBuilder private func scrollViewHeader() -> some View {
         Group {
@@ -202,7 +204,9 @@ struct OnboardingCardsView<CardContent: View>: View {
                 let frameHeight: CGFloat = geometry.size.height - (paddingVertical * 2)
                 OnboardingCardView(card: card, isTopVisible: scrolledID == card.id, cardContent: cardContent)
 //                    .padding(.horizontal, 20)
-                    .frame(height: frameHeight)
+                    .frame(idealHeight: frameHeight)
+                    .frame(maxWidth: maxCardWidth, maxHeight: maxCardHeight)
+                    .padding(12)
                     .padding(.top, paddingVertical)
 //                    .padding(.bottom, paddingVertical)
 //
@@ -279,9 +283,11 @@ struct OnboardingCardsView<CardContent: View>: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .safeAreaInset(edge: .bottom) {
             if #available(iOS 17, macOS 14, *) {
-                PageNavigator(scrolledID: $scrolledID, cards: cards)
-                    .frame(maxWidth: .infinity)
-                Divider()
+                VStack {
+                    PageNavigator(scrolledID: $scrolledID, cards: cards)
+                        .frame(maxWidth: .infinity)
+                        .padding(.bottom, 8)
+                }
             }
         }
     }
@@ -378,7 +384,7 @@ fileprivate struct FreeModeView: View {
                 
                 Equal access is education is a valuable principle. If you're a student or if you just can't afford the full price, please consider the discounted plan. It starts at $1 US per month for full access.
                 
-                ***Editor's Note:*** Thank you for using Manabi Reader. Whether or not you pay to support its full-time developmnent, rest assured there is more to come for Free Mode. As the subscription tier features improve, more paid features will become free too.
+                ***Editor's Note:*** **Thank you for using Manabi Reader. Whether or not you pay to support its full-time developmnent, rest assured there is more to come for Free Mode. As the subscription tier features improve, more paid features will become free too. Manabi values accessibility for all.**
                 ##
                 """)
                 .padding(.horizontal)
@@ -386,7 +392,7 @@ fileprivate struct FreeModeView: View {
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack {
-                PrimaryButton(title: "View Upgrade Discounts", systemImage: "chevron.up.circle") {
+                PrimaryButton(title: "View Discounts", systemImage: nil) {
                     isPresentingStoreSheet.toggle()
                 }
                 .buttonStyle(.borderedProminent)
@@ -448,22 +454,24 @@ struct OnboardingCardView<CardContent: View>: View {
     @ViewBuilder private var innerView: some View {
         VStack(spacing: 16) {
             Text(card.title)
-                .font(.title)
-                .bold()
+                .font(.title2)
+                .fontWeight(.heavy)
                 .lineLimit(9001)
                 .fixedSize(horizontal: false, vertical: true)
             
             cardContent(card, isTopVisible)
             
-            Text(card.description)
-                .font(.headline)
-                .lineLimit(9001)
-                .fixedSize(horizontal: false, vertical: true)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal)
+            if !card.description.isEmpty {
+                Text(card.description)
+                    .font(.subheadline)
+                    .lineLimit(9001)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal)
+            }
         }
         .multilineTextAlignment(.center)
-        .padding()
+        .padding(card.breakoutCard ? 0 : 16)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
@@ -471,7 +479,6 @@ struct OnboardingCardView<CardContent: View>: View {
         Group {
             if card.breakoutCard {
                 innerView
-                    .background(.purple)
             } else {
                 innerView
                     .background(Color.systemGroupedBackground)
@@ -491,8 +498,12 @@ fileprivate struct PageNavigator: View {
     
     @State var animateCount: Int = 0
     
-    @ScaledMetric(relativeTo: .body) private var pageButtonFontSize = 14
-    
+    @ScaledMetric(relativeTo: .body) private var pageButtonTitleFontSize = 15
+    @ScaledMetric(relativeTo: .body) private var pageButtonIconFontSize = 15
+#if os(iOS)
+    @ScaledMetric(relativeTo: .body) private var pageButtonMinHeight = 24
+#endif
+
     private var currentIndex: Int? {
         guard let scrolledID = scrolledID else { return nil }
         return cards.firstIndex(where: { $0.id == scrolledID })
@@ -525,32 +536,44 @@ fileprivate struct PageNavigator: View {
                 if #available(iOS 17.0, *) {
                     Label {
                         Text(title)
+                            .font(.system(size: pageButtonTitleFontSize))
+#if os(iOS)
+                            .bold()
+#endif
                     } icon: {
                         Image(systemName: systemImage)
+                            .font(.system(size: pageButtonIconFontSize))
 #if os(iOS)
                             .bold()
                             .fontDesign(.rounded)
 #endif
                     }
-#if os(iOS)
-                    .bold()
-#endif
                     .symbolEffect(.bounce, value: isAnimated ? animateCount : 0)
                 } else {
-                    Label(title, systemImage: systemImage)
+                    Label {
+                        Text(title)
+                            .font(.system(size: pageButtonTitleFontSize))
 #if os(iOS)
-                        .modifier {
-                            if #available(iOS 16.1, macOS 13.1, *) {
-                                $0
-                                    .bold()
-                                    .fontDesign(.rounded)
-                            } else { $0 }
-                        }
+                            .bold()
 #endif
+                    } icon: {
+                        Image(systemName: systemImage)
+                            .font(.system(size: pageButtonIconFontSize))
+#if os(iOS)
+                            .modifier {
+                                if #available(iOS 16.1, macOS 13.1, *) {
+                                    $0
+                                        .bold()
+                                        .fontDesign(.rounded)
+                                } else { $0 }
+                            }
+#endif
+                    }
                 }
             }
 #if os(iOS)
-            .font(.system(size: pageButtonFontSize))
+            .frame(minWidth: pageButtonMinHeight, minHeight: pageButtonMinHeight)
+
             .padding(12)
 #endif
         }
