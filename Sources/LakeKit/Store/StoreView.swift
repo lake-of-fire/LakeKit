@@ -2,6 +2,7 @@ import SwiftUI
 import StoreHelper
 import StoreKit
 import Collections
+import Pow
 
 public extension View {
     func storeSheet(isPresented: Binding<Bool>) -> some View {
@@ -363,6 +364,7 @@ public struct StoreView: View {
                         }
                         if let testimonial = storeViewModel.testimonial {
                             Divider()
+                                .padding(.vertical)
                             VStack(alignment: .center) {
                                 if let testimonialTitle = storeViewModel.testimonialTitle {
                                     Text(testimonialTitle)
@@ -405,7 +407,7 @@ public struct StoreView: View {
                                         .font(.subheadline)
                                 }
                             }
-                            .padding()
+                            .padding(.horizontal)
                             Divider()
                         }
                         GroupBox {
@@ -440,6 +442,7 @@ public struct StoreView: View {
                                 }
                             }
                         }
+                        Divider()
                         VStack(alignment: .leading, spacing: 15) {
                             ForEach(storeViewModel.benefits, id: \.self) { benefit in
                                 Text(Image(systemName: "checkmark.circle.fill"))
@@ -531,9 +534,14 @@ public struct StoreView: View {
                 }
             }
         }
-//        .frame(maxWidth: productOptionFrameMaxWidth)
-//            .frame(maxHeight: .infinity)
+        //        .frame(maxWidth: productOptionFrameMaxWidth)
+        //            .frame(maxHeight: .infinity)
         .fixedSize(horizontal: false, vertical: true)
-            //                            .frame(maxWidth: .infinity)
-        }
+        .changeEffect(
+            .shine.delay(1),
+            value: isPresented,
+            isEnabled: isPresented && [.notPurchased, .notStarted, .unknown].contains(purchaseState)
+        )
+        .shadow(radius: 12)
     }
+}

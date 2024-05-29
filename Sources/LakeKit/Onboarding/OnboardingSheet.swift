@@ -25,11 +25,13 @@ public struct OnboardingCard: Identifiable, Hashable {
 fileprivate struct PrimaryButton: View {
     let title: String
     let systemImage: String?
+    let controlSize: ControlSize?
     let action: () -> Void
     
-    init(title: String, systemImage: String?, action: @escaping () -> Void) {
+    init(title: String, systemImage: String?, controlSize: ControlSize? = nil, action: @escaping () -> Void) {
         self.title = title
         self.systemImage = systemImage
+        self.controlSize = controlSize
         self.action = action
     }
         
@@ -65,7 +67,9 @@ fileprivate struct PrimaryButton: View {
 #endif
         .frame(maxWidth: .infinity)
         .modifier {
-            if #available(iOS 17, macOS 14, *) {
+            if let controlSize = controlSize {
+                $0.controlSize(controlSize)
+            } else if #available(iOS 17, macOS 14, *) {
                 $0.controlSize(.extraLarge)
             } else {
                 $0.controlSize(.large)
@@ -87,10 +91,10 @@ struct OnboardingPrimaryButtons: View {
 
     var body: some View {
         if storeViewModel.isSubscribed {
-            PrimaryButton(title: "Continue", systemImage: nil) {
+            PrimaryButton(title: isFinishedOnboarding ? "Continue" : "Skip Onboarding", systemImage: nil) {
                 dismiss()
             }
-            .tint(.accentColor)
+            .tint(isFinishedOnboarding ? .accentColor : .secondary)
             .buttonStyle(.borderedProminent)
         } else {
             VStack {
@@ -100,9 +104,10 @@ struct OnboardingPrimaryButtons: View {
                     VStack {
                         Text("As low as $0.99 per month")
                             .font(.headline)
-                        Text("$0.99 US per month or $9.99 US per year with discount")
+                        Text("$0.99/month or $9.99/year US with discount")
                             .foregroundStyle(.secondary)
                             .font(.footnote)
+                            .multilineTextAlignment(.center)
                     }
                     .frame(maxWidth: .infinity)
                 }
@@ -126,7 +131,7 @@ struct OnboardingPrimaryButtons: View {
                 .tint(.accentColor)
                 .conditionalEffect(
                     .repeat(
-                        .shine.delay(0.5),
+                        .shine.delay(0.75),
                         every: 4
                     ),
                     condition: isFinishedOnboarding)
@@ -174,7 +179,7 @@ struct OnboardingCardsView<CardContent: View>: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 #endif
     @ScaledMetric(relativeTo: .body) private var maxCardWidth: CGFloat = 500
-    @ScaledMetric(relativeTo: .body) private var maxCardHeight: CGFloat = 500
+    @ScaledMetric(relativeTo: .body) private var maxCardHeight: CGFloat = 580
 
     @ViewBuilder private func scrollViewHeader() -> some View {
         Group {
@@ -243,7 +248,7 @@ struct OnboardingCardsView<CardContent: View>: View {
                     Group {
                         if #available(iOS 16, macOS 13, *) {
                             Rectangle()
-                                .fill(card.color.gradient)
+                                .fill(card.color.gradient.opacity(0.75))
                         } else {
                             card.color
                         }
@@ -360,17 +365,20 @@ fileprivate struct FreeModeView: View {
     
     @Environment(\.dismiss) private var dismiss
     
+    @State private var shouldAnimate = false
+    
     var body: some View {
         ScrollView {
-            LazyVStack {
+            VStack {
+                Image("Onboarding - Free Mode Landscape")
+                    .resizable()
+                    .scaledToFit()
                 MarkdownWebView("""
-                ## Free Mode
-                
                 **Manabi Reader helps you stay motivated while learning faster, for free.**
                 
                 Read from a library of curated blogs, news feeds, stories and ebooks. Tap words to look them up. Listen to spoken audio as you read.
                 
-                Immersion is necessary. Manabi Reader caters to diverse taste and skill levels. Import your own files or browse the web as you like. Reader Mode works on most anything.
+                Immersion is key. Manabi Reader caters to diverse taste and skill levels. Import your own files or browse the web as you like. Reader Mode works on most anything.
                 
                 Immersion can be a grind too. It's brutal to spend hours reading above your level without being able to feel the progress that you're making. That's why Manabi shows you personalized stats on how familiar you already are with the vocab and kanji you encounter. Collect example sentences automatically. Chart your progress as you read in real-time.
                 
@@ -378,27 +386,35 @@ fileprivate struct FreeModeView: View {
                 
                 ## Why upgrade?
                 
-                The subscription personalizes your stats more to help you see what words and kanji you need to learn. Your dictionary syncs with.  You get support for saving words to Manabi Flashcards or Anki. You'll also be supporting ongoing development.
+                The subscription personalizes your stats more to help you see what words and kanji you need to learn. Your dictionary syncs with your reading activity to filter by learning status. You get support for saving words to Manabi Flashcards or Anki.
+                
+                You'll also support onngoing development: Manabi is independently-made and has no external investors. Thousands of paying customers have enabled Manabi development to continue part-time since 2018 and full-time since 2022.
                 
                 ## Can't afford it?
                 
-                Equal access is education is a valuable principle. If you're a student or if you just can't afford the full price, please consider the discounted plan. It starts at $1 US per month for full access.
+                Equal access in education is a valuable principle that Manabi aspires toward. If you're a student or if you just can't afford the full price, please consider the discounted plan. It starts at $0.99 US per month for full access.
                 
-                ***Editor's Note:*** **Thank you for using Manabi Reader. Whether or not you pay to support its full-time developmnent, rest assured there is more to come for Free Mode. As the subscription tier features improve, more paid features will become free too. Manabi values accessibility for all.**
+                ***Editor's Note:*** *Thank you for using Manabi Reader. Whether or not you pay to support its full-time developmnent, rest assured there is more to come for Free Mode. As the subscription tier features improve, more paid features will become free too. Manabi values accessibility for all.*
                 ##
                 """)
+                .modifier {
+                    if #available(iOS 17, macOS 14, *) {
+                        $0.selectionDisabled()
+                    } else { $0 }
+                }
                 .padding(.horizontal)
             }
         }
+        .navigationTitle("Free Mode")
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack {
-                PrimaryButton(title: "View Discounts", systemImage: nil) {
+                PrimaryButton(title: "View Discounts", systemImage: nil, controlSize: .regular) {
                     isPresentingStoreSheet.toggle()
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.accentColor)
 
-                PrimaryButton(title: hasViewedFreeModeUpsell ? "Continue Without Trying Discounts" : "Continue Without Checking Upgrades", systemImage: nil) {
+                PrimaryButton(title: hasViewedFreeModeUpsell ? "Continue Without Trying Discounts" : "Continue Without Checking Upgrades", systemImage: nil, controlSize: .regular) {
                     dismiss()
                 }
                 .buttonStyle(.bordered)
@@ -463,7 +479,7 @@ struct OnboardingCardView<CardContent: View>: View {
             
             if !card.description.isEmpty {
                 Text(card.description)
-                    .font(.subheadline)
+                    .font(.subheadline.bold())
                     .lineLimit(9001)
                     .fixedSize(horizontal: false, vertical: true)
                     .foregroundStyle(.secondary)
@@ -481,9 +497,11 @@ struct OnboardingCardView<CardContent: View>: View {
                 innerView
             } else {
                 innerView
-                    .background(Color.systemGroupedBackground)
+                    .background {
+                        Color.systemBackground.opacity(0.9)
+                    }
+                    .cornerRadius(16)
                     .scaleEffect(isTopVisible ? 1 : 0.92)
-                    .cornerRadius(15)
                     .shadow(radius: isTopVisible ? 16 : 8)
                     .animation(.easeInOut, value: isTopVisible)
             }
@@ -501,7 +519,7 @@ fileprivate struct PageNavigator: View {
     @ScaledMetric(relativeTo: .body) private var pageButtonTitleFontSize = 15
     @ScaledMetric(relativeTo: .body) private var pageButtonIconFontSize = 15
 #if os(iOS)
-    @ScaledMetric(relativeTo: .body) private var pageButtonMinHeight = 24
+    @ScaledMetric(relativeTo: .body) private var pageButtonMinHeight = 22
 #endif
 
     private var currentIndex: Int? {
@@ -582,6 +600,7 @@ fileprivate struct PageNavigator: View {
 #endif
         .tint(.secondary)
         .background(.regularMaterial)
+        .shadow(radius: 16)
         .disabled(!isEnabled)
         .opacity(isEnabled ? 1 : 0)
         .allowsHitTesting(isEnabled)
@@ -647,61 +666,55 @@ fileprivate struct PageNavigator: View {
     }
 }
 
-struct OnboardingSheetStatus {
-    static var dismissedWithoutResponse = false
-}
-
 public struct OnboardingSheet<CardContent: View>: ViewModifier {
     let isActive: Bool
     @State var isPresentingStoreSheet = false
     let cards: [OnboardingCard]
     @ViewBuilder let cardContent: (OnboardingCard, Bool) -> CardContent
     
+    @AppStorage("dismissedOnboardingWithoutResponse") var dismissedOnboardingWithoutResponse = false
     @AppStorage("hasRespondedToOnboarding") var hasRespondedToOnboarding = false
-    @State private var hasInitialized = false
+    @State private var isPresented = false
 
-    
     public func body(content: Content) -> some View {
+        let _ = Self._printChanges()
         content
-            .sheet(isPresented: Binding<Bool>(
-                get: {
-                return hasInitialized
-                    && isActive
-                    && !(hasRespondedToOnboarding || OnboardingSheetStatus.dismissedWithoutResponse)
-                },
-                set: { newValue in
-                    OnboardingSheetStatus.dismissedWithoutResponse = !newValue && !hasRespondedToOnboarding
-                }
-            )) {
+            .sheet(isPresented: $isPresented) {
                 OnboardingView(cards: cards, isPresentingStoreSheet: $isPresentingStoreSheet, cardContent: cardContent)
                     .onDisappear {
                         if !hasRespondedToOnboarding {
-                            OnboardingSheetStatus.dismissedWithoutResponse = true
+                            dismissedOnboardingWithoutResponse = true
                         }
                     }
                     .storeSheet(isPresented: $isPresentingStoreSheet && isActive)
                 // TODO: track onDisappear (after tracking onAppear to make sure it was seen for long enough too) timestamp as last seen date in AppStorage to avoid re-showing onboarding within seconds or minute of last seeing it again. Avoids annoying the user.
             }
-            .task {
+            .onAppear {
                 refresh()
             }
             .onChange(of: isActive) { isActive in
                 refresh(isActive: isActive)
             }
+            .onChange(of: dismissedOnboardingWithoutResponse) { dismissedOnboardingWithoutResponse in
+                refresh(dismissedOnboardingWithoutResponse: dismissedOnboardingWithoutResponse)
+            }
             .onChange(of: hasRespondedToOnboarding) { hasRespondedToOnboarding in
-                refresh()
+                refresh(hasRespondedToOnboarding: hasRespondedToOnboarding)
+            }
+            .onChange(of: isPresented) { isPresented in
+                if !isPresented && !hasRespondedToOnboarding {
+                    dismissedOnboardingWithoutResponse = true
+                }
             }
     }
     
-    private func refresh(isActive: Bool? = nil) {
+    private func refresh(isActive: Bool? = nil, hasRespondedToOnboarding: Bool? = nil, dismissedOnboardingWithoutResponse: Bool? = nil) {
         let isActive = isActive ?? self.isActive
+        let hasRespondedToOnboarding = hasRespondedToOnboarding ?? self.hasRespondedToOnboarding
+        let dismissedOnboardingWithoutResponse = dismissedOnboardingWithoutResponse ?? self.dismissedOnboardingWithoutResponse
         Task { @MainActor in
-            if !isActive {
-                hasInitialized = false
-            } else {
-                try? await Task.sleep(nanoseconds: 10_000_000)
-                hasInitialized = true
-            }
+            try? await Task.sleep(nanoseconds: 20_000_000)
+            isPresented = isActive && !(hasRespondedToOnboarding || dismissedOnboardingWithoutResponse)
         }
     }
 }

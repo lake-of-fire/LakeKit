@@ -1,20 +1,50 @@
 import SwiftUI
 
-public struct UnfinishedOnboardingReminder: View {
-    @AppStorage("hasRespondedToOnboarding") var hasRespondedToOnboarding = false
+public struct ConditionalUnfinishedOnboardingReminder: View {
+    public init() { }
+    
+    @AppStorage("dismissedOnboardingWithoutResponse") var dismissedOnboardingWithoutResponse = false
+    @AppStorage("hasRespondedToOnboarding") private var hasRespondedToOnboarding = false
     @EnvironmentObject private var storeViewModel: StoreViewModel
     
+    @ViewBuilder var upgradeShortestText: some View {
+        Text("\(Image(systemName: "chevron.right"))").foregroundColor(Color.accentColor)
+    }
+    
+    @ViewBuilder var upgradeShortText: some View {
+        Text("Upgrades \(Image(systemName: "chevron.right"))").foregroundColor(Color.accentColor)
+    }
+    
+    @ViewBuilder var upgradeText: some View {
+        Text("View Upgrades \(Image(systemName: "chevron.right"))").foregroundColor(Color.accentColor)
+    }
+    
     public var body: some View {
-        if !hasRespondedToOnboarding && OnboardingSheetStatus.dismissedWithoutResponse && !storeViewModel.isSubscribed {
+        if !hasRespondedToOnboarding && dismissedOnboardingWithoutResponse && !storeViewModel.isSubscribed {
             Button {
-                OnboardingSheetStatus.dismissedWithoutResponse = false
+                dismissedOnboardingWithoutResponse = false
             } label: {
-                GroupBox(label: Image(systemName: "info.circle.fill").resizable().frame(width: 25, height: 25).foregroundColor(.accentColor)) {
-                    VStack(alignment: .leading) {
-                        (Text("You're in Free Mode. ").foregroundColor(.secondary) + Text("View Upgrades").foregroundColor(Color.accentColor))
-                            .bold()
-                            .padding(EdgeInsets(top: 10, leading: 0, bottom: 0, trailing: 15))
+                GroupBox(label: HStack {
+                    Label {
+                        Text("Free Mode")
+                    } icon: {
+                        Image(systemName: "info.circle.fill").foregroundColor(.accentColor)
+                    }.tint(.primary)
+                    Spacer()
+                    if #available(iOS 16, macOS 13, *) {
+                        ViewThatFits {
+                            upgradeText
+                                .fixedSize()
+                            upgradeShortText
+                                .fixedSize()
+                            upgradeShortestText
+                                .fixedSize()
+                        }
+                    } else {
+                        upgradeShortText
+                            .fixedSize()
                     }
+                }) {
                 }
                 .frame(maxWidth: .infinity)
                 //                .backgroundStyle(Color(red: 0.1, green: 0.1, blue: 0.1))

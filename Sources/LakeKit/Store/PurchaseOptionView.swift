@@ -12,7 +12,7 @@ fileprivate struct BuyButtonStyle: ButtonStyle {
 //            .frame(maxWidth: .infinity, minHeight: height, maxHeight: height)
 //            .foregroundColor(.primaryButtonLabel)
             .background(configuration.isPressed ? Color.accentColor.opacity(0.8) : Color.white.opacity(0.0000001))
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
 //            .cornerRadius(.infinity)
     }
 }
@@ -166,7 +166,7 @@ public struct PurchaseOptionView: View {
                                 .multilineTextAlignment(.center)
                                 .foregroundColor(.white)
                                 .padding(.horizontal, buttonHorizontalPadding)
-                                .padding(.vertical, 4)
+                                .padding(.vertical, 6)
                                 .fixedSize(horizontal: false, vertical: true)
                                 .background(
                                     Capsule()

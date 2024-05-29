@@ -39,20 +39,20 @@ public struct WheelScroll<Content: View>: View {
                         .interactive(timingCurve: timingCurve).threshold(blurThreshold)
                     ) { effect, phase in
                         effect
-                            .blur(radius: phase.isIdentity ? 0 : 3)
+                            .blur(radius: phase.isIdentity ? 0 : 2.2)
                             .scaleEffect(
                                 x: phase.isIdentity
                                 ? 1
-                                : axis.isVertical ? 0.85 : 1,
+                                : axis.isVertical ? 0.875 : 1,
                                 y: phase.isIdentity
                                 ? 1
-                                : axis == .horizontal ? 0.9 : 1
+                                : axis == .horizontal ? 0.925 : 1
                             )
                     }
                     .scrollTransition(
                         .interactive(timingCurve: timingCurve).threshold(opacityThreshold)
                     ) { effect, phase in
-                        effect.opacity(phase.isIdentity ? 1 : 0)
+                        effect.opacity(phase.isIdentity ? 1 : 0.333)
                     }
                     .embedInStack(axis, spacing: contentSpacing)
                     .scrollTargetLayout()
@@ -61,7 +61,6 @@ public struct WheelScroll<Content: View>: View {
                     .frame(width: 0, height: 0)
             }
         }
-//        .defaultScrollAnchor(.topLeading)
 //        .scrollClipDisabled()
         .frame(maxWidth: .infinity)
         .defaultScrollAnchor(.topLeading) // used by scrollTransitionRoll
