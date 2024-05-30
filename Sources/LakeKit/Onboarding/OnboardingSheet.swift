@@ -360,9 +360,10 @@ struct OnboardingCardsView<CardContent: View>: View {
 
 fileprivate struct FreeModeView: View {
     @Binding var isPresentingStoreSheet: Bool
- 
-    @AppStorage("hasViewedFreeModeUpsell") private var hasViewedFreeModeUpsell = false
     
+    @AppStorage("hasViewedFreeModeUpsell") private var hasViewedFreeModeUpsell = false
+    @AppStorage("hasRespondedToOnboarding") var hasRespondedToOnboarding = false
+
     @Environment(\.dismiss) private var dismiss
     
     @State private var shouldAnimate = false
@@ -415,7 +416,7 @@ fileprivate struct FreeModeView: View {
                 .tint(.accentColor)
 
                 PrimaryButton(title: hasViewedFreeModeUpsell ? "Continue Without Trying Discounts" : "Continue Without Checking Upgrades", systemImage: nil, controlSize: .regular) {
-                    dismiss()
+                    hasRespondedToOnboarding = true
                 }
                 .buttonStyle(.bordered)
                 .tint(.secondary)
