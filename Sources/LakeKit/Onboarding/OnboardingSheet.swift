@@ -403,6 +403,7 @@ fileprivate struct FreeModeView: View {
                         $0.selectionDisabled()
                     } else { $0 }
                 }
+                .frame(maxWidth: 850)
                 .padding(.horizontal)
             }
         }
@@ -678,7 +679,6 @@ public struct OnboardingSheet<CardContent: View>: ViewModifier {
     @State private var isPresented = false
 
     public func body(content: Content) -> some View {
-        let _ = Self._printChanges()
         content
             .sheet(isPresented: $isPresented) {
                 OnboardingView(cards: cards, isPresentingStoreSheet: $isPresentingStoreSheet, cardContent: cardContent)
