@@ -149,9 +149,10 @@ struct OnboardingPrimaryButtons: View {
 
 struct OnboardingCardsView<CardContent: View>: View {
     let cards: [OnboardingCard]
+    @Binding var isFinished: Bool
     @Binding var navigationPath: NBNavigationPath
     @Binding var isPresentingStoreSheet: Bool
-    @ViewBuilder let cardContent: (OnboardingCard, Bool) -> CardContent
+    @ViewBuilder let cardContent: (OnboardingCard, Binding<Bool>, Bool) -> CardContent
     
     @State private var scrolledID: String?
 
@@ -207,7 +208,7 @@ struct OnboardingCardsView<CardContent: View>: View {
 //                let frameHeight: CGFloat = (cardHeightFactor * geometry.size.height).rounded()
                 let paddingVertical: CGFloat = (((1 - cardHeightFactor) / 6) * geometry.size.height).rounded()
                 let frameHeight: CGFloat = geometry.size.height - (paddingVertical * 2)
-                OnboardingCardView(card: card, isTopVisible: scrolledID == card.id, cardContent: cardContent)
+                OnboardingCardView(card: card, isFinished: $isFinished, isTopVisible: scrolledID == card.id, cardContent: cardContent)
 //                    .padding(.horizontal, 20)
                     .frame(idealHeight: frameHeight)
                     .frame(maxWidth: maxCardWidth, maxHeight: maxCardHeight)
@@ -269,6 +270,9 @@ struct OnboardingCardsView<CardContent: View>: View {
                     .scrollTargetBehavior(.viewAligned(limitBehavior: .always)) // always needed for top alignment for some reason
                     .onAppear {
                         scrolledID = cards.first?.id
+                    }
+                    .onChange(of: scrolledID) { scrolledID in
+                        isFinished = scrolledID == cards.last?.id
                     }
                 }
             } else {
@@ -350,8 +354,9 @@ struct OnboardingCardsView<CardContent: View>: View {
         }
     }
     
-    init(cards: [OnboardingCard], isPresentingStoreSheet: Binding<Bool>, navigationPath: Binding<NBNavigationPath>, cardContent: @escaping (OnboardingCard, Bool) -> CardContent) {
+    init(cards: [OnboardingCard], isFinished: Binding<Bool>, isPresentingStoreSheet: Binding<Bool>, navigationPath: Binding<NBNavigationPath>, cardContent: @escaping (OnboardingCard, Binding<Bool>, Bool) -> CardContent) {
         self.cards = cards
+        _isFinished = isFinished
         _isPresentingStoreSheet = isPresentingStoreSheet
         _navigationPath = navigationPath
         self.cardContent = cardContent
@@ -437,14 +442,15 @@ fileprivate struct FreeModeView: View {
 
 struct OnboardingView<CardContent: View>: View {
     let cards: [OnboardingCard]
+    @Binding var isFinished: Bool
     @Binding var isPresentingStoreSheet: Bool
-    @ViewBuilder let cardContent: (OnboardingCard, Bool) -> CardContent
+    @ViewBuilder let cardContent: (OnboardingCard, Binding<Bool>, Bool) -> CardContent
     
     @State private var navigationPath = NBNavigationPath()
     
     var body: some View {
         NBNavigationStack(path: $navigationPath) {
-            OnboardingCardsView(cards: cards, isPresentingStoreSheet: $isPresentingStoreSheet, navigationPath: $navigationPath, cardContent: cardContent)
+            OnboardingCardsView(cards: cards, isFinished: $isFinished, isPresentingStoreSheet: $isPresentingStoreSheet, navigationPath: $navigationPath, cardContent: cardContent)
                 .nbNavigationDestination(for: String.self, destination: { dest in
                     switch dest {
                     case "free-mode":
@@ -455,8 +461,9 @@ struct OnboardingView<CardContent: View>: View {
         }
     }
     
-    init(cards: [OnboardingCard], isPresentingStoreSheet: Binding<Bool>, cardContent: @escaping (OnboardingCard, Bool) -> CardContent) {
+    init(cards: [OnboardingCard], isFinished: Binding<Bool>, isPresentingStoreSheet: Binding<Bool>, cardContent: @escaping (OnboardingCard, Binding<Bool>, Bool) -> CardContent) {
         self.cards = cards
+        _isFinished = isFinished
         _isPresentingStoreSheet = isPresentingStoreSheet
         self.cardContent = cardContent
     }
@@ -464,8 +471,9 @@ struct OnboardingView<CardContent: View>: View {
 
 struct OnboardingCardView<CardContent: View>: View {
     let card: OnboardingCard
+    @Binding var isFinished: Bool
     let isTopVisible: Bool
-    @ViewBuilder let cardContent: (OnboardingCard, Bool) -> CardContent
+    @ViewBuilder let cardContent: (OnboardingCard, Binding<Bool>, Bool) -> CardContent
 
     @Environment(\.colorScheme) private var colorScheme
     
@@ -477,7 +485,7 @@ struct OnboardingCardView<CardContent: View>: View {
                 .lineLimit(9001)
                 .fixedSize(horizontal: false, vertical: true)
             
-            cardContent(card, isTopVisible)
+            cardContent(card, $isFinished, isTopVisible)
             
             if !card.description.isEmpty {
                 Text(card.description)
@@ -672,16 +680,18 @@ public struct OnboardingSheet<CardContent: View>: ViewModifier {
     let isActive: Bool
     @State var isPresentingStoreSheet = false
     let cards: [OnboardingCard]
-    @ViewBuilder let cardContent: (OnboardingCard, Bool) -> CardContent
+    @ViewBuilder let cardContent: (OnboardingCard, Binding<Bool>, Bool) -> CardContent
     
+
     @AppStorage("dismissedOnboardingWithoutResponse") var dismissedOnboardingWithoutResponse = false
     @AppStorage("hasRespondedToOnboarding") var hasRespondedToOnboarding = false
     @State private var isPresented = false
+    @State private var isFinished = false
 
     public func body(content: Content) -> some View {
         content
             .sheet(isPresented: $isPresented) {
-                OnboardingView(cards: cards, isPresentingStoreSheet: $isPresentingStoreSheet, cardContent: cardContent)
+                OnboardingView(cards: cards, isFinished: $isFinished, isPresentingStoreSheet: $isPresentingStoreSheet, cardContent: cardContent)
                     .onDisappear {
                         if !hasRespondedToOnboarding {
                             dismissedOnboardingWithoutResponse = true
@@ -721,7 +731,7 @@ public struct OnboardingSheet<CardContent: View>: ViewModifier {
 }
 
 public extension View {
-    func onboardingSheet(isActive: Bool = true, cards: [OnboardingCard], cardContent: @escaping (OnboardingCard, Bool) -> some View) -> some View {
+    func onboardingSheet(isActive: Bool = true, cards: [OnboardingCard], cardContent: @escaping (OnboardingCard, Binding<Bool>, Bool) -> some View) -> some View {
         self.modifier(OnboardingSheet(isActive: isActive, cards: cards, cardContent: cardContent))
     }
 }

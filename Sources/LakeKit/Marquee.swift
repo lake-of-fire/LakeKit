@@ -11,10 +11,12 @@ public struct Marquee<Content: View>: View {
     @ViewBuilder var content: Content
     @State private var containerWidth: CGFloat? = nil
     @State private var model: MarqueeModel
+    private var isActive: Bool
     private var targetVelocity: Double
     private var spacing: CGFloat
     
-    public init(targetVelocity: Double, spacing: CGFloat = 10, @ViewBuilder content: () -> Content) {
+    public init(isActive: Bool, targetVelocity: Double, spacing: CGFloat = 10, @ViewBuilder content: () -> Content) {
+        self.isActive = isActive
         self.content = content()
         self._model = .init(wrappedValue: MarqueeModel(targetVelocity: targetVelocity, spacing: spacing))
         self.targetVelocity = targetVelocity
@@ -28,7 +30,7 @@ public struct Marquee<Content: View>: View {
     }
     
     public var body: some View {
-        TimelineView(.animation(minimumInterval: 0.01 * targetVelocity, paused: !model.isAnimating)) { context in
+        TimelineView(.animation(minimumInterval: 0.01 * targetVelocity, paused: !model.isAnimating || !isActive)) { context in
             HStack(spacing: model.spacing) {
                 HStack(spacing: model.spacing) {
                     content
@@ -47,9 +49,15 @@ public struct Marquee<Content: View>: View {
         .measureWidth { containerWidth = $0 }
         .gesture(dragGesture)
         .onAppear { model.previousTick = .now }
-        .onAppear { model.isAnimating = true }
+        .onAppear { model.isAnimating = isActive }
         .onDisappear { model.isAnimating = false }
         .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+        .onChange(of: isActive) { newValue in
+            if !newValue {
+                model.reset()
+            }
+            model.isAnimating = newValue
+        }
     }
     
     var dragGesture: some Gesture {
@@ -108,6 +116,14 @@ struct MarqueeModel {
     mutating func dragEnded(_ value: DragGesture.Value) {
         offset = dragStartOffset! + value.translation.width
         dragStartOffset = nil
+    }
+    
+    mutating func reset() {
+        offset = 0
+        currentVelocity = 0
+        previousTick = .now
+        dragStartOffset = nil
+        dragTranslation = 0
     }
 }
 
