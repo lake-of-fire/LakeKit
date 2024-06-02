@@ -82,6 +82,8 @@ struct OnboardingPrimaryButtons: View {
     let isFinishedOnboarding: Bool
     @Binding var isPresentingStoreSheet: Bool
     @Binding var navigationPath: NBNavigationPath
+    
+    @AppStorage("hasSeenOnboarding") var hasSeenOnboarding = false
 
     @EnvironmentObject private var storeViewModel: StoreViewModel
     @Environment(\.dismiss) private var dismiss
@@ -92,6 +94,7 @@ struct OnboardingPrimaryButtons: View {
     var body: some View {
         if storeViewModel.isSubscribed {
             PrimaryButton(title: isFinishedOnboarding ? "Continue" : "Skip Onboarding", systemImage: nil) {
+                hasSeenOnboarding = true
                 dismiss()
             }
             .tint(isFinishedOnboarding ? .accentColor : .secondary)
@@ -367,6 +370,7 @@ fileprivate struct FreeModeView: View {
     @Binding var isPresentingStoreSheet: Bool
     
     @AppStorage("hasViewedFreeModeUpsell") private var hasViewedFreeModeUpsell = false
+    @AppStorage("hasSeenOnboarding") var hasSeenOnboarding = false
     @AppStorage("hasRespondedToOnboarding") var hasRespondedToOnboarding = false
 
     @Environment(\.dismiss) private var dismiss
@@ -422,6 +426,7 @@ fileprivate struct FreeModeView: View {
                 .tint(.accentColor)
 
                 PrimaryButton(title: hasViewedFreeModeUpsell ? "Continue Without Trying Discounts" : "Continue Without Checking Upgrades", systemImage: nil, controlSize: .regular) {
+                    hasSeenOnboarding = true
                     hasRespondedToOnboarding = true
                 }
                 .buttonStyle(.bordered)
@@ -683,7 +688,7 @@ public struct OnboardingSheet<CardContent: View>: ViewModifier {
     @ViewBuilder let cardContent: (OnboardingCard, Binding<Bool>, Bool) -> CardContent
     
 
-    @AppStorage("dismissedOnboardingWithoutResponse") var dismissedOnboardingWithoutResponse = false
+    @AppStorage("hasSeenOnboarding") var hasSeenOnboarding = false
     @AppStorage("hasRespondedToOnboarding") var hasRespondedToOnboarding = false
     @State private var isPresented = false
     @State private var isFinished = false
@@ -694,7 +699,7 @@ public struct OnboardingSheet<CardContent: View>: ViewModifier {
                 OnboardingView(cards: cards, isFinished: $isFinished, isPresentingStoreSheet: $isPresentingStoreSheet, cardContent: cardContent)
                     .onDisappear {
                         if !hasRespondedToOnboarding {
-                            dismissedOnboardingWithoutResponse = true
+                            hasSeenOnboarding = true
                         }
                     }
                     .storeSheet(isPresented: $isPresentingStoreSheet && isActive)
@@ -703,29 +708,34 @@ public struct OnboardingSheet<CardContent: View>: ViewModifier {
             .onAppear {
                 refresh()
             }
+            .onChange(of: isFinished) { isFinished in
+                if isFinished {
+                    hasSeenOnboarding = true
+                }
+            }
             .onChange(of: isActive) { isActive in
                 refresh(isActive: isActive)
             }
-            .onChange(of: dismissedOnboardingWithoutResponse) { dismissedOnboardingWithoutResponse in
-                refresh(dismissedOnboardingWithoutResponse: dismissedOnboardingWithoutResponse)
+            .onChange(of: hasSeenOnboarding) { hasSeenOnboarding in
+                refresh(hasSeenOnboarding: hasSeenOnboarding)
             }
             .onChange(of: hasRespondedToOnboarding) { hasRespondedToOnboarding in
                 refresh(hasRespondedToOnboarding: hasRespondedToOnboarding)
             }
             .onChange(of: isPresented) { isPresented in
                 if !isPresented && !hasRespondedToOnboarding {
-                    dismissedOnboardingWithoutResponse = true
+                    hasSeenOnboarding = true
                 }
             }
     }
     
-    private func refresh(isActive: Bool? = nil, hasRespondedToOnboarding: Bool? = nil, dismissedOnboardingWithoutResponse: Bool? = nil) {
+    private func refresh(isActive: Bool? = nil, hasRespondedToOnboarding: Bool? = nil, hasSeenOnboarding: Bool? = nil) {
         let isActive = isActive ?? self.isActive
         let hasRespondedToOnboarding = hasRespondedToOnboarding ?? self.hasRespondedToOnboarding
-        let dismissedOnboardingWithoutResponse = dismissedOnboardingWithoutResponse ?? self.dismissedOnboardingWithoutResponse
+        let hasSeenOnboarding = hasSeenOnboarding ?? self.hasSeenOnboarding
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 20_000_000)
-            isPresented = isActive && !(hasRespondedToOnboarding || dismissedOnboardingWithoutResponse)
+            isPresented = isActive && !(hasRespondedToOnboarding || hasSeenOnboarding)
         }
     }
 }

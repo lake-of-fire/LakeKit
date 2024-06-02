@@ -3,7 +3,7 @@ import SwiftUI
 public struct ConditionalUnfinishedOnboardingReminder: View {
     public init() { }
     
-    @AppStorage("dismissedOnboardingWithoutResponse") var dismissedOnboardingWithoutResponse = false
+    @AppStorage("hasSeenOnboarding") var hasSeenOnboarding = false
     @AppStorage("hasRespondedToOnboarding") private var hasRespondedToOnboarding = false
     @EnvironmentObject private var storeViewModel: StoreViewModel
     
@@ -20,9 +20,9 @@ public struct ConditionalUnfinishedOnboardingReminder: View {
     }
     
     public var body: some View {
-        if !hasRespondedToOnboarding && dismissedOnboardingWithoutResponse && !storeViewModel.isSubscribed {
+        if !hasRespondedToOnboarding && hasSeenOnboarding && !storeViewModel.isSubscribed {
             Button {
-                dismissedOnboardingWithoutResponse = false
+                hasSeenOnboarding = false
             } label: {
                 GroupBox(label: HStack {
                     Label {
