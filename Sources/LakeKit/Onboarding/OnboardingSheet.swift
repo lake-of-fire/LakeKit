@@ -708,11 +708,6 @@ public struct OnboardingSheet<CardContent: View>: ViewModifier {
             .onAppear {
                 refresh()
             }
-            .onChange(of: isFinished) { isFinished in
-                if isFinished {
-                    hasSeenOnboarding = true
-                }
-            }
             .onChange(of: isActive) { isActive in
                 refresh(isActive: isActive)
             }
