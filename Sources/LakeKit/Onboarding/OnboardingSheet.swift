@@ -181,10 +181,19 @@ struct OnboardingCardsView<CardContent: View>: View {
     @Environment(\.colorScheme) private var colorScheme
 #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.userInterfaceIdiom) private var userInterfaceIdiom
 #endif
     @ScaledMetric(relativeTo: .body) private var maxCardWidth: CGFloat = 500
     @ScaledMetric(relativeTo: .body) private var maxCardHeight: CGFloat = 580
 
+    private var isPortrait: Bool {
+#if os(iOS)
+        return horizontalSizeClass == .compact && userInterfaceIdiom == .phone
+#elseif os(macOS)
+        return true
+#endif
+    }
+    
     @ViewBuilder private func scrollViewHeader() -> some View {
         Group {
             if let appName = appName {
@@ -729,7 +738,7 @@ public struct OnboardingSheet<CardContent: View>: ViewModifier {
         let hasRespondedToOnboarding = hasRespondedToOnboarding ?? self.hasRespondedToOnboarding
         let hasSeenOnboarding = hasSeenOnboarding ?? self.hasSeenOnboarding
         Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 20_000_000)
+            try? await Task.sleep(nanoseconds: 250_000_000)
             isPresented = isActive && !(hasRespondedToOnboarding || hasSeenOnboarding)
         }
     }
