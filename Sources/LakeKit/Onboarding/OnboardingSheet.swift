@@ -162,7 +162,7 @@ struct OnboardingCardsView<CardContent: View>: View {
 //    private var cardMinHeight: CGFloat = 330
     private var cardHeightFactor: CGFloat {
 #if os(iOS)
-        if horizontalSizeClass == .compact {
+        if isPortrait {
             return 0.75
         }
 #endif
@@ -188,7 +188,7 @@ struct OnboardingCardsView<CardContent: View>: View {
 
     private var isPortrait: Bool {
 #if os(iOS)
-        return horizontalSizeClass == .compact && userInterfaceIdiom == .phone
+        return horizontalSizeClass == .compact || userInterfaceIdiom != .phone
 #elseif os(macOS)
         return true
 #endif
@@ -344,17 +344,17 @@ struct OnboardingCardsView<CardContent: View>: View {
 #elseif os(iOS)
             GeometryReader { geometry in
                 HStack(spacing: 0) {
-                    if horizontalSizeClass == .regular {
+                    if !isPortrait {
                         callToActionView
                             .frame(maxHeight: .infinity)
                             .background(.regularMaterial)
                     }
                     scrollView
-                        .frame(width: horizontalSizeClass == .regular ? 0.666 * geometry.insetAdjustedSize.width : nil)
+                        .frame(width: !isPortrait ? 0.666 * geometry.insetAdjustedSize.width : nil)
                 }
             }
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                if horizontalSizeClass == .compact {
+                if isPortrait {
                     callToActionView
                         .background(.regularMaterial)
                 }
