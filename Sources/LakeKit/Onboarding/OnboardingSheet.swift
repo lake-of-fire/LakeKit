@@ -80,13 +80,13 @@ fileprivate struct PrimaryButton: View {
 
 struct OnboardingPrimaryButtons: View {
     let isFinishedOnboarding: Bool
+    @Binding var isPresentingSheet: Bool
     @Binding var isPresentingStoreSheet: Bool
     @Binding var navigationPath: NBNavigationPath
     
     @AppStorage("hasSeenOnboarding") var hasSeenOnboarding = false
 
     @EnvironmentObject private var storeViewModel: StoreViewModel
-    @Environment(\.dismiss) private var dismiss
 #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 #endif
@@ -95,7 +95,7 @@ struct OnboardingPrimaryButtons: View {
         if storeViewModel.isSubscribed {
             PrimaryButton(title: isFinishedOnboarding ? "Continue" : "Skip Onboarding", systemImage: nil) {
                 hasSeenOnboarding = true
-                dismiss()
+                isPresentingSheet = false
             }
             .tint(isFinishedOnboarding ? .accentColor : .secondary)
             .buttonStyle(.borderedProminent)
@@ -152,6 +152,7 @@ struct OnboardingPrimaryButtons: View {
 
 struct OnboardingCardsView<CardContent: View>: View {
     let cards: [OnboardingCard]
+    @Binding var isPresentingSheet: Bool
     @Binding var isFinished: Bool
     @Binding var navigationPath: NBNavigationPath
     @Binding var isPresentingStoreSheet: Bool
@@ -315,7 +316,7 @@ struct OnboardingCardsView<CardContent: View>: View {
     
     @ViewBuilder private var callToActionView: some View {
         VStack {
-            OnboardingPrimaryButtons(isFinishedOnboarding: scrolledID == cards.last?.id, isPresentingStoreSheet: $isPresentingStoreSheet, navigationPath: $navigationPath)
+            OnboardingPrimaryButtons(isFinishedOnboarding: scrolledID == cards.last?.id, isPresentingSheet: $isPresentingSheet, isPresentingStoreSheet: $isPresentingStoreSheet, navigationPath: $navigationPath)
         }
         .padding()
         .frame(maxWidth: .infinity)
@@ -366,8 +367,9 @@ struct OnboardingCardsView<CardContent: View>: View {
         }
     }
     
-    init(cards: [OnboardingCard], isFinished: Binding<Bool>, isPresentingStoreSheet: Binding<Bool>, navigationPath: Binding<NBNavigationPath>, cardContent: @escaping (OnboardingCard, Binding<Bool>, Bool) -> CardContent) {
+    init(cards: [OnboardingCard], isPresentingSheet: Binding<Bool>, isFinished: Binding<Bool>, isPresentingStoreSheet: Binding<Bool>, navigationPath: Binding<NBNavigationPath>, cardContent: @escaping (OnboardingCard, Binding<Bool>, Bool) -> CardContent) {
         self.cards = cards
+        _isPresentingSheet = isPresentingSheet
         _isFinished = isFinished
         _isPresentingStoreSheet = isPresentingStoreSheet
         _navigationPath = navigationPath
@@ -376,14 +378,13 @@ struct OnboardingCardsView<CardContent: View>: View {
 }
 
 fileprivate struct FreeModeView: View {
+    @Binding var isPresentingSheet: Bool
     @Binding var isPresentingStoreSheet: Bool
     
     @AppStorage("hasViewedFreeModeUpsell") private var hasViewedFreeModeUpsell = false
     @AppStorage("hasSeenOnboarding") var hasSeenOnboarding = false
     @AppStorage("hasRespondedToOnboarding") var hasRespondedToOnboarding = false
 
-    @Environment(\.dismiss) private var dismiss
-    
     @State private var shouldAnimate = false
     
     var body: some View {
@@ -437,6 +438,7 @@ fileprivate struct FreeModeView: View {
                 PrimaryButton(title: hasViewedFreeModeUpsell ? "Continue Without Trying Discounts" : "Continue Without Checking Upgrades", systemImage: nil, controlSize: .regular) {
                     hasSeenOnboarding = true
                     hasRespondedToOnboarding = true
+                    isPresentingSheet = false
                 }
                 .buttonStyle(.bordered)
                 .tint(.secondary)
@@ -456,6 +458,7 @@ fileprivate struct FreeModeView: View {
 
 struct OnboardingView<CardContent: View>: View {
     let cards: [OnboardingCard]
+    @Binding var isPresentingSheet: Bool
     @Binding var isFinished: Bool
     @Binding var isPresentingStoreSheet: Bool
     @ViewBuilder let cardContent: (OnboardingCard, Binding<Bool>, Bool) -> CardContent
@@ -464,19 +467,20 @@ struct OnboardingView<CardContent: View>: View {
     
     var body: some View {
         NBNavigationStack(path: $navigationPath) {
-            OnboardingCardsView(cards: cards, isFinished: $isFinished, isPresentingStoreSheet: $isPresentingStoreSheet, navigationPath: $navigationPath, cardContent: cardContent)
+            OnboardingCardsView(cards: cards, isPresentingSheet: $isPresentingSheet, isFinished: $isFinished, isPresentingStoreSheet: $isPresentingStoreSheet, navigationPath: $navigationPath, cardContent: cardContent)
                 .nbNavigationDestination(for: String.self, destination: { dest in
                     switch dest {
                     case "free-mode":
-                        FreeModeView(isPresentingStoreSheet: $isPresentingStoreSheet)
+                        FreeModeView(isPresentingSheet: $isPresentingSheet, isPresentingStoreSheet: $isPresentingStoreSheet)
                     default: EmptyView()
                     }
                 })
         }
     }
     
-    init(cards: [OnboardingCard], isFinished: Binding<Bool>, isPresentingStoreSheet: Binding<Bool>, cardContent: @escaping (OnboardingCard, Binding<Bool>, Bool) -> CardContent) {
+    init(cards: [OnboardingCard], isPresentingSheet: Binding<Bool>, isFinished: Binding<Bool>, isPresentingStoreSheet: Binding<Bool>, cardContent: @escaping (OnboardingCard, Binding<Bool>, Bool) -> CardContent) {
         self.cards = cards
+        _isPresentingSheet = isPresentingSheet
         _isFinished = isFinished
         _isPresentingStoreSheet = isPresentingStoreSheet
         self.cardContent = cardContent
@@ -533,7 +537,7 @@ struct OnboardingCardView<CardContent: View>: View {
     }
 }
 
-@available(iOS 13, macOS 14, *)
+//@available(iOS 15, macOS 14, *)
 fileprivate struct PageNavigator: View {
     @Binding var scrolledID: String?
     let cards: [OnboardingCard]
@@ -544,6 +548,8 @@ fileprivate struct PageNavigator: View {
     @ScaledMetric(relativeTo: .body) private var pageButtonIconFontSize = 15
 #if os(iOS)
     @ScaledMetric(relativeTo: .body) private var pageButtonMinHeight = 22
+#elseif os(macOS)
+    @ScaledMetric(relativeTo: .body) private var pageButtonMinHeight = 26
 #endif
 
     private var currentIndex: Int? {
@@ -575,7 +581,7 @@ fileprivate struct PageNavigator: View {
             action()
         } label: {
             Group {
-                if #available(iOS 17.0, *) {
+                if #available(iOS 15.0, macOS 13, *) {
                     Label {
                         Text(title)
                             .font(.system(size: pageButtonTitleFontSize))
@@ -590,7 +596,7 @@ fileprivate struct PageNavigator: View {
                             .fontDesign(.rounded)
 #endif
                     }
-                    .symbolEffect(.bounce, value: isAnimated ? animateCount : 0)
+//                    .symbolEffect(.bounce, value: isAnimated ? animateCount : 0)
                 } else {
                     Label {
                         Text(title)
@@ -613,9 +619,12 @@ fileprivate struct PageNavigator: View {
                     }
                 }
             }
-#if os(iOS)
+            
+#if os(macOS)
+            .padding(6)
+#endif
             .frame(minWidth: pageButtonMinHeight, minHeight: pageButtonMinHeight)
-
+#if os(iOS)
             .padding(12)
 #endif
         }
@@ -662,8 +671,8 @@ fileprivate struct PageNavigator: View {
                     scrollTo(index: currentIndex - 1)
                 }
                 .labelStyle(.iconOnly)
-                .clipShape(.circle)
                 .foregroundStyle(Color.accentColor)
+                .clipShape(.circle)
 
                 Spacer()
                 
@@ -695,7 +704,6 @@ public struct OnboardingSheet<CardContent: View>: ViewModifier {
     @State var isPresentingStoreSheet = false
     let cards: [OnboardingCard]
     @ViewBuilder let cardContent: (OnboardingCard, Binding<Bool>, Bool) -> CardContent
-    
 
     @AppStorage("hasSeenOnboarding") var hasSeenOnboarding = false
     @AppStorage("hasRespondedToOnboarding") var hasRespondedToOnboarding = false
@@ -705,7 +713,10 @@ public struct OnboardingSheet<CardContent: View>: ViewModifier {
     public func body(content: Content) -> some View {
         content
             .sheet(isPresented: $isPresented) {
-                OnboardingView(cards: cards, isFinished: $isFinished, isPresentingStoreSheet: $isPresentingStoreSheet, cardContent: cardContent)
+                OnboardingView(cards: cards, isPresentingSheet: $isPresented, isFinished: $isFinished, isPresentingStoreSheet: $isPresentingStoreSheet, cardContent: cardContent)
+#if os(macOS)
+                    .frame(idealWidth: 450, idealHeight: 600)
+#endif
                     .onDisappear {
                         if !hasRespondedToOnboarding {
                             hasSeenOnboarding = true
