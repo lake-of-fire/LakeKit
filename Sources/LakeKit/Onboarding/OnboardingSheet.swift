@@ -581,7 +581,7 @@ fileprivate struct PageNavigator: View {
             action()
         } label: {
             Group {
-                if #available(iOS 15.0, macOS 13, *) {
+                if #available(iOS 16.0, macOS 13, *) {
                     Label {
                         Text(title)
                             .font(.system(size: pageButtonTitleFontSize))
@@ -593,7 +593,13 @@ fileprivate struct PageNavigator: View {
                             .font(.system(size: pageButtonIconFontSize))
 #if os(iOS)
                             .bold()
-                            .fontDesign(.rounded)
+                            .modifier {
+                                if #available(iOS 16.1, macOS 13.1, *) {
+                                    $0
+                                        .bold()
+                                        .fontDesign(.rounded)
+                                } else { $0 }
+                            }
 #endif
                     }
 //                    .symbolEffect(.bounce, value: isAnimated ? animateCount : 0)
@@ -607,15 +613,6 @@ fileprivate struct PageNavigator: View {
                     } icon: {
                         Image(systemName: systemImage)
                             .font(.system(size: pageButtonIconFontSize))
-#if os(iOS)
-                            .modifier {
-                                if #available(iOS 16.1, macOS 13.1, *) {
-                                    $0
-                                        .bold()
-                                        .fontDesign(.rounded)
-                                } else { $0 }
-                            }
-#endif
                     }
                 }
             }
