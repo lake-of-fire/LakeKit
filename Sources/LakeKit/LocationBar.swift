@@ -51,13 +51,47 @@ public enum LocationBarAction: Equatable {
     }
 }
 
+fileprivate struct LocationBarIntrospection: ViewModifier {
+    @EnvironmentObject private var locationController: LocationController
+    
+    func body(content: Content) -> some View {
+        content
+#if os(macOS)
+            .introspect(.textField, on: .macOS(.v12...)) { textField in
+                // See: https://developer.apple.com/forums/thread/74372
+                if locationController.isPresentingLocationOpening {
+                    if textField.currentEditor() == nil {
+                        textField.becomeFirstResponder()
+                    } else {
+                        locationController.isPresentingLocationOpening = false
+                        textField.resignFirstResponder()
+                    }
+                }
+            }
+#else
+            .introspect(.textField, on: .iOS(.v15...)) { textField in
+                if locationController.isPresentingLocationOpening {
+                    Task { @MainActor in
+                        // See: https://developer.apple.com/forums/thread/74372
+                        if textField.isFirstResponder {
+                            locationController.isPresentingLocationOpening = false
+                            textField.resignFirstResponder()
+                        } else {
+                            textField.becomeFirstResponder()
+                        }
+                    }
+                }
+            }
+#endif
+    }
+}
+
 public struct LocationBar: View, Equatable {
     @Binding var action: LocationBarAction
     @Binding var locationText: String
 //    @Binding var locationTitle: String
     @Binding var selectAll: Bool
     private let onSubmit: ((URL?, String) async throws -> Void)
-    @EnvironmentObject private var locationController: LocationController
     @Environment(\.colorScheme) private var colorScheme
     
     var url: URL? {
@@ -112,33 +146,7 @@ public struct LocationBar: View, Equatable {
                 try await onSubmit(url, locationText)
             }
         }
-#if os(macOS)
-        .introspect(.textField, on: .macOS(.v12...)) { textField in
-            // See: https://developer.apple.com/forums/thread/74372
-            if locationController.isPresentingLocationOpening {
-                if textField.currentEditor() == nil {
-                    textField.becomeFirstResponder()
-                } else {
-                    locationController.isPresentingLocationOpening = false
-                    textField.resignFirstResponder()
-                }
-            }
-        }
-#else
-        .introspect(.textField, on: .iOS(.v15...)) { textField in
-            if locationController.isPresentingLocationOpening {
-                Task { @MainActor in
-                    // See: https://developer.apple.com/forums/thread/74372
-                    if textField.isFirstResponder {
-                        locationController.isPresentingLocationOpening = false
-                        textField.resignFirstResponder()
-                    } else {
-                        textField.becomeFirstResponder()
-                    }
-                }
-            }
-        }
-#endif
+        .modifier(LocationBarIntrospection())
 #if os(iOS)
         // See: https://stackoverflow.com/a/67502495/89373
         .onReceive(NotificationCenter.default.publisher(for: UITextField.textDidBeginEditingNotification)) { obj in
