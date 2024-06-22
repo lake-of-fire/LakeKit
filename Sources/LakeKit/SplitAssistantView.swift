@@ -17,6 +17,14 @@ fileprivate struct SplitInternalView<Primary: View, Secondary: View>: View {
         }
     }
     
+    private var hideSplitter: Bool {
+#if os(macOS)
+        return true
+#elseif os(iOS)
+        return false
+#endif
+    }
+    
     var body: some View {
         Split {
             primary
@@ -31,7 +39,7 @@ fileprivate struct SplitInternalView<Primary: View, Secondary: View>: View {
             SplitViewSplitter(styling: SplitStyling(
                 visibleThickness: 30,
                 invisibleThickness: 0,
-                hideSplitter: false))
+                hideSplitter: hideSplitter))
         }
     }
     
@@ -138,22 +146,27 @@ struct SplitViewSplitter: SplitDivider {
         }
         return color
     }
+    
     public var body: some View {
         ZStack {
             switch layout.value {
             case .horizontal:
                 Color(white: 1, opacity: 0.0000000001)
                     .frame(width: visibleThickness)
-                Capsule()
-                    .fill(visibleColor)
-                    // Sourcce on 35: https://stackoverflow.com/a/72246733/89373
-                    .frame(width: 5, height: 30)
+                if !styling.hideSplitter {
+                    Capsule()
+                        .fill(visibleColor)
+                    // Source on 35: https://stackoverflow.com/a/72246733/89373
+                        .frame(width: 5, height: 30)
+                }
             case .vertical:
                 Color(white: 1, opacity: 0.0000000001)
                     .frame(height: visibleThickness)
-                Capsule()
-                    .fill(visibleColor)
-                    .frame(width: 30, height: 5)
+                if !styling.hideSplitter {
+                    Capsule()
+                        .fill(visibleColor)
+                        .frame(width: 30, height: 5)
+                }
             }
         }
         // Perhaps should consider some kind of custom hoverEffect, since the cursor change
