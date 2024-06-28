@@ -6,12 +6,7 @@ public struct CopyButton: View {
     
     public var body: some View {
         Button {
-#if os(iOS)
-            UIPasteboard.general.string = textToCopy
-#elseif os(macOS)
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(textToCopy, forType: .string)
-#endif
+            Pasteboard.copy(textToCopy)
         } label: {
             Label(title, systemImage: "doc.on.doc")
         }
@@ -22,4 +17,3 @@ public struct CopyButton: View {
         _textToCopy = textToCopy
     }
 }
-
