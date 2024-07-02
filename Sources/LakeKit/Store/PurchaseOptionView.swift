@@ -162,7 +162,7 @@ public struct PurchaseOptionView: View {
                                 //                            Text(buyTitle ?? product.displayName)
                                 Text("Upgrade")
                                 //                                .font(.callout)
-//                                    .bold()
+                                    .bold()
                                     .multilineTextAlignment(.center)
                                     .foregroundColor(.white)
                                     .padding(.horizontal, buttonHorizontalPadding)
