@@ -31,7 +31,7 @@ public struct PurchaseOptionView: View {
     
 //    @ScaledMetric(relativeTo: .caption) private var subtitleWidth = 50
 //    @ScaledMetric(relativeTo: .caption) private var subtitleHeight = 40
-    @ScaledMetric(relativeTo: .body) private var buttonIdealWidth = 130
+    @ScaledMetric(relativeTo: .body) private var buttonIdealWidth = 145
     @ScaledMetric(relativeTo: .body) private var buttonHorizontalPadding = 16
     
     @Environment(\.isICloudSyncActive) private var isICloudSyncActive: Bool
@@ -85,125 +85,127 @@ public struct PurchaseOptionView: View {
     }
     
     public var body: some View {
-        GroupBox {
             Button {
                 submitAction()
             } label: {
-                VStack(spacing: 0) {
-                    HStack(spacing: 0) {
-                        Circle()
-                            .modifier {
-                                if #available(iOS 16, macOS 13, *) {
-                                    $0.fill(Color.accentColor.gradient)
-                                } else {
-                                    $0.foregroundColor(Color.accentColor)
+                GroupBox {
+                    VStack(spacing: 0) {
+                        HStack(spacing: 0) {
+                            Circle()
+                                .modifier {
+                                    if #available(iOS 16, macOS 13, *) {
+                                        $0.fill(Color.accentColor.gradient)
+                                    } else {
+                                        $0.foregroundColor(Color.accentColor)
+                                    }
                                 }
+                                .frame(width: 40, height: 40)
+                                .overlay {
+                                    Image(systemName: symbolName)
+                                        .font(.system(size: 18))
+                                        .foregroundColor(.white)
+                                        .fixedSize()
+                                }
+                                .clipShape(Circle())
+                                .fixedSize()
+                            Spacer()
+                                .frame(minWidth: 5, idealWidth: 15)
+                            VStack(spacing: 0) {
+                                Text(displayPrice)
+                                    .font(.headline)
+                                    .bold()
+                                    .fixedSize(horizontal: false, vertical: true)
+                                Text(displayPriceType)
+                                    .multilineTextAlignment(.center)
+                                    .foregroundColor(.primary)
+                                    .foregroundColor(.secondary)
+                                    .font(.caption)
+                                    .fixedSize(horizontal: false, vertical: true)
                             }
-                            .frame(width: 40, height: 40)
-                            .overlay {
-                                Image(systemName: symbolName)
-                                    .font(.system(size: 18))
-                                    .foregroundColor(.white)
-                                    .fixedSize()
-                            }
-                            .clipShape(Circle())
-                            .fixedSize()
-                        Spacer()
-                            .frame(minWidth: 5, idealWidth: 15)
-                        VStack(spacing: 0) {
-                            Text(displayPrice)
+                        }
+                        .fixedSize(horizontal: true, vertical: false)
+                        .padding(.horizontal, 2)
+                        .padding(.vertical, 2)
+                        
+                        if buyTitle != nil {
+                            Text(product.displayName)
                                 .font(.headline)
-                                .bold()
-                                .fixedSize(horizontal: false, vertical: true)
-                            Text(displayPriceType)
                                 .multilineTextAlignment(.center)
+                                .lineLimit(9001)
+                                .padding(.horizontal, 5)
                                 .foregroundColor(.primary)
-                                .foregroundColor(.secondary)
-                                .font(.caption)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
-                    }
-                    .fixedSize(horizontal: true, vertical: false)
-                    .padding(.horizontal, 2)
-                    .padding(.vertical, 2)
-                    
-                    if buyTitle != nil {
-                        Text(product.displayName)
-                            .font(.headline)
+                        
+                        Text(product.description)
+                            .font(.caption)
                             .multilineTextAlignment(.center)
                             .lineLimit(9001)
-                            .padding(.horizontal, 5)
-                            .foregroundColor(.primary)
+                            .foregroundColor(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
-                    }
-                    
-                    Text(product.description)
-                        .font(.caption)
-                        .multilineTextAlignment(.center)
-                        .lineLimit(9001)
-                        .foregroundColor(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.vertical, 12)
-                    
-                    if product.type == .autoRenewable, [PurchaseState.purchased, .pending, .inProgress].contains(purchaseState) {
-                        if purchaseState == .inProgress {
-                            ProgressView()
-                            //                                    .padding()
-                        } else {
-                            Text(purchaseState.shortDescription())
-                                .bold()
-                                .italic()
-                                .foregroundColor(.primary)
-                                .padding()
-                        }
-                    } else {
-                        VStack {
-#if os(iOS)
-                            //                            Text(buyTitle ?? product.displayName)
-                            Text("Upgrade")
-                            //                                .font(.callout)
-                                .bold()
-                                .multilineTextAlignment(.center)
-                                .foregroundColor(.white)
-                                .padding(.horizontal, buttonHorizontalPadding)
-                                .padding(.vertical, 6)
-                                .fixedSize(horizontal: false, vertical: true)
-                                .background(
-                                    Capsule()
-                                        .foregroundColor(Color.accentColor)
-                                )
-#else
-                            Button {
-                                submitAction()
-                            } label: {
-                                //                                Text(buyTitle ?? product.displayName)
-                                Text("Upgrade")
+                            .padding(.vertical, 12)
+                        
+                        if product.type == .autoRenewable, [PurchaseState.purchased, .pending, .inProgress].contains(purchaseState) {
+                            if purchaseState == .inProgress {
+                                ProgressView()
+                                //                                    .padding()
+                            } else {
+                                Text(purchaseState.shortDescription())
                                     .bold()
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 4)
+                                    .italic()
+                                    .foregroundColor(.primary)
+                                    .padding()
                             }
-                            .buttonStyle(.borderedProminent)
-                            .disabled(!canMakePayments)
-                            .padding(.bottom, unitsLabel.isEmpty ? 4 : 0)
+                        } else {
+                            VStack {
+#if os(iOS)
+                                //                            Text(buyTitle ?? product.displayName)
+                                Text("Upgrade")
+                                //                                .font(.callout)
+//                                    .bold()
+                                    .multilineTextAlignment(.center)
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, buttonHorizontalPadding)
+                                    .padding(.vertical, 6)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .background(
+                                        Capsule()
+                                            .foregroundColor(Color.accentColor)
+                                    )
+#else
+                                Button {
+                                    submitAction()
+                                } label: {
+                                    //                                Text(buyTitle ?? product.displayName)
+                                    Text("Upgrade")
+                                        .bold()
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 4)
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .disabled(!canMakePayments)
+                                .padding(.bottom, unitsLabel.isEmpty ? 4 : 0)
 #endif
-                            if isUnitsLabelVisible {
-                                Text(unitsLabel)
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                    .frame(minHeight: 24)
-                                    .padding(.bottom, unitsLabel.isEmpty ? 4 : 6)
+                                if isUnitsLabelVisible {
+                                    Text(unitsLabel)
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                        .frame(minHeight: 24)
+                                        .padding(.bottom, unitsLabel.isEmpty ? 4 : 6)
+                                }
                             }
                         }
                     }
                 }
+                .frame(idealWidth: buttonIdealWidth)
+                .fixedSize()
             }
-            .buttonStyle(BuyButtonStyle())
-//            .buttonStyle(.bordered)
+//            .buttonStyle(BuyButtonStyle())
+            .buttonStyle(.plain)
 //            .backgroundStyle(.secondary)
 //            .foregroundStyle(.primary)
-            .frame(idealWidth: buttonIdealWidth)
-            .fixedSize()
-        }
+//            .frame(idealWidth: buttonIdealWidth)
+//        }
 //        .frame(maxWidth: maxWidth)
 //        .buttonBorderShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         //        .buttonStyle(.borderless)

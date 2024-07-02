@@ -346,7 +346,7 @@ public struct StoreView: View {
                                 scrollValue.scrollTo("education-discount", anchor: .top)
                                 isStudentDiscountExpanded = true
                             } label: {
-                                (Text("View eligibility for discounts") + Text("  \(Image(systemName: "chevron.right.circle.fill"))"))
+                                (Text("View discounts eligibility") + Text("  \(Image(systemName: "chevron.right.circle.fill"))"))
                                     .font(.callout)
                                     .bold()
                                     .lineLimit(9001)
@@ -413,7 +413,7 @@ public struct StoreView: View {
                         GroupBox {
                             StudentDiscountDisclosureGroup(isExpanded: $isStudentDiscountExpanded, discountView: {
                                 VStack {
-                                    Text("Students and educators already have enough expenses to manage. Let's ease the burden. If you're not in education and can afford it, please use the regular rate options.")
+                                    Text("Students, educators, and those who cannot afford the full price rates are welcome to a special discount. If you're not in education and can afford it, please use the regular purchasing options.")
                                         .font(.subheadline)
                                         .padding()
                                         .multilineTextAlignment(.leading)
