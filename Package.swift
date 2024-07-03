@@ -36,7 +36,7 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-collections.git", branch: "main"),
         .package(url: "https://github.com/lake-of-fire/BetterSafariView2.git", branch: "main"),
         .package(url: "https://github.com/objecthub/swift-markdownkit.git", branch: "master"),
-        .package(url: "https://github.com/evgenyneu/keychain-swift.git", branch: "master"),
+        .package(url: "https://github.com/lake-of-fire/keychain-swift.git", branch: "master"),
         .package(url: "https://github.com/lake-of-fire/DSFSearchField.git", branch: "main"),
         .package(url: "https://github.com/twostraws/Inferno.git", branch: "main"),
         .package(url: "https://github.com/siteline/SwiftUI-Introspect.git", branch: "main"),
