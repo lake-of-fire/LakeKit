@@ -104,6 +104,7 @@ private struct ShareSheet<Data>: UIViewControllerRepresentable where Data: Rando
     }
 
     func updateUIViewController(_ controller: Representable, context: Context) {
+        controller.isActive = isActive
         controller.item = $item
     }
 }
@@ -155,8 +156,11 @@ private extension ShareSheet {
         private func presentController() {
             let controller = UIActivityViewController(activityItems: item.wrappedValue?.data.map { $0 } ?? [], applicationActivities: nil)
             controller.presentationController?.delegate = self
-            controller.popoverPresentationController?.permittedArrowDirections = .any
-            controller.popoverPresentationController?.sourceRect = view.bounds
+//            controller.popoverPresentationController?.permittedArrowDirections = .any
+            controller.popoverPresentationController?.permittedArrowDirections = []
+//            controller.popoverPresentationController?.sourceRect = view.bounds
+            // See: https://stackoverflow.com/a/78456715/89373
+            controller.popoverPresentationController?.sourceRect = CGRect(x: view.bounds.midX, y: view.bounds.midY, width: 0, height: 0)
             controller.popoverPresentationController?.sourceView = view
             controller.completionWithItemsHandler = { [weak self] _, _, _, _ in
                 self?.item.wrappedValue = nil
