@@ -139,38 +139,43 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
             var finalURL = value == nil ? baseURL.appendingPathExtension("nil") :
             O.self == String.self ? baseURL.appendingPathExtension("lzfse") :
             baseURL.appendingPathExtension("json")
+            var calculatedCost = value == nil ? 0 : 1
             do {
                 if let value = value {
-                    let data: Data
-                    if let stringValue = value as? String, stringValue.utf8.underestimatedCount < 800 {
-                        finalURL = finalURL.deletingPathExtension().appendingPathExtension("txt")
-                        data = Data(stringValue.utf8)
-                    } else if let stringValue = value as? String {
-                        guard let compressedData = try (stringValue.data(using: .utf8) as NSData?)?.compressed(using: .lzfse) else {
-                            return
+                    var data: Data?
+                    if let stringValue = value as? String {
+                        let charCount = stringValue.utf8.underestimatedCount
+                        calculatedCost = charCount
+                        if charCount < 2000 {
+                            finalURL = finalURL.deletingPathExtension().appendingPathExtension("txt")
+                            // TODO: Writing small values to disk is too slow when frequent
+                            //                        data = Data(stringValue.utf8)
+                        } else {
+                            guard let compressedData = try (stringValue.data(using: .utf8) as NSData?)?.compressed(using: .lzfse) else {
+                                return
+                            }
+                            data = compressedData as Data
                         }
-                        data = compressedData as Data
                     } else {
                         guard let encodedData = try? self.jsonEncoder.encode(value) else {
                             return
                         }
                         data = encodedData
                     }
-                    try data.write(to: finalURL, options: .atomic)
+                    if let data = data {
+                        calculatedCost = data.underestimatedCount
+                        try data.write(to: finalURL, options: .atomic)
+                    }
                 } else {
                     // For nil values, create an empty file with a .nil extension
-                    FileManager.default.createFile(atPath: finalURL.path, contents: nil)
+                    // TODO: Writing small values to disk is too slow when frequent
+                    // FileManager.default.createFile(atPath: finalURL.path, contents: nil)
                 }
                 
-                // Calculating cost and updating in-memory cache could vary depending on your cache's design
-                // This example immediately updates the cache on the main thread for thread safety
-                let calculatedCost = value == nil ? 0 : 1 // Simplified cost calculation
+                let calculatedCostToSet = calculatedCost
                 DispatchQueue.main.async {
-                    if value != nil {
-                        self.cache.setValue(value, forKey: keyHash, cost: calculatedCost)
-                    } else {
-                        self.cache.removeValue(forKey: keyHash)
-                    }
+                    // Set even if nil
+                    self.cache.setValue(value, forKey: keyHash, cost: calculatedCostToSet)
                 }
             } catch {
                 print("Error during cache disk operation: \(error)")

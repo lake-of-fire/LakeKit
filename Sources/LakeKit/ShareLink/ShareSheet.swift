@@ -115,6 +115,7 @@ private extension ShareSheet {
 
         var isActive: Bool {
             didSet {
+                guard oldValue != isActive else { return }
                 updateControllerLifecycle(
                     from: item.wrappedValue,
                     to: item.wrappedValue,
