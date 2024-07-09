@@ -22,7 +22,7 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
     private let serialQueue = DispatchQueue(label: "\(Bundle.main.bundleIdentifier ?? "com.lake-of-fire").serialQueue", qos: .background)
     
     // Work item for debouncing
-    private var deleteOrphansWorkItem: DispatchWorkItem?
+    private var deleteOrphansTimer: DispatchSourceTimer?
     private let debounceInterval: TimeInterval = 6 // Debounce interval in seconds
 
     private var jsonEncoder: JSONEncoder {
@@ -135,10 +135,6 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
         let cacheDirectory = cacheDirectory
         
         serialQueue.async {
-            let baseURL = cacheDirectory.appendingPathComponent(keyHash)
-            var finalURL = value == nil ? baseURL.appendingPathExtension("nil") :
-            O.self == String.self ? baseURL.appendingPathExtension("lzfse") :
-            baseURL.appendingPathExtension("json")
             var calculatedCost = value == nil ? 0 : 1
             do {
                 if let value = value {
@@ -167,6 +163,10 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
                     }
                     if let data = data {
                         calculatedCost = data.underestimatedCount
+                        let baseURL = cacheDirectory.appendingPathComponent(keyHash)
+                        let finalURL = value == nil ? baseURL.appendingPathExtension("nil") :
+                        O.self == String.self ? baseURL.appendingPathExtension("lzfse") :
+                        baseURL.appendingPathExtension("json")
                         try data.write(to: finalURL, options: .atomic)
                     }
                 } else {
@@ -238,11 +238,12 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
     }
 
     private func debouncedDeleteOrphans() {
-        // Cancel the previous work item if it has not yet executed
-        deleteOrphansWorkItem?.cancel()
+        deleteOrphansTimer?.cancel()
         
-        // Create a new work item to execute the deletion
-        let workItem = DispatchWorkItem { [weak self] in
+        let timer = DispatchSource.makeTimerSource(queue: DispatchQueue.global(qos: .background))
+        timer.schedule(deadline: .now() + debounceInterval)
+        
+        timer.setEventHandler { [weak self] in
             do {
                 try self?.deleteOrphanFiles()
             } catch {
@@ -250,9 +251,8 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
             }
         }
         
-        // Save the new work item and schedule it to run after the debounce interval
-        deleteOrphansWorkItem = workItem
-        DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + debounceInterval, execute: workItem)
+        deleteOrphansTimer = timer
+        timer.resume()
     }
     
     private func deleteOrphanFiles() throws {
