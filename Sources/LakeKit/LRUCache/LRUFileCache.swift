@@ -144,10 +144,10 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
                 if let value = value {
                     var data: Data?
                     if let stringValue = value as? String {
-                        let charCount = stringValue.utf8.underestimatedCount
+                        let charCount = stringValue.utf16.count
                         calculatedCost = charCount
-                        if charCount < 2000 {
-                            finalURL = finalURL.deletingPathExtension().appendingPathExtension("txt")
+                        if charCount < 30_000 {
+//                            finalURL = finalURL.deletingPathExtension().appendingPathExtension("txt")
                             // TODO: Writing small values to disk is too slow when frequent
                             //                        data = Data(stringValue.utf8)
                         } else {
@@ -160,7 +160,10 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
                         guard let encodedData = try? self.jsonEncoder.encode(value) else {
                             return
                         }
-                        data = encodedData
+                        // TODO: Writing small values to disk is too slow when frequent
+                        if encodedData.underestimatedCount >= 30_000 {
+                            data = encodedData
+                        }
                     }
                     if let data = data {
                         calculatedCost = data.underestimatedCount
