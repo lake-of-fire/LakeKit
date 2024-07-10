@@ -2,6 +2,17 @@ import SwiftUI
 import Collections
 import StoreHelper
 
+struct ShowAdsKey: EnvironmentKey {
+    static var defaultValue = false
+}
+
+public extension EnvironmentValues {
+    var showAds: Bool {
+        get { self[ShowAdsKey.self] }
+        set { self[ShowAdsKey.self] = newValue }
+    }
+}
+
 public class StoreViewModel: NSObject, ObservableObject {
     /// For server overrides, other apps, etc.
     @Published public var isInitialized = false

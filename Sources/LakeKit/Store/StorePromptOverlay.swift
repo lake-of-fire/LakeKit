@@ -95,11 +95,11 @@ public struct StorePromptOverlayModifier: ViewModifier {
     public let presentsStoreSheet: Bool = true
     
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.showAds) private var showAds: Bool
     @EnvironmentObject private var storeHelper: StoreHelper
-    @EnvironmentObject private var storeViewModel: StoreViewModel
  
     private var isOverlayPresented: Bool {
-        return storeViewModel.showAds && isPresented
+        return showAds && isPresented
     }
     
     public func body(content: Content) -> some View {
