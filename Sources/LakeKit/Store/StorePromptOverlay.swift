@@ -18,7 +18,6 @@ public struct StorePrompt: View {
     @Binding public var toDismissFirst: Bool
     
     @ScaledMetric(relativeTo: .body) private var maxWidth = 340
-    @EnvironmentObject private var storeViewModel: StoreViewModel
     
     public var body: some View {
         ScrollView {

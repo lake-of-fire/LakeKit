@@ -86,13 +86,13 @@ struct OnboardingPrimaryButtons: View {
     
     @AppStorage("hasSeenOnboarding") var hasSeenOnboarding = false
 
-    @EnvironmentObject private var storeViewModel: StoreViewModel
+    @Environment(\.showAds) private var showAds: Bool
 #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 #endif
 
     var body: some View {
-        if storeViewModel.isSubscribed {
+        if !showAds {
             PrimaryButton(title: isFinishedOnboarding ? "Continue" : "Skip Onboarding", systemImage: nil) {
                 hasSeenOnboarding = true
                 isPresentingSheet = false
