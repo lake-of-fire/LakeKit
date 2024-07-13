@@ -75,6 +75,7 @@ public class StoreViewModel: NSObject, ObservableObject {
     
     @MainActor
     public func refreshIsSubscribed(storeHelper: StoreHelper) {
+        debugPrint("!! refreshIsSubscribed")
         subscriptionRefreshTask?.cancel()
         subscriptionRefreshTask = Task { @MainActor in
             do {
