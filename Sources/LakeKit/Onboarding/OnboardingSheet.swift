@@ -52,7 +52,7 @@ fileprivate struct PrimaryButton: View {
                     .bold()
             } else {$0 }
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: 850)
 #endif
     }
     
@@ -115,13 +115,14 @@ struct OnboardingPrimaryButtons: View {
                     .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.plain)
-                .modifier {
-                    if #available(iOS 17, macOS 14, *) {
-                        $0.controlSize(.extraLarge)
-                    } else {
-                        $0.controlSize(.large)
-                    }
-                }
+                .controlSize(.large)
+//                .modifier {
+//                    if #available(iOS 17, macOS 14, *) {
+//                        $0.controlSize(.extraLarge)
+//                    } else {
+//                        $0.controlSize(.large)
+//                    }
+//                }
                 .padding(.horizontal)
 #if os(iOS)
                 .padding(.vertical, (horizontalSizeClass == .compact ? 0: nil) as CGFloat?)
@@ -146,6 +147,7 @@ struct OnboardingPrimaryButtons: View {
             }
             .buttonStyle(.bordered)
             .tint(.secondary)
+            .backgroundColor(.white.opacity(0.0000000001))
         }
     }
 }
@@ -434,8 +436,8 @@ fileprivate struct FreeModeView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.accentColor)
-
-                PrimaryButton(title: hasViewedFreeModeUpsell ? "Continue Without Trying Discounts" : "Continue Without Checking Upgrades", systemImage: nil, controlSize: .regular) {
+                
+                PrimaryButton(title: hasViewedFreeModeUpsell ? "Continue Without Trying Discounts" : "Continue Without Checking Discounts", systemImage: nil, controlSize: .regular) {
                     hasSeenOnboarding = true
                     hasRespondedToOnboarding = true
                     isPresentingSheet = false

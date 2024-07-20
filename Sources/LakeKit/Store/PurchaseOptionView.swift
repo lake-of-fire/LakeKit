@@ -32,7 +32,7 @@ public struct PurchaseOptionView: View {
 //    @ScaledMetric(relativeTo: .caption) private var subtitleWidth = 50
 //    @ScaledMetric(relativeTo: .caption) private var subtitleHeight = 40
     @ScaledMetric(relativeTo: .body) private var buttonIdealWidth = 145
-    @ScaledMetric(relativeTo: .body) private var buttonHorizontalPadding = 16
+    @ScaledMetric(relativeTo: .body) private var buttonHorizontalPadding = 12
     
     @Environment(\.isICloudSyncActive) private var isICloudSyncActive: Bool
     @Environment(\.iCloudSyncStateSummary) private var iCloudSyncStateSummary: SyncMonitor.SyncSummaryStatus

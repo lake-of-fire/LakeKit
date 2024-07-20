@@ -137,10 +137,10 @@ struct StudentDiscountDisclosureGroup<Content: View>: View {
                     .padding(.trailing, 5)
                 
                 VStack(alignment: .leading, spacing: 5) {
-                    Text("Affordable subsidized pricing")
+                    Text("Subsidized pricing for affordability")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
-                    Text("Student & Educator Discount") // \(Image(systemName: "chevron.right"))")
+                    Text("Student & Low-Income Discount") // \(Image(systemName: "chevron.right"))")
                     .font(.headline)
                     .bold()
                 }
@@ -274,6 +274,14 @@ public struct StoreView: View {
     @ViewBuilder private func purchaseOptionsGrid(products: [StoreProduct], maxWidth: CGFloat) -> some View {
         if #available(iOS 16, macOS 13, *) {
             ViewThatFits {
+                 HStack(alignment: .top, spacing: 0) {
+                    Spacer(minLength: 0)
+                    HStack(alignment: .top, spacing: 20) {
+                        purchaseOptions(products: products, maxWidth: maxWidth)
+                    }
+                    .fixedSize()
+                    Spacer(minLength: 0)
+                }
                 HStack(alignment: .top, spacing: 0) {
                     Spacer(minLength: 0)
                     HStack(alignment: .top, spacing: 10) {
@@ -324,47 +332,48 @@ public struct StoreView: View {
                             .font(.subheadline)
                             .multilineTextAlignment(.center)
                             .fixedSize(horizontal: false, vertical: true)
-                        Divider()
-                            .padding(.bottom, 5)
-                        Text(storeViewModel.productGroupHeading)
-                            .foregroundColor(.primary)
-                            .bold()
-                            .multilineTextAlignment(.center)
-                            .fixedSize(horizontal: false, vertical: true)
-                        purchaseOptionsGrid(products: storeViewModel.products, maxWidth: storeOptionsMaxWidth(geometrySize: geometry.size))
-                        //                        .padding(.horizontal, secondaryHorizontalPadding)
-                            .frame(maxWidth: storeOptionsMaxWidth(geometrySize: geometry.size))
-                        if !storeViewModel.productGroupSubtitle.isEmpty {
-                            Text(storeViewModel.productGroupSubtitle)
-                                .foregroundColor(.secondary)
+                            .padding(.horizontal, secondaryHorizontalPadding)
+
+                        GroupBox {
+                            Text(storeViewModel.productGroupHeading)
+                                .foregroundColor(.primary)
+                                .bold()
                                 .multilineTextAlignment(.center)
-                                .font(.caption)
                                 .fixedSize(horizontal: false, vertical: true)
-                        }
-                        if storeViewModel.testimonial != nil {
-                            Button {
-                                scrollValue.scrollTo("education-discount", anchor: .top)
-                                isStudentDiscountExpanded = true
-                            } label: {
-                                (Text("View discounts eligibility") + Text("  \(Image(systemName: "chevron.right.circle.fill"))"))
-                                    .font(.callout)
-                                    .bold()
-                                    .lineLimit(9001)
+                            purchaseOptionsGrid(products: storeViewModel.products, maxWidth: storeOptionsMaxWidth(geometrySize: geometry.size))
+                            //                        .padding(.horizontal, secondaryHorizontalPadding)
+                                .frame(maxWidth: storeOptionsMaxWidth(geometrySize: geometry.size))
+                                .padding(.bottom)
+                            if !storeViewModel.productGroupSubtitle.isEmpty {
+                                Text(storeViewModel.productGroupSubtitle)
+                                    .foregroundColor(.secondary)
                                     .multilineTextAlignment(.center)
+                                    .font(.caption)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
-                            .buttonStyle(.borderedProminent)
+                            if storeViewModel.testimonial != nil {
+                                Button {
+                                    scrollValue.scrollTo("education-discount", anchor: .top)
+                                    isStudentDiscountExpanded = true
+                                } label: {
+                                    (Text("Student & low-income discounts") + Text("  \(Image(systemName: "chevron.right.circle.fill"))"))
+                                        .font(.callout)
+                                        .bold()
+                                        .lineLimit(9001)
+                                        .multilineTextAlignment(.center)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                }
+                                .buttonStyle(.bordered)
 #if os(iOS)
-                            .modifier {
-                                if #available(iOS 15, macOS 14, *) {
-                                    $0.buttonBorderShape(.capsule)
-                                } else { $0 }
-                            }
+                                .modifier {
+                                    if #available(iOS 15, macOS 14, *) {
+                                        $0.buttonBorderShape(.capsule)
+                                    } else { $0 }
+                                }
 #endif
+                            }
                         }
                         if let testimonial = storeViewModel.testimonial {
-                            Divider()
-                                .padding(.vertical)
                             VStack(alignment: .center) {
                                 if let testimonialTitle = storeViewModel.testimonialTitle {
                                     Text(testimonialTitle)
@@ -407,13 +416,12 @@ public struct StoreView: View {
                                         .font(.subheadline)
                                 }
                             }
-                            .padding(.horizontal)
-                            Divider()
+                            .padding(.horizontal, secondaryHorizontalPadding)
                         }
                         GroupBox {
                             StudentDiscountDisclosureGroup(isExpanded: $isStudentDiscountExpanded, discountView: {
                                 VStack {
-                                    Text("Students, educators, and those who cannot afford the full price rates are welcome to a special discount. If you're not in education and can afford it, please use the regular purchasing options.")
+                                    Text("Students, educators, and those who cannot afford the full-price rates are welcome to a special discount. If you can afford it, please use the regular purchasing options.")
                                         .font(.subheadline)
                                         .padding()
                                         .multilineTextAlignment(.leading)
@@ -526,7 +534,7 @@ public struct StoreView: View {
         PurchaseOptionView(storeViewModel: storeViewModel, product: product, purchaseState: $purchaseState, unitsRemaining: storeProduct.unitsRemaining, unitsPurchased: storeProduct.unitsPurchased, unitsName: storeProduct.unitsName, symbolName: storeProduct.iconSymbolName, buyTitle: storeProduct.buyButtonTitle, maxWidth: maxWidth) {
             guard storeProduct.filterPurchase(storeProduct) else { return }
             purchaseState = .inProgress
-            Task {
+            Task { @MainActor in
                 if let appAccountToken = storeViewModel.appAccountToken {
                     await priceViewModel.purchase(product: product, options: [.appAccountToken(appAccountToken)])
                 } else {
@@ -538,10 +546,10 @@ public struct StoreView: View {
         //            .frame(maxHeight: .infinity)
         .fixedSize(horizontal: false, vertical: true)
         .changeEffect(
-            .shine.delay(1),
+            .shine.delay(2),
             value: isPresented,
             isEnabled: isPresented && [.notPurchased, .notStarted, .unknown].contains(purchaseState)
         )
-        .shadow(radius: 12)
+        .shadow(radius: 8)
     }
 }
