@@ -125,7 +125,7 @@ struct OnboardingPrimaryButtons: View {
 //                }
                 .padding(.horizontal)
 #if os(iOS)
-                .padding(.vertical, (horizontalSizeClass == .compact ? 0: nil) as CGFloat?)
+                .padding(.vertical, (horizontalSizeClass == .compact ? 0: 5) as CGFloat?)
 #endif
 
                 PrimaryButton(title: "Continue to Upgrades", systemImage: nil) {
