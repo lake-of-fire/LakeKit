@@ -1,8 +1,8 @@
 import SwiftUI
-import SwiftUIX
 import NavigationBackport
 import MarkdownWebView
 import Pow
+import LakeKit
 
 public struct OnboardingCard: Identifiable, Hashable {
     public let id: String
@@ -147,7 +147,10 @@ struct OnboardingPrimaryButtons: View {
             }
             .buttonStyle(.bordered)
             .tint(.secondary)
-            .backgroundColor(.white.opacity(0.0000000001))
+            .background {
+                Color.white.opacity(0.0000000001)
+                    .edgesIgnoringSafeArea(.all)
+            }
         }
     }
 }
@@ -437,7 +440,7 @@ fileprivate struct FreeModeView: View {
                 .buttonStyle(.borderedProminent)
                 .tint(.accentColor)
                 
-                PrimaryButton(title: hasViewedFreeModeUpsell ? "Continue Without Trying Discounts" : "Continue Without Checking Discounts", systemImage: nil, controlSize: .regular) {
+                PrimaryButton(title: hasViewedFreeModeUpsell ? "Continue Without Trying Discounts" : "Continue Without Seeing Discounts", systemImage: nil, controlSize: .regular) {
                     hasSeenOnboarding = true
                     hasRespondedToOnboarding = true
                     isPresentingSheet = false
