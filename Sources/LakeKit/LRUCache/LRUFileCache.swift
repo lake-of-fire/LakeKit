@@ -23,7 +23,7 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
     
     // Work item for debouncing
     private var deleteOrphansTimer: DispatchSourceTimer?
-    private let debounceInterval: TimeInterval = 6 // Debounce interval in seconds
+    private let debounceInterval: TimeInterval = 16 // Debounce interval in seconds
 
     private var jsonEncoder: JSONEncoder {
         let encoder = JSONEncoder()
@@ -140,9 +140,9 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
                 if let value = value {
                     var data: Data?
                     if let stringValue = value as? String {
-                        let charCount = stringValue.utf16.count
+                        let charCount = stringValue.utf16.underestimatedCount
                         calculatedCost = charCount
-                        if charCount < 30_000 {
+                        if charCount < 40_000 {
 //                            finalURL = finalURL.deletingPathExtension().appendingPathExtension("txt")
                             // TODO: Writing small values to disk is too slow when frequent
                             //                        data = Data(stringValue.utf8)
@@ -157,7 +157,7 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
                             return
                         }
                         // TODO: Writing small values to disk is too slow when frequent
-                        if encodedData.underestimatedCount >= 30_000 {
+                        if encodedData.underestimatedCount >= 40_000 {
                             data = encodedData
                         }
                     }
