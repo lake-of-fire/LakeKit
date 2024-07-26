@@ -82,10 +82,14 @@ public class StoreViewModel: NSObject, ObservableObject {
 //#if DEBUG
 //                isSubscribedFromElsewhere = true
 //#else
+                debugPrint("!! refreshIsSubscribed ... inner...")
                 if ProcessInfo.processInfo.arguments.contains("pretend-subscribed"), !isSubscribedFromElsewhere {
                     isSubscribedFromElsewhere = true
                 } else if let isSubscribedFromElsewhereCallback = isSubscribedFromElsewhereCallback {
-                    isSubscribedFromElsewhere = await isSubscribedFromElsewhereCallback(self)
+                    let isSubscribedFromElsewhere = await isSubscribedFromElsewhereCallback(self)
+                    if isSubscribedFromElsewhere != self.isSubscribedFromElsewhere {
+                        self.isSubscribedFromElsewhere = isSubscribedFromElsewhere
+                    }
                 }
 //#endif
                 
@@ -94,7 +98,9 @@ public class StoreViewModel: NSObject, ObservableObject {
                     if !isSubscribed {
                         isSubscribed = true
                     }
-                    isInitialized = true
+                    if !isInitialized {
+                        isInitialized = true
+                    }
                     return
                 }
                 
@@ -115,8 +121,12 @@ public class StoreViewModel: NSObject, ObservableObject {
                 try Task.checkCancellation()
                 
                 let isSubscribed = subscriptionState == .inBillingRetryPeriod || subscriptionState == .inGracePeriod || subscriptionState == .subscribed
-                self.isSubscribed = isSubscribed
-                isInitialized = true
+                if isSubscribed != self.isSubscribed {
+                    self.isSubscribed = isSubscribed
+                }
+                if !isInitialized {
+                    isInitialized = true
+                }
             } catch {
             }
         }
