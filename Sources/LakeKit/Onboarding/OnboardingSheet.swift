@@ -2,7 +2,6 @@ import SwiftUI
 import NavigationBackport
 import MarkdownWebView
 import Pow
-import LakeKit
 
 public struct OnboardingCard: Identifiable, Hashable {
     public let id: String

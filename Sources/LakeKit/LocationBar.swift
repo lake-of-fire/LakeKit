@@ -110,7 +110,7 @@ public struct LocationBar: View, Equatable {
             .accessibilityLabel("Location")
             .foregroundColor(.secondary))
 #if os(iOS)
-        .introspect(.textField, on: .iOS(.v15...)) { textField in
+        .introspect(.textField, on: .iOS(.v15...)) { @MainActor textField in
             if selectAll {
                 Task { @MainActor in
                     selectAll = false
