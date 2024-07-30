@@ -105,12 +105,13 @@ public struct LocationBar: View, Equatable {
         }
     }
     
+    @MainActor
     @ViewBuilder private var textField: some View {
         TextField("", text: $locationText, prompt: Text("Search or enter website address")
             .accessibilityLabel("Location")
             .foregroundColor(.secondary))
 #if os(iOS)
-        .introspect(.textField, on: .iOS(.v15...)) { @MainActor textField in
+        .introspect(.textField, on: .iOS(.v16...)) { @MainActor textField in
             if selectAll {
                 Task { @MainActor in
                     selectAll = false
