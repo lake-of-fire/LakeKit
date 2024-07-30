@@ -82,7 +82,6 @@ public class StoreViewModel: NSObject, ObservableObject {
 //#if DEBUG
 //                isSubscribedFromElsewhere = true
 //#else
-                debugPrint("!! refreshIsSubscribed ... inner...")
                 if ProcessInfo.processInfo.arguments.contains("pretend-subscribed"), !isSubscribedFromElsewhere {
                     isSubscribedFromElsewhere = true
                 } else if let isSubscribedFromElsewhereCallback = isSubscribedFromElsewhereCallback {
