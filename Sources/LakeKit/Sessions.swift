@@ -11,19 +11,22 @@ public class Session: ObservableObject {
     
     @MainActor private var authenticationContinuations = [CheckedContinuation<Void, Error>]()
     
-    public var isAuthenticated: Bool {
-        return !(keychain.get("authToken") ?? "").isEmpty && !(keychain.get("userID") ?? "").isEmpty
-    }
+    @Published public private(set) var isAuthenticated: Bool = false
     
     public init(keychain: KeychainSwift) {
         self.keychain = keychain
         Task { @MainActor in
             if let userIDString = keychain.get("userID"), let userID = Int(userIDString) {
                 self.userID = userID
+                updateAuthenticationState()
             } else {
                 logout()
             }
         }
+    }
+    
+    private func updateAuthenticationState() {
+        isAuthenticated = !(keychain.get("authToken") ?? "").isEmpty && !(keychain.get("userID") ?? "").isEmpty
     }
     
     public func requireAuthentication(beforePresentation: @escaping () async -> Void = { }) async throws {
@@ -56,6 +59,7 @@ public class Session: ObservableObject {
                 continuation.resume()
             }
             authenticationContinuations.removeAll()
+            updateAuthenticationState()
         }
     }
     
@@ -74,6 +78,7 @@ public class Session: ObservableObject {
         keychain.delete("userID")
         Task { @MainActor in
             userID = -1
+            updateAuthenticationState()
         }
     }
 }
