@@ -14,13 +14,11 @@ public class SplitViewModel: NSObject, ObservableObject {
     }
     @Published public var assistantFraction: FractionHolder
     @Published public var assistantLayout: LayoutHolder = .init(.horizontal)
-    @Published public var assistantHide: SideHolder
-    
+    @Published internal var assistantHide: SideHolder = .init()
 //    private var defaultAssistantFraction = 0.5
     private var hasSizedLayout = false
     
     public init(userDefaultsPrefix: String? = "main", assistantSide: SplitSide = .secondary, assistantFraction: CGFloat = 0.5) {
-        assistantHide = SideHolder(assistantSide)
         self.assistantSide = assistantSide
 //        defaultAssistantFraction = assistantFraction
         self.assistantFraction = assistantSide == .primary ? .init(assistantFraction) : .init(1 - assistantFraction)
@@ -30,11 +28,13 @@ public class SplitViewModel: NSObject, ObservableObject {
         }
         
         super.init()
+        
+        self.refresh()
     }
     
     internal func refresh() {
         if let userDefaultsPrefix = userDefaultsPrefix {
-            assistantFraction = FractionHolder.usingUserDefaults(assistantFraction.value, key: "\(userDefaultsPrefix)-SplitViewModel-assistantFraction")
+            assistantFraction = FractionHolder.usingUserDefaults(assistantFraction.value, key: "\(userDefaultsPrefix)-\(assistantLayout.isHorizontal)-SplitViewModel-assistantFraction")
             assistantLayout = LayoutHolder.usingUserDefaults(assistantLayout.value, key: "\(userDefaultsPrefix)-SplitViewModel-assistantLayout")
             assistantHide = SideHolder.usingUserDefaults(assistantSide, key: "\(userDefaultsPrefix)-SplitViewModel-assistantHide")
         } else {

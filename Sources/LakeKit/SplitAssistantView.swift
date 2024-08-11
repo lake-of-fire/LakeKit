@@ -1,7 +1,6 @@
 import SwiftUI
 import SplitView
 
-    
 fileprivate struct SplitInternalView<Primary: View, Secondary: View>: View {
     @ObservedObject var splitViewModel: SplitViewModel
     private let primary: Primary
@@ -52,6 +51,7 @@ fileprivate struct SplitInternalView<Primary: View, Secondary: View>: View {
 
 public struct SplitAssistantView<Primary: View, Secondary: View>: View {
     private let assistantSide: SplitSide
+    @Binding private var isAssistantPresented: Bool
     private let defaultAssistantFraction: CGFloat
     private let primary: Primary
     private let secondary: Secondary
@@ -104,14 +104,27 @@ public struct SplitAssistantView<Primary: View, Secondary: View>: View {
         }
         .task { @MainActor in
             splitViewModel = SplitViewModel(assistantSide: assistantSide, assistantFraction: defaultAssistantFraction)
+            refreshAssistantHide()
+        }
+        .onChange(of: isAssistantPresented) { isAssistantPresented in
+            refreshAssistantHide(isAssistantPresented: isAssistantPresented)
         }
     }
     
-    public init(assistantSide: SplitSide, defaultAssistantFraction: CGFloat = 0.5, @ViewBuilder primary: () -> Primary, @ViewBuilder secondary: () -> Secondary) {
+    public init(assistantSide: SplitSide, defaultAssistantFraction: CGFloat = 0.5, isAssistantPresented: Binding<Bool> = .constant(true), @ViewBuilder primary: () -> Primary, @ViewBuilder secondary: () -> Secondary) {
         self.assistantSide = assistantSide
         self.defaultAssistantFraction = defaultAssistantFraction
+        _isAssistantPresented = isAssistantPresented
         self.primary = primary()
         self.secondary = secondary()
+    }
+    
+    private func refreshAssistantHide(isAssistantPresented: Bool? = nil) {
+        let isAssistantPresented = isAssistantPresented ?? self.isAssistantPresented
+        guard let splitViewModel else { return }
+        if isAssistantPresented && splitViewModel.assistantHide.side?.isPrimary ?? false || !isAssistantPresented && splitViewModel.assistantHide.side?.isSecondary ?? false {
+            splitViewModel.assistantHide.toggle()
+        }
     }
 }
 
