@@ -15,12 +15,10 @@ public class SplitViewModel: NSObject, ObservableObject {
     @Published public var assistantFraction: FractionHolder
     @Published public var assistantLayout: LayoutHolder = .init(.horizontal)
     @Published internal var assistantHide: SideHolder = .init()
-//    private var defaultAssistantFraction = 0.5
     private var hasSizedLayout = false
     
     public init(userDefaultsPrefix: String? = "main", assistantSide: SplitSide = .secondary, assistantFraction: CGFloat = 0.5) {
         self.assistantSide = assistantSide
-//        defaultAssistantFraction = assistantFraction
         self.assistantFraction = assistantSide == .primary ? .init(assistantFraction) : .init(1 - assistantFraction)
         
         if let userDefaultsPrefix = userDefaultsPrefix {
@@ -32,13 +30,20 @@ public class SplitViewModel: NSObject, ObservableObject {
         self.refresh()
     }
     
-    internal func refresh() {
+    internal func refreshAssistantFraction() {
         if let userDefaultsPrefix = userDefaultsPrefix {
             assistantFraction = FractionHolder.usingUserDefaults(assistantFraction.value, key: "\(userDefaultsPrefix)-\(assistantLayout.isHorizontal)-SplitViewModel-assistantFraction")
+        } else {
+            assistantFraction = .init(assistantFraction.value)
+        }
+    }
+    
+    internal func refresh() {
+        refreshAssistantFraction()
+        if let userDefaultsPrefix = userDefaultsPrefix {
             assistantLayout = LayoutHolder.usingUserDefaults(assistantLayout.value, key: "\(userDefaultsPrefix)-SplitViewModel-assistantLayout")
             assistantHide = SideHolder.usingUserDefaults(assistantSide, key: "\(userDefaultsPrefix)-SplitViewModel-assistantHide")
         } else {
-            assistantFraction = .init(assistantFraction.value)
             assistantLayout = .init(assistantLayout.value)
             assistantHide = SideHolder(assistantSide)
         }
@@ -63,10 +68,16 @@ public class SplitViewModel: NSObject, ObservableObject {
         //        if assistantHide.side != .none {
         //            return
         //        }
-        if geometrySize.width >= geometrySize.height {
-            assistantLayout.value = .horizontal
-        } else {
+        if geometrySize.width >= geometrySize.height * 1.2 {
+            if assistantLayout.value != .horizontal {
+                assistantLayout.value = .horizontal
+                debugPrint("!! UPDATE TO HORIZONTAL")
+                refreshAssistantFraction()
+            }
+        } else if assistantLayout.value != .vertical {
             assistantLayout.value = .vertical
+            debugPrint("!! UPDATE TO VERTICAL")
+            refreshAssistantFraction()
         }
     }
 }
