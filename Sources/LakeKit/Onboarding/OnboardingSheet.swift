@@ -1,4 +1,5 @@
 import SwiftUI
+import StoreHelper
 import NavigationBackport
 import MarkdownWebView
 import Pow
@@ -82,14 +83,25 @@ struct OnboardingPrimaryButtons: View {
     @Binding var isPresentingSheet: Bool
     @Binding var isPresentingStoreSheet: Bool
     @Binding var navigationPath: NBNavigationPath
+
+    @State private var highlightedProduct: PrePurchaseSubscriptionInfo?
     
     @AppStorage("hasSeenOnboarding") var hasSeenOnboarding = false
 
+    @EnvironmentObject private var storeViewModel: StoreViewModel
+    @EnvironmentObject private var storeHelper: StoreHelper
     @Environment(\.showAds) private var showAds: Bool
 #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 #endif
 
+    private var headlineText: String {
+        if let purchasePrice = highlightedProduct?.purchasePrice, let renewalPeriod = highlightedProduct?.renewalPeriod {
+            return "As low as " + purchasePrice + renewalPeriod.replacingOccurrences(of: "/", with: "per")
+        }
+        return ""
+    }
+    
     var body: some View {
         if !showAds {
             PrimaryButton(title: isFinishedOnboarding ? "Continue" : "Skip Onboarding", systemImage: nil) {
@@ -104,9 +116,13 @@ struct OnboardingPrimaryButtons: View {
                     isPresentingStoreSheet.toggle()
                 } label: {
                     VStack {
-                        Text("As low as $0.99 per month")
+                        Text(headlineText)
                             .font(.headline)
-                        Text("$0.99/month or $9.99/year US with discount")
+                            .task { @MainActor in
+                                highlightedProduct = await storeViewModel.productSubscriptionInfo(productID: storeViewModel.highlightedProductID, storeHelper: storeHelper)
+                            }
+                        Text("With qualifying discounts")
+                        //Text("$0.99/month or $9.99/year US with discount")
                             .foregroundStyle(.secondary)
                             .font(.footnote)
                             .multilineTextAlignment(.center)
@@ -126,8 +142,8 @@ struct OnboardingPrimaryButtons: View {
 #if os(iOS)
                 .padding(.vertical, (horizontalSizeClass == .compact ? 0: 5) as CGFloat?)
 #endif
-
-                PrimaryButton(title: "Continue to Upgrades", systemImage: nil) {
+                
+                PrimaryButton(title: "Continue", systemImage: nil) {
                     isPresentingStoreSheet.toggle()
                 }
                 .buttonStyle(.borderedProminent)
