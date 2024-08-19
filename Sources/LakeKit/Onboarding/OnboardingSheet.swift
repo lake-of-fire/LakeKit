@@ -97,7 +97,7 @@ struct OnboardingPrimaryButtons: View {
 
     private var headlineText: String {
         if let purchasePrice = highlightedProduct?.purchasePrice, let renewalPeriod = highlightedProduct?.renewalPeriod {
-            return "As low as " + purchasePrice + renewalPeriod.replacingOccurrences(of: "/", with: "per")
+            return "As low as " + purchasePrice + " " + renewalPeriod.replacingOccurrences(of: "/", with: "per")
         }
         return ""
     }
@@ -407,6 +407,18 @@ fileprivate struct FreeModeView: View {
 
     @State private var shouldAnimate = false
     
+    @State private var highlightedProduct: PrePurchaseSubscriptionInfo?
+    
+    @EnvironmentObject private var storeViewModel: StoreViewModel
+    @EnvironmentObject private var storeHelper: StoreHelper
+    
+    private var purchasePrice: String {
+        if let purchasePrice = highlightedProduct?.purchasePrice, let renewalPeriod = highlightedProduct?.renewalPeriod {
+            return purchasePrice + " " + renewalPeriod.replacingOccurrences(of: "/", with: "per")
+        }
+        return "[see link for current price]"
+    }
+    
     var body: some View {
         ScrollView {
             VStack {
@@ -414,6 +426,8 @@ fileprivate struct FreeModeView: View {
                     .resizable()
                     .scaledToFit()
                 MarkdownWebView("""
+                *See below for information on Manabi Reader's **Free Mode**.*
+                
                 **Manabi Reader helps you stay motivated while learning faster, for free.**
                 
                 Read from a library of curated blogs, news feeds, stories and ebooks. Tap words to look them up. Listen to spoken audio as you read.
@@ -432,7 +446,7 @@ fileprivate struct FreeModeView: View {
                 
                 ## Can't afford it?
                 
-                Equal access in education is a valuable principle that Manabi aspires toward. If you're a student or if you just can't afford the full price, please consider the discounted plan. It starts at $0.99 US per month for full access.
+                Equal access in education is a valuable principle that Manabi aspires toward. If you're a student or if you just can't afford the full price, please consider the discounted plan. It's available for as low as \(purchasePrice) for full access.
                 
                 ***Editor's Note:*** *Thank you for using Manabi Reader. Whether or not you pay to support its full-time developmnent, rest assured there is more to come for Free Mode. As the subscription tier features improve, more paid features will become free too. Manabi values accessibility for all.*
                 ##
@@ -444,6 +458,9 @@ fileprivate struct FreeModeView: View {
                 }
                 .frame(maxWidth: 850)
                 .padding(.horizontal)
+                .task { @MainActor in
+                    highlightedProduct = await storeViewModel.productSubscriptionInfo(productID: storeViewModel.highlightedProductID, storeHelper: storeHelper)
+                }
             }
         }
         .navigationTitle("Free Mode")

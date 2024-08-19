@@ -16,6 +16,7 @@ public extension EnvironmentValues {
 
 public struct EnhancedSearchableModifier: ViewModifier {
     @Binding var isPresented: Bool
+    @Binding var isEnhancedlySearching: Bool
     let canHide: Bool
     @Binding var searchText: String
     let autosaveName: String?
@@ -26,7 +27,6 @@ public struct EnhancedSearchableModifier: ViewModifier {
     var canHideSearchBar = false
     let searchAction: ((String) -> Void)
     
-    @State private var isEnhancedlySearching = false
 #if os(iOS)
     @State private var isIOSSearching = false
     @State private var isExecutingSearchFieldFocusWorkaround = false
@@ -261,7 +261,7 @@ struct CustomSpacingLabel: LabelStyle {
 #endif
 
 public extension View {
-    func enhancedSearchable(isPresented: Binding<Bool>? = nil, searchText: Binding<String>, autosaveName: String? = nil, prompt: String? = nil, placement: SearchFieldPlacement = .automatic, prefersToolbarPlacement: Bool = true, showSearchButtonIfNeeded: Bool = true, canHideSearchBar: Bool = false, searchAction: @escaping ((String) -> Void)) -> some View {
-        self.modifier(EnhancedSearchableModifier(isPresented: isPresented ?? .constant(true), canHide: isPresented != nil, searchText: searchText, autosaveName: autosaveName, prompt: prompt, placement: placement, prefersToolbarPlacement: prefersToolbarPlacement, showSearchButtonIfNeeded: showSearchButtonIfNeeded, canHideSearchBar: canHideSearchBar, searchAction: searchAction))
+    func enhancedSearchable(isPresented: Binding<Bool>? = nil, isEnhancedlySearching: Binding<Bool>, searchText: Binding<String>, autosaveName: String? = nil, prompt: String? = nil, placement: SearchFieldPlacement = .automatic, prefersToolbarPlacement: Bool = true, showSearchButtonIfNeeded: Bool = true, canHideSearchBar: Bool = false, searchAction: @escaping ((String) -> Void)) -> some View {
+        self.modifier(EnhancedSearchableModifier(isPresented: isPresented ?? .constant(true), isEnhancedlySearching: isEnhancedlySearching, canHide: isPresented != nil, searchText: searchText, autosaveName: autosaveName, prompt: prompt, placement: placement, prefersToolbarPlacement: prefersToolbarPlacement, showSearchButtonIfNeeded: showSearchButtonIfNeeded, canHideSearchBar: canHideSearchBar, searchAction: searchAction))
     }
 }
