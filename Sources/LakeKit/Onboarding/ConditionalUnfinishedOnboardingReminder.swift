@@ -24,31 +24,34 @@ public struct ConditionalUnfinishedOnboardingReminder: View {
             Button {
                 hasSeenOnboarding = false
             } label: {
-                GroupBox(label: HStack {
-                    Label {
-                        Text("Free Mode")
-                    } icon: {
-                        Image(systemName: "info.circle.fill").foregroundColor(.accentColor)
-                    }.tint(.primary)
-                    Spacer()
-                    if #available(iOS 16, macOS 13, *) {
-                        ViewThatFits {
-                            upgradeText
-                                .fixedSize()
+                GroupBox {
+                    HStack {
+                        Label {
+                            Text("Free Mode")
+                                .bold()
+                        } icon: {
+                            Image(systemName: "info.circle.fill").foregroundColor(.accentColor)
+                        }.tint(.primary)
+                        Spacer()
+                        if #available(iOS 16, macOS 13, *) {
+                            ViewThatFits {
+                                upgradeText
+                                    .fixedSize()
+                                upgradeShortText
+                                    .fixedSize()
+                                upgradeShortestText
+                                    .fixedSize()
+                            }
+                        } else {
                             upgradeShortText
                                 .fixedSize()
-                            upgradeShortestText
-                                .fixedSize()
                         }
-                    } else {
-                        upgradeShortText
-                            .fixedSize()
                     }
-                }) {
+                    .frame(maxWidth: .infinity)
                 }
-                .frame(maxWidth: .infinity)
                 //                .backgroundStyle(Color(red: 0.1, green: 0.1, blue: 0.1))
             }
+            .buttonStyle(.borderless)
         }
     }
 }
