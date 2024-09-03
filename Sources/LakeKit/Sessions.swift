@@ -49,18 +49,19 @@ public class Session: ObservableObject {
         }
     }
     
+    @MainActor
     public func authenticated(authToken: String, userID: Int) {
         keychain.set(authToken, forKey: "authToken", withAccess: .accessibleAfterFirstUnlock)
         keychain.set(String(userID), forKey: "userID", withAccess: .accessibleAfterFirstUnlock)
         self.userID = userID
         
-        Task { @MainActor in
+//        Task { @MainActor in
             for continuation in authenticationContinuations {
                 continuation.resume()
             }
             authenticationContinuations.removeAll()
             updateAuthenticationState()
-        }
+//        }
     }
     
     public func cancelAuthentication(error: Error? = nil) {
@@ -73,13 +74,14 @@ public class Session: ObservableObject {
         }
     }
     
+    @MainActor
     public func logout() {
         keychain.delete("authToken")
         keychain.delete("userID")
-        Task { @MainActor in
+//        Task { @MainActor in
             userID = -1
             updateAuthenticationState()
-        }
+//        }
     }
 }
 
@@ -133,5 +135,3 @@ public struct LakeAuthenticationSessionModifier: ViewModifier {
             }
     }
 }
-
-
