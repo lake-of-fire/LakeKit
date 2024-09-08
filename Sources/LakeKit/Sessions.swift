@@ -2,6 +2,18 @@ import SwiftUI
 import KeychainSwift
 import BetterSafariView
 
+public extension Notification.Name {
+    static var userAuthenticationChanged: Notification.Name {
+        .init("userAuthenticationChanged")
+    }
+}
+
+extension Notification {
+    static var userAuthenticationChanged: Notification {
+        Notification(name: .userAuthenticationChanged)
+    }
+}
+
 public class Session: ObservableObject {
     public var keychain: KeychainSwift
     @MainActor @Published public var isPresentingWebAuthentication = false
@@ -27,6 +39,7 @@ public class Session: ObservableObject {
     
     private func updateAuthenticationState() {
         isAuthenticated = !(keychain.get("authToken") ?? "").isEmpty && !(keychain.get("userID") ?? "").isEmpty
+        NotificationCenter.default.post(.userAuthenticationChanged)
     }
     
     public func requireAuthentication(beforePresentation: @escaping () async -> Void = { }) async throws {
@@ -88,7 +101,6 @@ public class Session: ObservableObject {
 public enum SessionError: Error {
     case notAuthenticatedAsRequired
 }
-
 
 public extension View {
     func lakeAuthenticationSession(session: Session) -> some View {

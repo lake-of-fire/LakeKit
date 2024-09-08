@@ -1,7 +1,7 @@
 import Foundation
 
 /// https://academy.realm.io/posts/realm-notifications-on-background-threads-with-swift/
-open class BackgroundWorker: NSObject, ObservableObject {
+open class BackgroundWorker: NSObject {
     private var thread: Thread!
     private var block: (()->Void)!
     
