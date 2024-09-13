@@ -76,7 +76,14 @@ public struct EnhancedSearchableModifier: ViewModifier {
 #if os(macOS)
             if isPresented {
                 HStack {
-                    DSFSearchField.SwiftUI(text: $searchText, shouldClear: $shouldClear, placeholderText: prompt, autosaveName: autosaveName, onSearchTermChange: { searchTerm in
+                    DSFSearchField.SwiftUI(text: $searchText, shouldClear: $shouldClear, placeholderText: prompt, autosaveName: autosaveName, onSearchTermChange: { searchText in
+                        // Sometimes necessary despite searchText binding...
+                        Task { @MainActor in
+                            if self.searchText != searchText {
+                                //                            debugPrint("!! DSF searchterm", searchText)
+                                self.searchText = searchText
+                            }
+                        }
 //                        onSearchTextChange(searchText: searchTerm)
                         //                Task { @MainActor in
                         //                    isEnhancedlySearching = !searchTerm.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
