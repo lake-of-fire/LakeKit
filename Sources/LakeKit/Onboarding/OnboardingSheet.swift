@@ -156,7 +156,7 @@ struct OnboardingPrimaryButtons: View {
                     condition: isFinishedOnboarding)
             }
             
-            PrimaryButton(title: "Skip Upgrades", systemImage: nil) {
+            PrimaryButton(title: "View Subsidized Plans", systemImage: nil) {
                 navigationPath.removeLast(navigationPath.count)
                 navigationPath.append("free-mode")
             }
