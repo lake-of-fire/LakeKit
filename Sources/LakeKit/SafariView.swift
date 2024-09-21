@@ -11,7 +11,7 @@ fileprivate struct SafariViewModifier: ViewModifier {
     @ScaledMetric(relativeTo: .body) private var idealWidth: CGFloat = 650
     @ScaledMetric(relativeTo: .body) private var idealHeight: CGFloat = 500
     
-    @State private var webNavigator = WebViewNavigator()
+    @StateObject private var webNavigator = WebViewNavigator()
     @State private var webState = WebViewState.empty
     
     func body(content: Content) -> some View {
