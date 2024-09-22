@@ -156,7 +156,7 @@ struct OnboardingPrimaryButtons: View {
                     condition: isFinishedOnboarding)
             }
             
-            PrimaryButton(title: "View Subsidized Plans", systemImage: nil) {
+            PrimaryButton(title: "View Subsidized Options", systemImage: nil) {
                 navigationPath.removeLast(navigationPath.count)
                 navigationPath.append("free-mode")
             }
@@ -751,6 +751,11 @@ public struct OnboardingSheet<CardContent: View>: ViewModifier {
 #if os(macOS)
                     .frame(idealWidth: 450, idealHeight: 600)
 #endif
+                    .modifier {
+                        if #available(iOS 18, macOS 15, *) {
+                            $0.presentationSizing(.page)
+                        } else { $0 }
+                    }
                     .onDisappear {
                         if !hasRespondedToOnboarding {
                             hasSeenOnboarding = true
