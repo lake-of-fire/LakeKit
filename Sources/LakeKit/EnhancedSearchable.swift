@@ -25,7 +25,7 @@ public struct EnhancedSearchableModifier: ViewModifier {
     var prefersToolbarPlacement = true
     var showSearchButtonIfNeeded = true
     var canHideSearchBar = false
-    let searchAction: ((String) -> Void)
+    let searchAction: ((String) async throws -> Void)
     
 #if os(iOS)
     @State private var isIOSSearching = false
@@ -248,7 +248,7 @@ public struct EnhancedSearchableModifier: ViewModifier {
         searchTask = Task.detached {
             do {
                 try Task.checkCancellation()
-                searchAction(searchText)
+                try await searchAction(searchText)
             } catch { }
         }
     }
@@ -268,7 +268,18 @@ struct CustomSpacingLabel: LabelStyle {
 #endif
 
 public extension View {
-    func enhancedSearchable(isPresented: Binding<Bool>? = nil, isEnhancedlySearching: Binding<Bool>, searchText: Binding<String>, autosaveName: String? = nil, prompt: String? = nil, placement: SearchFieldPlacement = .automatic, prefersToolbarPlacement: Bool = true, showSearchButtonIfNeeded: Bool = true, canHideSearchBar: Bool = false, searchAction: @escaping ((String) -> Void)) -> some View {
+    func enhancedSearchable(
+        isPresented: Binding<Bool>? = nil,
+        isEnhancedlySearching: Binding<Bool>,
+        searchText: Binding<String>,
+        autosaveName: String? = nil,
+        prompt: String? = nil,
+        placement: SearchFieldPlacement = .automatic,
+        prefersToolbarPlacement: Bool = true,
+        showSearchButtonIfNeeded: Bool = true,
+        canHideSearchBar: Bool = false,
+        searchAction: @escaping ((String) async throws -> Void)
+    ) -> some View {
         self.modifier(EnhancedSearchableModifier(isPresented: isPresented ?? .constant(true), isEnhancedlySearching: isEnhancedlySearching, canHide: isPresented != nil, searchText: searchText, autosaveName: autosaveName, prompt: prompt, placement: placement, prefersToolbarPlacement: prefersToolbarPlacement, showSearchButtonIfNeeded: showSearchButtonIfNeeded, canHideSearchBar: canHideSearchBar, searchAction: searchAction))
     }
 }
