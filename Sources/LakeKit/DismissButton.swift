@@ -85,9 +85,9 @@ public struct BaseDismissButtonStyle: DismissButtonStyle {
         case .regular:
             return size
         case .small:
-            return size * 0.85
+            return size * 1 //0.85
         case .mini:
-            return size * 0.85
+            return size * 1 //0.85
         @unknown default:
             return size
         }
