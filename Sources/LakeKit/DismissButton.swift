@@ -62,11 +62,11 @@ public struct BaseDismissButtonStyle: DismissButtonStyle {
     
     private var fontSize: CGFloat {
 #if os(iOS)
-//        return circleSize * 0.44
-        return circleSize * 0.34
+        return circleSize * 0.44
+//        return circleSize * 0.34
 #else
-//        return circleSize * 0.46875
-        return circleSize * 0.4
+        return circleSize * 0.46875
+//        return circleSize * 0.4
 #endif
     }
     
