@@ -14,4 +14,13 @@ public struct Pasteboard {
         NSPasteboard.general.setString(text, forType: .string)
 #endif
     }
+    
+    public static func copy(_ url: URL) {
+#if os(iOS)
+        UIPasteboard.general.url = url
+#elseif os(macOS)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.writeObjects([url])
+#endif
+    }
 }
