@@ -90,6 +90,11 @@ public struct PublishedAppStorage<Value> {
         self._storedValue = AppStorage(wrappedValue: wrappedValue, key, store: store)
     }
     
+    // Int
+    init(wrappedValue: Value, _ key: String, store: UserDefaults? = nil) where Value == Int {
+        self._storedValue = AppStorage(wrappedValue: wrappedValue, key, store: store)
+    }
+    
     // URL
     public init(wrappedValue: URL, _ key: String, store: UserDefaults? = nil) where Value == URL {
         self._storedValue = AppStorage(wrappedValue: wrappedValue, key, store: store)
