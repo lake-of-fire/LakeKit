@@ -20,7 +20,8 @@ public struct Pasteboard {
         UIPasteboard.general.url = url
 #elseif os(macOS)
         NSPasteboard.general.clearContents()
-        NSPasteboard.general.writeObjects([url])
+        NSPasteboard.general.writeObjects([url as NSPasteboardWriting])
+
 #endif
     }
 }
