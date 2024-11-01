@@ -149,11 +149,10 @@ public struct EnhancedSearchableModifier: ViewModifier {
                     HStack(spacing: 5) {
                         HStack(spacing: 0) {
                             TextField(prompt ?? "Search", text: $searchText, prompt: promptText)
-                                .foregroundStyle(.secondary)
                                 .textFieldStyle(.roundedBorder)
                                 .focused($focusedField, equals: "search")
                         }
-                        if isEnhancedlySearching {
+                        if isPresented && (canHide || isEnhancedlySearching) {
                             Button {
                                 withAnimation {
                                     isEnhancedlySearching = false
@@ -171,7 +170,7 @@ public struct EnhancedSearchableModifier: ViewModifier {
                     }
                     //                    .fitToReadableContentWidth()
                     .padding(.horizontal, 10)
-                    .padding(.bottom, 5)
+//                    .padding(.bottom, 5)
                     .frame(maxWidth: 850)
                 }
             }
@@ -203,28 +202,37 @@ public struct EnhancedSearchableModifier: ViewModifier {
             onSearchTextChange(searchText: searchText)
         }
 #if os(iOS)
-        .onChange(of: focusedField) { [oldValue = focusedField] focusedField in
-            if !isEnhancedlySearching, focusedField == "search" {
-                isEnhancedlySearching = true
-            } else if !isExecutingSearchFieldFocusWorkaround && oldValue == "search" && focusedField != "search" && isEnhancedlySearching {
-                isEnhancedlySearching = false
-                if canHideSearchBar {
-                    isPresented = false
-                }
+//        .onChange(of: focusedField) { [oldValue = focusedField] focusedField in
+//            if !isEnhancedlySearching, focusedField == "search" {
+//                isEnhancedlySearching = true
+//            } else if !isExecutingSearchFieldFocusWorkaround && oldValue == "search" && focusedField != "search" && isEnhancedlySearching {
+//                isEnhancedlySearching = false
+//                if canHideSearchBar {
+//                    isPresented = false
+//                }
+//            }
+//        }
+        .onChange(of: isPresented) { [oldValue = isPresented] isPresented in
+            guard isPresented, oldValue != isPresented else {
+                searchText.removeAll()
+                return
+            }
+            Task { @MainActor in
+//                guard !isExecutingSearchFieldFocusWorkaround else { return }
+//                debugPrint("!! isExecuting workaround")
+//                isExecutingSearchFieldFocusWorkaround = true
+//                // Hack to trigger correct focused state triggering.
+                focusedField = "search"
+//                try await Task.sleep(nanoseconds: UInt64(0.06) * 1_000_000_000)
+//                focusedField = nil
+//                try await Task.sleep(nanoseconds: UInt64(0.06) * 1_000_000_000)
+//                focusedField = "search"
+//                isExecutingSearchFieldFocusWorkaround = false
             }
         }
-        .onChange(of: isPresented) { [oldValue = isPresented] isPresented in
-            guard isPresented, oldValue != isPresented else { return }
-            Task { @MainActor in
-                guard !isExecutingSearchFieldFocusWorkaround else { return }
-                isExecutingSearchFieldFocusWorkaround = true
-                // Hack to trigger correct focused state triggering.
+        .onChange(of: isEnhancedlySearching) { isEnhancedlySearching in
+            if isEnhancedlySearching {
                 focusedField = "search"
-                try await Task.sleep(nanoseconds: UInt64(0.06) * 1_000_000_000)
-                focusedField = nil
-                try await Task.sleep(nanoseconds: UInt64(0.06) * 1_000_000_000)
-                focusedField = "search"
-                isExecutingSearchFieldFocusWorkaround = false
             }
         }
 #endif
