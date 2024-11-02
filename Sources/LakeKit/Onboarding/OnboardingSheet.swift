@@ -283,6 +283,10 @@ struct OnboardingCardsView<CardContent: View>: View {
                         if #available(iOS 16, macOS 13, *) {
                             Rectangle()
                                 .fill(card.color.gradient.opacity(0.75))
+                                .overlay {
+                                    Rectangle()
+                                        .fill(Color.black.gradient.opacity(0.2))
+                                }
                         } else {
                             card.color
                         }
@@ -321,7 +325,6 @@ struct OnboardingCardsView<CardContent: View>: View {
                 }
             }
         }
-        .background(Color.systemGray6)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .safeAreaInset(edge: .bottom) {
             if #available(iOS 17, macOS 14, *) {
