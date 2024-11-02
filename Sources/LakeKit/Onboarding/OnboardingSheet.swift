@@ -143,7 +143,7 @@ struct OnboardingPrimaryButtons: View {
                 .padding(.vertical, (horizontalSizeClass == .compact ? 0: 5) as CGFloat?)
 #endif
                 
-                PrimaryButton(title: "Continue", systemImage: nil) {
+                PrimaryButton(title: "Upgrade", systemImage: nil) {
                     isPresentingStoreSheet.toggle()
                 }
                 .buttonStyle(.borderedProminent)
@@ -156,7 +156,7 @@ struct OnboardingPrimaryButtons: View {
                     condition: isFinishedOnboarding)
             }
             
-            PrimaryButton(title: "View Subsidized Options", systemImage: nil) {
+            PrimaryButton(title: "Subsidized Options", systemImage: nil) {
                 navigationPath.removeLast(navigationPath.count)
                 navigationPath.append("free-mode")
             }
