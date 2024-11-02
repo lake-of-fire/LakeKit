@@ -319,9 +319,9 @@ struct OnboardingCardsView<CardContent: View>: View {
                         .padding(.horizontal)
                     }
                 }
-                .background(.red)
             }
         }
+        .background(Color.systemGray6)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .safeAreaInset(edge: .bottom) {
             if #available(iOS 17, macOS 14, *) {
@@ -769,7 +769,6 @@ public struct OnboardingSheet<CardContent: View>: ViewModifier {
     @State private var isPresented = false
     @State private var isFinished = false
 
-    @State var eee = UUID().uuidString
     public func body(content: Content) -> some View {
         content
             .sheet(isPresented: $isPresented) {
