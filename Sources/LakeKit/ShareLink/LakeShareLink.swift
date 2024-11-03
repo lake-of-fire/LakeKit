@@ -20,7 +20,14 @@ import LinkPresentation
         let message: String?
         let preview: (Data.Element) -> SharePreview<PreviewImage, PreviewIcon>
 
-        public init(activity: Binding<ActivityItem<Data>?>, label: Label = EmptyView(), data: Data, subject: String?, message: String? = nil, preview: @escaping (Data.Element) -> SharePreview<PreviewImage, PreviewIcon>) {
+        public init(
+            activity: Binding<ActivityItem<Data>?>,
+            label: Label = DefaultShareLinkLabel(),
+            data: Data,
+            subject: String?,
+            message: String? = nil,
+            preview: @escaping (Data.Element) -> SharePreview<PreviewImage, PreviewIcon>
+        ) {
             _activity = activity
             self.label = label
             self.data = data
@@ -29,7 +36,12 @@ import LinkPresentation
             self.preview = preview
         }
         
-        public init(activity: Binding<ActivityItem<Data>?>, item: String, subject: String? = nil, message: String? = nil)
+        public init(
+            activity: Binding<ActivityItem<Data>?>,
+            item: String,
+            subject: String? = nil,
+            message: String? = nil
+        )
         where Data == CollectionOfOne<String>, PreviewImage == Never, PreviewIcon == Never, Label == DefaultShareLinkLabel {
             _activity = activity
             self.label = .init()
@@ -39,7 +51,12 @@ import LinkPresentation
             self.preview = { .init($0) }
         }
         
-        public init(activity: Binding<ActivityItem<Data>?>, item: URL, subject: String? = nil, message: String? = nil)
+        public init(
+            activity: Binding<ActivityItem<Data>?>,
+            item: URL,
+            subject: String? = nil,
+            message: String? = nil
+        )
         where Data == CollectionOfOne<URL>, PreviewImage == Never, PreviewIcon == Never, Label == DefaultShareLinkLabel {
             _activity = activity
             self.label = .init()
@@ -49,7 +66,13 @@ import LinkPresentation
             self.preview = { .init($0.absoluteString) }
         }
         
-        public init(activity: Binding<ActivityItem<Data>?>, item: String, subject: String? = nil, message: String? = nil, @ViewBuilder label: () -> Label)
+        public init(
+            activity: Binding<ActivityItem<Data>?>,
+            item: String,
+            subject: String? = nil,
+            message: String? = nil,
+            @ViewBuilder label: () -> Label
+        )
         where PreviewIcon == Never, PreviewImage == Never, Data == CollectionOfOne<String> {
             _activity = activity
             self.label = label()
@@ -59,7 +82,13 @@ import LinkPresentation
             self.preview = { .init($0) }
         }
         
-        public init(activity: Binding<ActivityItem<Data>?>, item: URL, subject: String? = nil, message: String? = nil, @ViewBuilder label: () -> Label)
+        public init(
+            activity: Binding<ActivityItem<Data>?>,
+            item: URL,
+            subject: String? = nil,
+            message: String? = nil,
+            @ViewBuilder label: () -> Label
+        )
         where PreviewIcon == Never, PreviewImage == Never, Data == CollectionOfOne<URL> {
             _activity = activity
             self.label = label()

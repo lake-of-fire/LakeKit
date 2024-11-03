@@ -5,19 +5,19 @@ public struct DefaultShareLinkLabel: View {
     let text: Text
     private static let shareIcon = "square.and.arrow.up"
     
-    init() {
-        text = .init("Share")
+    public init() {
+        text = .init("Share…")
     }
     
-    init<S: StringProtocol>(_ title: S) {
+    public init<S: StringProtocol>(_ title: S) {
         text = .init(title)
     }
     
-    init(_ titleKey: LocalizedStringKey) {
+    public init(_ titleKey: LocalizedStringKey) {
         text = .init(titleKey)
     }
     
-    init(_ title: Text) {
+    public init(_ title: Text) {
         text = title
     }
     
