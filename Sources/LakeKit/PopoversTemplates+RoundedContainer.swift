@@ -49,7 +49,7 @@ public extension Templates {
             self.padding = padding
             self.view = view()
         }
-
+        
         public var body: some View {
             PopoverReader { context in
                 view
