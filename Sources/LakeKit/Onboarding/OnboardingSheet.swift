@@ -35,6 +35,10 @@ fileprivate struct PrimaryButton: View {
         self.action = action
     }
         
+#if os(iOS)
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
+#endif
+    
     @ViewBuilder private func primaryButtonLabel(title: String, systemImage: String?) -> some View {
         Group {
             if let systemImage = systemImage {
@@ -68,11 +72,18 @@ fileprivate struct PrimaryButton: View {
         .frame(maxWidth: .infinity)
         .modifier {
             if let controlSize = controlSize {
-                $0.controlSize(controlSize)
-            } else if #available(iOS 17, macOS 14, *) {
-                $0.controlSize(.extraLarge)
+                return $0.controlSize(controlSize)
             } else {
-                $0.controlSize(.large)
+#if os (iOS)
+                if verticalSizeClass == .compact {
+                    return $0.controlSize(.regular)
+                }
+#endif
+                if #available(iOS 17, macOS 14, *) {
+                    return $0.controlSize(.extraLarge)
+                } else {
+                    return $0.controlSize(.large)
+                }
             }
         }
     }
@@ -83,23 +94,102 @@ struct OnboardingPrimaryButtons: View {
     @Binding var isPresentingSheet: Bool
     @Binding var isPresentingStoreSheet: Bool
     @Binding var navigationPath: NBNavigationPath
-
+    
     @State private var highlightedProduct: PrePurchaseSubscriptionInfo?
     
     @AppStorage("hasSeenOnboarding") var hasSeenOnboarding = false
-
+    
     @EnvironmentObject private var storeViewModel: StoreViewModel
     @EnvironmentObject private var storeHelper: StoreHelper
     @Environment(\.showAds) private var showAds: Bool
 #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
 #endif
-
+    
     private var headlineText: String {
         if let purchasePrice = highlightedProduct?.purchasePrice, let renewalPeriod = highlightedProduct?.renewalPeriod {
             return "As low as " + purchasePrice + " " + renewalPeriod.replacingOccurrences(of: "/", with: "per")
         }
         return ""
+    }
+    
+    @ViewBuilder
+    private func subscriptionButton() -> some View {
+        Button {
+            isPresentingStoreSheet.toggle()
+        } label: {
+            VStack {
+                Text(headlineText)
+                    .font(.headline)
+                    .task { @MainActor in
+                        highlightedProduct = await storeViewModel.productSubscriptionInfo(productID: storeViewModel.highlightedProductID, storeHelper: storeHelper)
+                    }
+                Text("With qualifying discounts")
+                    .foregroundStyle(.secondary)
+                    .font(.footnote)
+                    .multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.plain)
+        .controlSize(.large)
+        .padding(.horizontal)
+#if os(iOS)
+        .padding(.vertical, (horizontalSizeClass == .compact ? 0: 5) as CGFloat?)
+#endif
+    }
+    
+    @ViewBuilder
+    private func upgradeButton() -> some View {
+        PrimaryButton(title: "Upgrade", systemImage: nil) {
+            isPresentingStoreSheet.toggle()
+        }
+        .buttonStyle(.borderedProminent)
+        .tint(.accentColor)
+        .conditionalEffect(
+            .repeat(
+                .shine.delay(0.75),
+                every: 4
+            ),
+            condition: isFinishedOnboarding
+        )
+    }
+    
+    @ViewBuilder
+    private func subsidizedOptionsButton() -> some View {
+        PrimaryButton(title: "Subsidized Options", systemImage: nil) {
+            navigationPath.removeLast(navigationPath.count)
+            navigationPath.append("free-mode")
+        }
+        .buttonStyle(.bordered)
+        .tint(.secondary)
+        .background {
+            Color.white.opacity(0.0000000001)
+                .edgesIgnoringSafeArea(.all)
+        }
+    }
+    
+    @ViewBuilder
+    private func buttonsStack() -> some View {
+#if os(iOS)
+        if verticalSizeClass == .compact {
+            HStack {
+                subscriptionButton()
+                upgradeButton()
+            }
+        } else {
+            VStack {
+                subscriptionButton()
+                upgradeButton()
+            }
+        }
+#else
+        VStack {
+            subscriptionButton()
+            upgradeButton()
+        }
+#endif
     }
     
     var body: some View {
@@ -111,61 +201,8 @@ struct OnboardingPrimaryButtons: View {
             .tint(isFinishedOnboarding ? .accentColor : .secondary)
             .buttonStyle(.borderedProminent)
         } else {
-            VStack {
-                Button {
-                    isPresentingStoreSheet.toggle()
-                } label: {
-                    VStack {
-                        Text(headlineText)
-                            .font(.headline)
-                            .task { @MainActor in
-                                highlightedProduct = await storeViewModel.productSubscriptionInfo(productID: storeViewModel.highlightedProductID, storeHelper: storeHelper)
-                            }
-                        Text("With qualifying discounts")
-                        //Text("$0.99/month or $9.99/year US with discount")
-                            .foregroundStyle(.secondary)
-                            .font(.footnote)
-                            .multilineTextAlignment(.center)
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.plain)
-                .controlSize(.large)
-//                .modifier {
-//                    if #available(iOS 17, macOS 14, *) {
-//                        $0.controlSize(.extraLarge)
-//                    } else {
-//                        $0.controlSize(.large)
-//                    }
-//                }
-                .padding(.horizontal)
-#if os(iOS)
-                .padding(.vertical, (horizontalSizeClass == .compact ? 0: 5) as CGFloat?)
-#endif
-                
-                PrimaryButton(title: "Upgrade", systemImage: nil) {
-                    isPresentingStoreSheet.toggle()
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.accentColor)
-                .conditionalEffect(
-                    .repeat(
-                        .shine.delay(0.75),
-                        every: 4
-                    ),
-                    condition: isFinishedOnboarding)
-            }
-            
-            PrimaryButton(title: "Subsidized Options", systemImage: nil) {
-                navigationPath.removeLast(navigationPath.count)
-                navigationPath.append("free-mode")
-            }
-            .buttonStyle(.bordered)
-            .tint(.secondary)
-            .background {
-                Color.white.opacity(0.0000000001)
-                    .edgesIgnoringSafeArea(.all)
-            }
+            buttonsStack()
+            subsidizedOptionsButton()
         }
     }
 }
@@ -487,7 +524,7 @@ fileprivate struct FreeModeView: View {
                 .buttonStyle(.borderedProminent)
                 .tint(.accentColor)
                 
-                PrimaryButton(title: hasViewedFreeModeUpsell ? "Continue Without Trying Discounts" : "Continue Without Seeing Discounts", systemImage: nil, controlSize: .regular) {
+                PrimaryButton(title: hasViewedFreeModeUpsell ? "Continue Without Trying Discounts" : "Continue Without Discounted Upgrades", systemImage: nil, controlSize: .regular) {
                     hasSeenOnboarding = true
                     hasRespondedToOnboarding = true
                     isPresentingSheet = false
@@ -559,24 +596,57 @@ struct OnboardingCardView<CardContent: View>: View {
     @ViewBuilder let cardContent: (OnboardingCard, Binding<Bool>, Bool) -> CardContent
 
     @Environment(\.colorScheme) private var colorScheme
+#if os(iOS)
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
+#endif
     
-    @ViewBuilder private var innerView: some View {
-        VStack(spacing: 16) {
-            Text(card.title)
-                .font(.title2)
-                .fontWeight(.heavy)
+    private var useVStack: Bool {
+#if os(iOS)
+        return verticalSizeClass == .regular
+#else
+        return true
+#endif
+    }
+
+    @ViewBuilder private var headlineView: some View {
+        Text(card.title)
+            .font(.title3)
+            .fontWeight(.heavy)
+            .lineLimit(9001)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+    
+    @ViewBuilder private var cardContentView: some View {
+        cardContent(card, $isFinished, isTopVisible)
+    }
+    
+    @ViewBuilder private var subheadlineView: some View {
+        if !card.description.isEmpty {
+            Text(card.description)
+                .font(.subheadline)
                 .lineLimit(9001)
                 .fixedSize(horizontal: false, vertical: true)
-            
-            cardContent(card, $isFinished, isTopVisible)
-            
-            if !card.description.isEmpty {
-                Text(card.description)
-                    .font(.subheadline.bold())
-                    .lineLimit(9001)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal)
+            //                    .foregroundStyle(.secondary)
+                .padding(.horizontal)
+        }
+    }
+    
+    @ViewBuilder private var innerView: some View {
+        Group {
+            if useVStack {
+                VStack(spacing: 16) {
+                    headlineView
+                    cardContentView
+                    subheadlineView
+                }
+            } else {
+                HStack(spacing: 16) {
+                    VStack(spacing: 16) {
+                        headlineView
+                        subheadlineView
+                    }
+                    cardContentView
+                }
             }
         }
         .multilineTextAlignment(.center)
@@ -772,6 +842,8 @@ public struct OnboardingSheet<CardContent: View>: ViewModifier {
     @State private var isPresented = false
     @State private var isFinished = false
 
+    @State private var ee = UUID().uuidString
+    
     public func body(content: Content) -> some View {
         content
             .sheet(isPresented: $isPresented) {
@@ -789,11 +861,6 @@ public struct OnboardingSheet<CardContent: View>: ViewModifier {
                         if #available(iOS 18, macOS 15, *) {
                             $0.presentationSizing(.page)
                         } else { $0 }
-                    }
-                    .onDisappear {
-                        if isActive && !hasRespondedToOnboarding {
-                            hasSeenOnboarding = true
-                        }
                     }
                     .storeSheet(isPresented: $isPresentingStoreSheet && isActive)
                 // TODO: track onDisappear (after tracking onAppear to make sure it was seen for long enough too) timestamp as last seen date in AppStorage to avoid re-showing onboarding within seconds or minute of last seeing it again. Avoids annoying the user.
