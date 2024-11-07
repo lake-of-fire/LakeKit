@@ -1,7 +1,6 @@
 import SwiftUI
 import DSFSearchField
 import DebouncedOnChange
-@_spi(Advanced) import SwiftUIIntrospect
 
 struct IsEnhancedlySearchingKey: EnvironmentKey {
     static let defaultValue = false
