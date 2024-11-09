@@ -2,6 +2,7 @@ import SwiftUI
 import Logging
 import Puppy
 import OSLog
+import ZIPFoundation
 
 fileprivate func bundleIdentifier() -> String {
     return (Bundle(for: Logger.self).bundleIdentifier ?? "")
@@ -203,6 +204,44 @@ public struct TransferableLog: Hashable, Transferable {
     public static var transferRepresentation: some TransferRepresentation {
         FileRepresentation(exportedContentType: .text) { transferable in
             SentTransferredFile(transferable.url)
+        }
+    }
+}
+
+extension Logger {
+    public func writeLogFile() {
+        let fileManager = FileManager.default
+        
+        do {
+            // Create an in-memory ZIP archive
+            guard let archive = Archive(accessMode: .create) else {
+                print("Failed to initialize in-memory ZIP archive.")
+                return
+            }
+            
+            // Add log files to the archive
+            try getCurrentLogs().forEach { logFileURL in
+                if fileManager.fileExists(atPath: logFileURL.path) {
+                    try archive.addEntry(with: logFileURL.lastPathComponent, relativeTo: logFileURL.deletingLastPathComponent(), compressionMethod: .deflate)
+                }
+            }
+            
+            // Retrieve the archive data from the in-memory archive
+            guard let zipData = archive.data else {
+                print("In-memory ZIP archive creation failed.")
+                return
+            }
+            
+            // Define the path for the ZIP file in the documents directory
+            let documentsDirectory = try fileManager.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+            let zipFileURL = documentsDirectory.appendingPathComponent("ManabiReaderLogs.zip")
+            
+            // Write ZIP file to disk, overwriting if it exists
+            try zipData.write(to: zipFileURL, options: .atomic)
+            print("Successfully wrote ZIP file to disk at \(zipFileURL.path)")
+            
+        } catch {
+            print("Failed to create or write ZIP archive: \(error)")
         }
     }
 }
