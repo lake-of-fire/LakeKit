@@ -74,12 +74,16 @@ public struct PublishedAppStorage<Value> {
     public init(wrappedValue: Value, _ key: String, store: UserDefaults? = nil) where Value : RawRepresentable, Value.RawValue == String {
         self._storedValue = AppStorage(wrappedValue: wrappedValue, key, store: store)
     }
-    
+
     // String
     public init(wrappedValue: String, _ key: String, store: UserDefaults? = nil) where Value == String {
         self._storedValue = AppStorage(wrappedValue: wrappedValue, key, store: store)
     }
     
+    public init(_ key: String, store: UserDefaults? = nil) where Value == String? {
+        self._storedValue = AppStorage(key, store: store)
+    }
+ 
     // Data
     public init(wrappedValue: Data, _ key: String, store: UserDefaults? = nil) where Value == Data {
         self._storedValue = AppStorage(wrappedValue: wrappedValue, key, store: store)
@@ -90,9 +94,16 @@ public struct PublishedAppStorage<Value> {
         self._storedValue = AppStorage(wrappedValue: wrappedValue, key, store: store)
     }
     
-    // Int
-    init(wrappedValue: Value, _ key: String, store: UserDefaults? = nil) where Value == Int {
+    public init(_ key: String, store: UserDefaults? = nil) where Value == Int? {
+        self._storedValue = AppStorage(key, store: store)
+    }
+
+    public init(wrappedValue: Value, _ key: String, store: UserDefaults? = nil) where Value == Int {
         self._storedValue = AppStorage(wrappedValue: wrappedValue, key, store: store)
+    }
+    
+    public init<R>(_ key: String, store: UserDefaults? = nil) where Value: ExpressibleByNilLiteral, Value == R?, R: RawRepresentable, R.RawValue == Int {
+        self._storedValue = AppStorage(key, store: store)
     }
     
     // URL
