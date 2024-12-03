@@ -2,15 +2,6 @@ import Foundation
 import LRUCache
 import SwiftUtilities
 
-extension Bundle {
-    var appVersionLong: String    { getInfo("CFBundleShortVersionString") }
-    var appBuild: String          { getInfo("CFBundleVersion") }
-    
-    private func getInfo(_ str: String) -> String {
-        infoDictionary?[str] as? String ?? "UNKNOWN-VERSION"
-    }
-}
-
 #if DEBUG
 fileprivate let debugBuildID = UUID()
 #endif
@@ -49,7 +40,7 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
         if let version = version {
             versionString = String(version)
         } else {
-            versionString = Bundle.main.appVersionLong + "-" + Bundle.main.appBuild
+            versionString = Bundle.main.versionString
 #if DEBUG
             versionString += debugBuildID.uuidString
 #endif

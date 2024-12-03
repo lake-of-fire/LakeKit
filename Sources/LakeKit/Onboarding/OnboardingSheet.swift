@@ -524,7 +524,7 @@ fileprivate struct FreeModeView: View {
                 .buttonStyle(.borderedProminent)
                 .tint(.accentColor)
                 
-                PrimaryButton(title: hasViewedFreeModeUpsell ? "Continue Without Trying Discounts" : "Continue Without Upgrade Discount", systemImage: nil, controlSize: .regular) {
+                PrimaryButton(title: hasViewedFreeModeUpsell ? "Continue Without Trying Discounts" : "Skip Upgrade Discount", systemImage: nil, controlSize: .regular) {
                     hasSeenOnboarding = true
                     hasRespondedToOnboarding = true
                     isPresentingSheet = false
