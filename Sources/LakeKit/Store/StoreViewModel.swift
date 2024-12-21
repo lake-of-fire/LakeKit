@@ -39,8 +39,8 @@ public class StoreViewModel: NSObject, ObservableObject {
     @Published public var chatURL: URL? = nil
     @Published public var faq = OrderedDictionary<String, String>()
     
-    @AppStorage("LakeKit.isSubscribed") public var isSubscribed = false
-    @AppStorage("LakeKit.isSubscribedFromElsewhere") public var isSubscribedFromElsewhere = false
+    @PublishedAppStorage("LakeKit.isSubscribed") public var isSubscribed = false
+    @PublishedAppStorage("LakeKit.isSubscribedFromElsewhere") public var isSubscribedFromElsewhere = false
     @MainActor var isSubscribedFromElsewhereCallback: ((StoreViewModel) async -> Bool)? = nil
     private var subscriptionRefreshTask: Task<Void, Never>? = nil
     
@@ -122,8 +122,12 @@ public class StoreViewModel: NSObject, ObservableObject {
                 //            isSubscribed = false
                 guard let group = await storeHelper.subscriptionHelper.groupSubscriptionInfo()?.first, let groupID = group.subscriptionGroup, let subscriptionState = await storeHelper.subscriptionHelper.subscriptionInfo(for: groupID)?.subscriptionStatus?.state else {
                     try Task.checkCancellation()
-                    isSubscribed = false
-                    isInitialized = true
+                    if isSubscribed {
+                        isSubscribed = false
+                    }
+                    if !isInitialized {
+                        isInitialized = true
+                    }
                     return
                 }
                 
