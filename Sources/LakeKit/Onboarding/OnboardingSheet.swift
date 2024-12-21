@@ -608,7 +608,7 @@ struct OnboardingCardView<CardContent: View>: View {
 #endif
     }
 
-    @ViewBuilder private var headlineView: some View {
+    @ViewBuilder private var headlineText: some View {
         Text(card.title)
             .font(.title3)
             .fontWeight(.heavy)
@@ -616,6 +616,17 @@ struct OnboardingCardView<CardContent: View>: View {
             .fixedSize(horizontal: false, vertical: true)
     }
     
+    @ViewBuilder private var headlineView: some View {
+        if card.breakoutCard {
+            GroupBox {
+                headlineText
+                    .padding(.horizontal)
+            }
+        } else {
+            headlineText
+        }
+    }
+
     @ViewBuilder private var cardContentView: some View {
         cardContent(card, $isFinished, isTopVisible)
     }
@@ -793,7 +804,9 @@ fileprivate struct PageNavigator: View {
     
     var body: some View {
         ZStack {
-            indicatorView
+            if let currentIndex, currentIndex > 0 {
+                indicatorView
+            }
 
             let canGoPrevious = canGoPrevious
             let canGoNext = canGoNext
