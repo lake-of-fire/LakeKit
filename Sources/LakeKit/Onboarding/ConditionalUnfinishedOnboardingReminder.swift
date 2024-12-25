@@ -20,7 +20,7 @@ public struct ConditionalUnfinishedOnboardingReminder: View {
     }
     
     public var body: some View {
-        if !hasRespondedToOnboarding && hasSeenOnboarding && showAds {
+        if !hasRespondedToOnboarding && hasSeenOnboarding && showAds() {
             Button {
                 hasSeenOnboarding = false
             } label: {

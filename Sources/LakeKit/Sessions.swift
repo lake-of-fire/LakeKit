@@ -37,9 +37,13 @@ public class Session: ObservableObject {
         }
     }
     
-    private func updateAuthenticationState() {
+    @MainActor
+    public func updateAuthenticationState() {
+        let oldValue = isAuthenticated
         isAuthenticated = !(keychain.get("authToken") ?? "").isEmpty && !(keychain.get("userID") ?? "").isEmpty
-        NotificationCenter.default.post(.userAuthenticationChanged)
+        if oldValue != isAuthenticated {
+            NotificationCenter.default.post(.userAuthenticationChanged)
+        }
     }
     
     public func requireAuthentication(beforePresentation: @escaping () async -> Void = { }) async throws {
@@ -68,18 +72,20 @@ public class Session: ObservableObject {
         keychain.set(String(userID), forKey: "userID", withAccess: .accessibleAfterFirstUnlock)
         self.userID = userID
         
-//        Task { @MainActor in
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 500_000_000) // needed to not mess with swiftui sheets
             for continuation in authenticationContinuations {
                 continuation.resume()
             }
             authenticationContinuations.removeAll()
             updateAuthenticationState()
-//        }
+        }
     }
     
     public func cancelAuthentication(error: Error? = nil) {
         Task { @MainActor in
             logout()
+            try? await Task.sleep(nanoseconds: 500_000_000) // needed to not mess with swiftui sheets
             for continuation in authenticationContinuations {
                 continuation.resume(throwing: error ?? SessionError.notAuthenticatedAsRequired)
             }
@@ -103,17 +109,26 @@ public enum SessionError: Error {
 }
 
 public extension View {
-    func lakeAuthenticationSession(session: Session) -> some View {
-        self.modifier(LakeAuthenticationSessionModifier(session: session))
+    func lakeAuthenticationSession(
+        session: Session,
+        isModalWiringActive: Bool
+    ) -> some View {
+        self.modifier(
+            LakeAuthenticationSessionModifier(
+                session: session,
+                isModalWiringActive: isModalWiringActive
+            )
+        )
     }
 }
 
 public struct LakeAuthenticationSessionModifier: ViewModifier {
     @MainActor @ObservedObject public var session: Session
+    let isModalWiringActive: Bool
 
     public func body(content: Content) -> some View {
         content
-            .webAuthenticationSession(isPresented: $session.isPresentingWebAuthentication) {
+            .webAuthenticationSession(isPresented: $session.isPresentingWebAuthentication && isModalWiringActive) {
                 WebAuthenticationSession(url: URL(string: "https://manabi.io/accounts/signup/?next=/accounts/native-app-login-redirect/manabireader/")!, callbackURLScheme: "manabireader") { callbackURL, error in
                     if let error = error {
                         print(error)

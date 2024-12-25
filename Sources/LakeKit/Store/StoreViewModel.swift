@@ -3,11 +3,11 @@ import Collections
 import StoreHelper
 
 struct ShowAdsKey: EnvironmentKey {
-    static var defaultValue = false
+    static var defaultValue = { false }
 }
 
 public extension EnvironmentValues {
-    var showAds: Bool {
+    var showAds: () -> Bool {
         get { self[ShowAdsKey.self] }
         set { self[ShowAdsKey.self] = newValue }
     }
