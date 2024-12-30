@@ -287,6 +287,20 @@ public extension View {
         canHideSearchBar: Bool = false,
         searchAction: @escaping ((String) async throws -> Void)
     ) -> some View {
-        self.modifier(EnhancedSearchableModifier(isPresented: isPresented ?? .constant(true), isEnhancedlySearching: isEnhancedlySearching, canHide: isPresented != nil, searchText: searchText, autosaveName: autosaveName, prompt: prompt, placement: placement, prefersToolbarPlacement: prefersToolbarPlacement, showSearchButtonIfNeeded: showSearchButtonIfNeeded, canHideSearchBar: canHideSearchBar, searchAction: searchAction))
+        self.modifier(
+            EnhancedSearchableModifier(
+                isPresented: isPresented ?? .constant(true),
+                isEnhancedlySearching: isEnhancedlySearching,
+                canHide: isPresented != nil,
+                searchText: searchText,
+                autosaveName: autosaveName,
+                prompt: prompt,
+                placement: placement,
+                prefersToolbarPlacement: prefersToolbarPlacement,
+                showSearchButtonIfNeeded: showSearchButtonIfNeeded,
+                canHideSearchBar: canHideSearchBar,
+                searchAction: searchAction
+            )
+        )
     }
 }
