@@ -151,7 +151,7 @@ public struct EnhancedSearchableModifier: ViewModifier {
                                 .textFieldStyle(.roundedBorder)
                                 .focused($focusedField, equals: "search")
                         }
-                        if isPresented && (canHide || isEnhancedlySearching) {
+                        if isPresented && (canHide || isEnhancedlySearching || focusedField == "search") {
                             Button {
                                 withAnimation {
                                     isEnhancedlySearching = false
