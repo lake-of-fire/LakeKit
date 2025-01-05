@@ -610,7 +610,7 @@ struct OnboardingCardView<CardContent: View>: View {
 
     @ViewBuilder private var headlineText: some View {
         Text(card.title)
-            .font(.title3)
+            .font(.callout)
             .fontWeight(.heavy)
             .lineLimit(9001)
             .fixedSize(horizontal: false, vertical: true)
