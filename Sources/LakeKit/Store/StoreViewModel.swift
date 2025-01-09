@@ -2,15 +2,10 @@ import SwiftUI
 import Collections
 import StoreHelper
 
-struct ShowAdsKey: EnvironmentKey {
-    static var defaultValue = { false }
-}
-
-public extension EnvironmentValues {
-    var showAds: () -> Bool {
-        get { self[ShowAdsKey.self] }
-        set { self[ShowAdsKey.self] = newValue }
-    }
+public class AdsViewModel: NSObject, ObservableObject {
+    public static var shared = AdsViewModel()
+    
+    @Published public var showAds = false
 }
 
 public class StoreViewModel: NSObject, ObservableObject {
@@ -110,6 +105,7 @@ public class StoreViewModel: NSObject, ObservableObject {
                     if !isInitialized {
                         isInitialized = true
                     }
+                    AdsViewModel.shared.showAds = showAds
                     return
                 }
                 
@@ -128,6 +124,7 @@ public class StoreViewModel: NSObject, ObservableObject {
                     if !isInitialized {
                         isInitialized = true
                     }
+                    AdsViewModel.shared.showAds = showAds
                     return
                 }
                 
@@ -140,6 +137,8 @@ public class StoreViewModel: NSObject, ObservableObject {
                 if !isInitialized {
                     isInitialized = true
                 }
+                
+                AdsViewModel.shared.showAds = showAds
             } catch {
             }
         }

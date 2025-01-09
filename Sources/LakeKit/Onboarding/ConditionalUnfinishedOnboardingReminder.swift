@@ -5,7 +5,7 @@ public struct ConditionalUnfinishedOnboardingReminder: View {
     
     @AppStorage("hasSeenOnboarding") var hasSeenOnboarding = false
     @AppStorage("hasRespondedToOnboarding") private var hasRespondedToOnboarding = false
-    @Environment(\.showAds) private var showAds
+    @ObservedObject private var adsViewModel = AdsViewModel.shared
 
     @ViewBuilder var upgradeShortestText: some View {
         Text("\(Image(systemName: "chevron.right"))").foregroundColor(Color.accentColor)
@@ -20,7 +20,7 @@ public struct ConditionalUnfinishedOnboardingReminder: View {
     }
     
     public var body: some View {
-        if !hasRespondedToOnboarding && hasSeenOnboarding && showAds() {
+        if !hasRespondedToOnboarding && hasSeenOnboarding && adsViewModel.showAds {
             Button {
                 hasSeenOnboarding = false
             } label: {

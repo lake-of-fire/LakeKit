@@ -101,7 +101,7 @@ struct OnboardingPrimaryButtons: View {
     
     @EnvironmentObject private var storeViewModel: StoreViewModel
     @EnvironmentObject private var storeHelper: StoreHelper
-    @Environment(\.showAds) private var showAds
+    @ObservedObject private var adsViewModel = AdsViewModel.shared
 #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.verticalSizeClass) private var verticalSizeClass
@@ -193,7 +193,7 @@ struct OnboardingPrimaryButtons: View {
     }
     
     var body: some View {
-        if !showAds() {
+        if !adsViewModel.showAds {
             PrimaryButton(title: isFinishedOnboarding ? "Continue" : "Skip Onboarding", systemImage: nil) {
                 hasSeenOnboarding = true
                 isPresentingSheet = false
