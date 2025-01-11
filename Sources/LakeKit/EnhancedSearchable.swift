@@ -176,6 +176,22 @@ public struct EnhancedSearchableModifier: ViewModifier {
             content
                 .modifier(InnerContentModifier(isEnhancedlySearching: $isEnhancedlySearching, isIOSSearching: $isIOSSearching))
                 .modifier {
+                    if isPresented {
+                        if #available(iOS 17, *) {
+                            $0.searchable(text: $searchText, isPresented: Binding(
+                                get: {
+                                    //                                    return isPresented
+                                    return isEnhancedlySearching
+                                }, set: { newValue in
+                                    isEnhancedlySearching = newValue
+                                    isPresented = newValue
+                                }
+                            ), placement: placement, prompt: promptText)
+                        } else {
+                            $0.searchable(text: $searchText, placement: placement, prompt: promptText)
+                        }
+                    } else { $0 }
+                    /*
                     if isPresented && prefersToolbarPlacement {
                         if canHideSearchBar, #available(iOS 17, *) {
                             $0.searchable(text: $searchText, isPresented: Binding(
@@ -188,9 +204,18 @@ public struct EnhancedSearchableModifier: ViewModifier {
                                 }
                             ), placement: placement, prompt: promptText)
                         } else {
-                            $0.searchable(text: $searchText, placement: placement, prompt: promptText)
+                            $0
+                                .searchable(text: $searchText, placement: placement, prompt: promptText)
+                                .modifier {
+                                    if #available(iOS 16, *) {
+                                        $0.toolbar(.visible, for: .navigationBar)
+                                    } else {
+                                        $0.navigationBarHidden(false)
+                                    }
+                                }
                         }
                     } else { $0 }
+                     */
                 }
 #endif
         }
