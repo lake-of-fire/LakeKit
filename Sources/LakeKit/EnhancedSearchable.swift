@@ -27,7 +27,7 @@ public struct EnhancedSearchableModifier: ViewModifier {
     let searchAction: ((String) async throws -> Void)
     
 #if os(iOS)
-    @State private var isIOSSearching = false
+//    @State private var isIOSSearching = false
     @State private var isExecutingSearchFieldFocusWorkaround = false
 #endif
     
@@ -40,64 +40,68 @@ public struct EnhancedSearchableModifier: ViewModifier {
     @State private var shouldClear = false
     @FocusState private var focusedField: String?
 
-    struct InnerContentModifier: ViewModifier {
-        @Binding var isEnhancedlySearching: Bool
-        @Binding var isIOSSearching: Bool
-#if os(iOS)
-        @Environment(\.isSearching) private var isSearching
-#endif
-        
-        func body(content: Content) -> some View {
-            content
-#if os(iOS)
-                .task { @MainActor in
-                    isEnhancedlySearching = isSearching
-                    isIOSSearching = isSearching
-                }
-                .onAppear {
-                    Task { @MainActor in
-                        isEnhancedlySearching = isSearching
-                        isIOSSearching = isSearching
-                    }
-                }
-                .onChange(of: isSearching) { isSearching in
-                    Task { @MainActor in
-                        isEnhancedlySearching = isSearching
-                        isIOSSearching = isSearching
-                    }
-                }
-#endif
-        }
-    }
+//    struct InnerContentModifier: ViewModifier {
+//        @Binding var isEnhancedlySearching: Bool
+//        @Binding var isIOSSearching: Bool
+//#if os(iOS)
+//        @Environment(\.isSearching) private var isSearching
+//#endif
+//        
+//        func body(content: Content) -> some View {
+//            content
+//#if os(iOS)
+//                .task { @MainActor in
+//                    isEnhancedlySearching = isSearching
+//                    isIOSSearching = isSearching
+//                }
+//                .onAppear {
+//                    Task { @MainActor in
+//                        isEnhancedlySearching = isSearching
+//                        isIOSSearching = isSearching
+//                    }
+//                }
+//                .onChange(of: isSearching) { isSearching in
+//                    Task { @MainActor in
+//                        isEnhancedlySearching = isSearching
+//                        isIOSSearching = isSearching
+//                    }
+//                }
+//#endif
+//        }
+//    }
     
     public func body(content: Content) -> some View {
         VStack {
-#if os(macOS)
+//#if os(macOS)
             if isPresented {
                 HStack {
-                    DSFSearchField.SwiftUI(text: $searchText, shouldClear: $shouldClear, placeholderText: prompt, autosaveName: autosaveName, onSearchTermChange: { searchText in
-                        // Sometimes necessary despite searchText binding...
-                        Task { @MainActor in
-                            if self.searchText != searchText {
-                                //                            debugPrint("!! DSF searchterm", searchText)
-                                self.searchText = searchText
+                    Group {
+#if os(macOS)
+                        DSFSearchField.SwiftUI(text: $searchText, shouldClear: $shouldClear, placeholderText: prompt, autosaveName: autosaveName, onSearchTermChange: { searchText in
+                            // Sometimes necessary despite searchText binding...
+                            Task { @MainActor in
+                                if self.searchText != searchText {
+                                    //                            debugPrint("!! DSF searchterm", searchText)
+                                    self.searchText = searchText
+                                }
                             }
+                        })
+                        .onExitCommand {
+                            //                        withAnimation(.linear(duration: 0.075)) {
+                            //                            searchText = ""
+                            shouldClear = true
+                            isPresented = false
+                            isEnhancedlySearching = false
                         }
-//                        onSearchTextChange(searchText: searchTerm)
-                        //                Task { @MainActor in
-                        //                    isEnhancedlySearching = !searchTerm.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                        //                }
-                    })
-                    .focused($focusedField, equals: "search")
-                    .onExitCommand {
-//                        withAnimation(.linear(duration: 0.075)) {
-//                            searchText = ""
-                        shouldClear = true
-                        isPresented = false
-                        isEnhancedlySearching = false
+#else
+                        TextField(prompt ?? "Search", text: $searchText, prompt: promptText)
+                            .textFieldStyle(.roundedBorder)
+#endif
                     }
-                    
-                    if isPresented && (canHide || isEnhancedlySearching) {
+                    .focused($focusedField, equals: "search")
+//                    if isPresented && (canHide || isEnhancedlySearching) {
+                    if isPresented && (canHide || isEnhancedlySearching || focusedField == "search") {
+#if os(macOS)
                         Button("Done") {
 //                            shouldClear = true
 //                            withAnimation(.linear(duration: 0.075)) {
@@ -109,6 +113,22 @@ public struct EnhancedSearchableModifier: ViewModifier {
 //                            }
                         }
                         .buttonStyle(.borderless)
+#else
+                        Button {
+                            withAnimation {
+                                isEnhancedlySearching = false
+                                focusedField = nil
+                                isPresented = false
+                            }
+                            searchText = ""
+#warning("no focus here")
+                        } label: {
+                            Text("Cancel")
+                                .padding(.horizontal, 5)
+                                .fixedSize()
+                        }
+#endif
+
                     }
                 }
                 .padding(.horizontal, 5)
@@ -122,7 +142,7 @@ public struct EnhancedSearchableModifier: ViewModifier {
                         focusedField = "search"
                     }
                 }
-            
+            /*
 #else
             if isPresented {
                 if canHideSearchBar && showSearchButtonIfNeeded, #available(iOS 17, *) {
@@ -176,23 +196,7 @@ public struct EnhancedSearchableModifier: ViewModifier {
             content
                 .modifier(InnerContentModifier(isEnhancedlySearching: $isEnhancedlySearching, isIOSSearching: $isIOSSearching))
                 .modifier {
-                    if isPresented {
-                        if #available(iOS 17, *) {
-                            $0.searchable(text: $searchText, isPresented: Binding(
-                                get: {
-                                    //                                    return isPresented
-                                    return isEnhancedlySearching
-                                }, set: { newValue in
-                                    isEnhancedlySearching = newValue
-                                    isPresented = newValue
-                                }
-                            ), placement: placement, prompt: promptText)
-                        } else {
-                            $0.searchable(text: $searchText, placement: placement, prompt: promptText)
-                        }
-                    } else { $0 }
-                    /*
-                    if isPresented && prefersToolbarPlacement {
+                    if isPresented { //}&& prefersToolbarPlacement {
                         if canHideSearchBar, #available(iOS 17, *) {
                             $0.searchable(text: $searchText, isPresented: Binding(
                                 get: {
@@ -215,9 +219,9 @@ public struct EnhancedSearchableModifier: ViewModifier {
                                 }
                         }
                     } else { $0 }
-                     */
                 }
 #endif
+             */
         }
         .onChange(of: searchText) { searchText in
             updateSearchingStatus(forSearchText: searchText)
@@ -226,6 +230,11 @@ public struct EnhancedSearchableModifier: ViewModifier {
             onSearchTextChange(searchText: searchText)
         }
 #if os(iOS)
+        .onChange(of: focusedField) { focusedField in
+            if !isEnhancedlySearching, focusedField == "search" {
+                isEnhancedlySearching = true
+            }
+        }
 //        .onChange(of: focusedField) { [oldValue = focusedField] focusedField in
 //            if !isEnhancedlySearching, focusedField == "search" {
 //                isEnhancedlySearching = true
@@ -267,7 +276,8 @@ public struct EnhancedSearchableModifier: ViewModifier {
         Task { @MainActor in
             let isTextEmpty = searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
 #if os(iOS)
-            isEnhancedlySearching = isIOSSearching || !isTextEmpty
+//            isEnhancedlySearching = isIOSSearching || !isTextEmpty
+            isEnhancedlySearching = focusedField == "search" || !isTextEmpty
 #else
             isEnhancedlySearching = !isTextEmpty
 #endif
