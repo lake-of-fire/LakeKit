@@ -108,8 +108,26 @@ struct OnboardingPrimaryButtons: View {
 #endif
     
     private var headlineText: String {
-        if let purchasePrice = highlightedProduct?.purchasePrice, let renewalPeriod = highlightedProduct?.renewalPeriod {
-            return "As low as " + purchasePrice + " " + renewalPeriod.replacingOccurrences(of: "/", with: "per")
+        if let highlightedProduct {
+            let renewalPeriod = highlightedProduct.subscriptionPeriod
+            var renewalString = "per "
+            if renewalPeriod.value > 1 {
+                renewalString += renewalPeriod.value.formatted() + " "
+            }
+            if #available(iOS 16, macOS 13, *) {
+                renewalString += renewalPeriod.unit.formatted(highlightedProduct.product.subscriptionPeriodUnitFormatStyle)
+            } else {
+                switch renewalPeriod.unit {
+                case .day: renewalString += "day"
+                case .week: renewalString += "week"
+                case .month: renewalString += "month"
+                case .year: renewalString += "year"
+                }
+                if renewalPeriod.value > 1 {
+                    renewalString += "s"
+                }
+            }
+            return "As low as " + highlightedProduct.purchasePrice + " " + renewalString
         }
         return ""
     }
@@ -465,10 +483,29 @@ fileprivate struct FreeModeView: View {
     @EnvironmentObject private var storeHelper: StoreHelper
     
     private var purchasePrice: String {
-        if let purchasePrice = highlightedProduct?.purchasePrice, let renewalPeriod = highlightedProduct?.renewalPeriod {
-            return purchasePrice + " " + renewalPeriod.replacingOccurrences(of: "/", with: "per")
+        if let highlightedProduct {
+            let renewalPeriod = highlightedProduct.subscriptionPeriod
+            var renewalString = "per "
+            if renewalPeriod.value > 1 {
+                renewalString += renewalPeriod.value.formatted() + " "
+            }
+            if #available(iOS 16, macOS 13, *) {
+                renewalString += renewalPeriod.unit.formatted(highlightedProduct.product.subscriptionPeriodUnitFormatStyle)
+            } else {
+                switch renewalPeriod.unit {
+                case .day: renewalString += "day"
+                case .week: renewalString += "week"
+                case .month: renewalString += "month"
+                case .year: renewalString += "year"
+                }
+                if renewalPeriod.value > 1 {
+                    renewalString += "s"
+                }
+            }
+            return highlightedProduct.purchasePrice + " " + renewalString
+        } else {
+            return "[see link for current price]"
         }
-        return "[see link for current price]"
     }
     
     var body: some View {

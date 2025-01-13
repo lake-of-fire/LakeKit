@@ -388,14 +388,14 @@ public struct StoreView: View {
                                                 testimonialImage
                                                     .resizable()
                                                     .aspectRatio(contentMode: .fit)
-                                                    .frame(maxHeight: 55)
+                                                    .frame(maxHeight: 45)
                                             }
                                             .fixedSize()
                                         } else {
                                             testimonialImage
                                                 .resizable()
                                                 .aspectRatio(contentMode: .fit)
-                                                .frame(maxHeight: 55)
+                                                .frame(maxHeight: 45)
                                         }
                                         Spacer(minLength: 0)
                                     }

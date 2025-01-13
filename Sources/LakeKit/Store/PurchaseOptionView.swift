@@ -56,7 +56,25 @@ public struct PurchaseOptionView: View {
     private var displayPriceType: String {
         if product.type == .autoRenewable {
             // TODO: Support promos if needed
-            return prePurchaseSubInfo?.renewalPeriod?.replacingOccurrences(of: "/ ", with: "per ") ?? ""
+            guard let renewalPeriod = prePurchaseSubInfo?.subscriptionPeriod else { return "" }
+            var renewalString = "per "
+            if renewalPeriod.value > 1 {
+                renewalString += renewalPeriod.value.formatted() + " "
+            }
+            if #available(iOS 16, macOS 13, *) {
+                renewalString += renewalPeriod.unit.formatted(product.subscriptionPeriodUnitFormatStyle)
+            } else {
+                switch renewalPeriod.unit {
+                case .day: renewalString += "day"
+                case .week: renewalString += "week"
+                case .month: renewalString += "month"
+                case .year: renewalString += "year"
+                }
+                if renewalPeriod.value > 1 {
+                    renewalString += "s"
+                }
+            }
+            return renewalString
         }
         return "one time"
     }
