@@ -139,13 +139,14 @@ struct OnboardingPrimaryButtons: View {
         } label: {
             VStack {
                 Text(headlineText)
-                    .font(.headline)
+                    .font(.footnote)
+                    .bold()
                     .task { @MainActor in
                         highlightedProduct = await storeViewModel.productSubscriptionInfo(productID: storeViewModel.highlightedProductID, storeHelper: storeHelper)
                     }
                 Text("With qualifying discounts")
                     .foregroundStyle(.secondary)
-                    .font(.footnote)
+                    .font(.caption)
                     .multilineTextAlignment(.center)
             }
             .frame(maxWidth: .infinity)
@@ -647,8 +648,7 @@ struct OnboardingCardView<CardContent: View>: View {
 
     @ViewBuilder private var headlineText: some View {
         Text(card.title)
-            .font(.callout)
-            .fontWeight(.heavy)
+            .font(.headline)
             .lineLimit(9001)
             .fixedSize(horizontal: false, vertical: true)
     }
