@@ -36,21 +36,6 @@ public class LocationController: ObservableObject {
 //    }
 //}
 
-public enum LocationBarAction: Equatable {
-    case idle
-    case update(String)
-    
-    public static func == (lhs: LocationBarAction, rhs: LocationBarAction) -> Bool {
-        if case .idle = lhs, case .idle = rhs {
-            return true
-        }
-        if case .update(let lhsLocation) = lhs, case .update(let rhsLocation) = rhs {
-            return lhsLocation == rhsLocation
-        }
-        return false
-    }
-}
-
 fileprivate struct LocationBarIntrospection: ViewModifier {
     @EnvironmentObject private var locationController: LocationController
     
@@ -87,7 +72,6 @@ fileprivate struct LocationBarIntrospection: ViewModifier {
 }
 
 public struct LocationBar: View, Equatable {
-    @Binding var action: LocationBarAction
     @Binding var locationText: String
 //    @Binding var locationTitle: String
     @Binding var selectAll: Bool
@@ -168,41 +152,17 @@ public struct LocationBar: View, Equatable {
     public var body: some View {
         HStack{
             textField
-                .onChange(of: action) { action in
-                    refreshAction(action: action)
-                }
-                .task { @MainActor in
-                    refreshAction()
-                }
         }
     }
     
-    public init(action: Binding<LocationBarAction>, locationText: Binding<String>, selectAll: Binding<Bool>, onSubmit: @escaping ((URL?, String) async throws -> Void)) {
-        _action = action
+    public init(locationText: Binding<String>, selectAll: Binding<Bool>, onSubmit: @escaping ((URL?, String) async throws -> Void)) {
         _locationText = locationText
         _selectAll = selectAll
         self.onSubmit = onSubmit
     }
     
     public static func == (lhs: LocationBar, rhs: LocationBar) -> Bool {
-        return lhs.locationText == rhs.locationText && lhs.action == rhs.action
-    }
-    
-    private func refreshAction(action: LocationBarAction? = nil) {
-        let action = action ?? self.action
-        Task { @MainActor in
-            switch action {
-            case .update(let newLocationTexts):
-                if newLocationTexts == "about:blank" {
-                    locationText = ""
-                } else {
-                    locationText = newLocationTexts
-                }
-                self.action = .idle
-            case .idle:
-                break
-            }
-        }
+        return lhs.locationText == rhs.locationText
     }
 }
 //
