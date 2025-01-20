@@ -344,8 +344,8 @@ public struct StoreView: View {
                             //                        .padding(.horizontal, secondaryHorizontalPadding)
                                 .frame(maxWidth: storeOptionsMaxWidth(geometrySize: geometry.size))
                                 .padding(.bottom)
-                            if !storeViewModel.productGroupSubtitle.isEmpty {
-                                Text(storeViewModel.productGroupSubtitle)
+                            if let productGroupSubtitle = storeViewModel.productGroupSubtitle, !productGroupSubtitle.isEmpty {
+                                Text(productGroupSubtitle)
                                     .foregroundColor(.secondary)
                                     .multilineTextAlignment(.center)
                                     .font(.caption)
@@ -388,7 +388,7 @@ public struct StoreView: View {
                                                 testimonialImage
                                                     .resizable()
                                                     .aspectRatio(contentMode: .fit)
-                                                    .frame(maxHeight: 45)
+                                                    .frame(maxHeight: 44)
                                             }
                                             .fixedSize()
                                         } else {
@@ -421,7 +421,7 @@ public struct StoreView: View {
                         GroupBox {
                             StudentDiscountDisclosureGroup(isExpanded: $isStudentDiscountExpanded, discountView: {
                                 VStack {
-                                    Text("Students, educators, and those who cannot afford the full-price rates are welcome to a special discount. If you can afford it, please use the regular purchasing options.")
+                                    Text("Students and those who cannot afford the full-price rates are welcome to a special discount. The low-income discount requires that you cannot afford the regular price.")
                                         .font(.subheadline)
                                         .padding()
                                         .multilineTextAlignment(.leading)

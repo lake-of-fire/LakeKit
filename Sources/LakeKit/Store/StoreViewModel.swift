@@ -22,7 +22,7 @@ public class StoreViewModel: NSObject, ObservableObject {
     @Published public var headline: String
     @Published public var subheadline: String
     @Published public var productGroupHeading: String
-    @Published public var productGroupSubtitle: String = ""
+    @Published public var productGroupSubtitle: String?
     @Published public var freeTierExplanation: String?
     @Published public var testimonialTitle: String?
     @Published public var testimonialImage: Image?
@@ -39,7 +39,7 @@ public class StoreViewModel: NSObject, ObservableObject {
     @MainActor var isSubscribedFromElsewhereCallback: ((StoreViewModel) async -> Bool)? = nil
     private var subscriptionRefreshTask: Task<Void, Never>? = nil
     
-    public init(satisfyingPrerequisite: @escaping () async -> Bool = { true }, products: [StoreProduct], studentProducts: [StoreProduct], highlightedProductID: String, appAccountToken: UUID? = nil, headline: String, subheadline: String, productGroupHeading: String, productGroupSubtitle: String = "", freeTierExplanation: String? = nil, testimonialTitle: String?, testimonialImage: Image?,  testimonial: String, testimonialLink: URL?, benefits: [String], termsOfService: URL, privacyPolicy: URL, chatURL: URL? = nil, faq: OrderedDictionary<String, String>, isSubscribedFromElsewhereCallback: ((StoreViewModel) async -> Bool)? = nil) {
+    public init(satisfyingPrerequisite: @escaping () async -> Bool = { true }, products: [StoreProduct], studentProducts: [StoreProduct], highlightedProductID: String, appAccountToken: UUID? = nil, headline: String, subheadline: String, productGroupHeading: String, productGroupSubtitle: String?, freeTierExplanation: String? = nil, testimonialTitle: String?, testimonialImage: Image?,  testimonial: String, testimonialLink: URL?, benefits: [String], termsOfService: URL, privacyPolicy: URL, chatURL: URL? = nil, faq: OrderedDictionary<String, String>, isSubscribedFromElsewhereCallback: ((StoreViewModel) async -> Bool)? = nil) {
         self.satisfyingPrerequisite = satisfyingPrerequisite
         self.products = products
         self.studentProducts = studentProducts
