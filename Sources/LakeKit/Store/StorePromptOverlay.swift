@@ -68,7 +68,9 @@ public struct StorePrompt: View {
                     .font(.footnote)
             }
             .multilineTextAlignment(.center)
+#if os(iOS)
             .buttonBorderShape(.capsule)
+#endif
             .frame(maxWidth: maxWidth)
             .padding(8)
             
