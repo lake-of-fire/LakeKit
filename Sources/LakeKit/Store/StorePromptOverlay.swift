@@ -110,47 +110,47 @@ public struct StorePromptOverlayModifier: ViewModifier {
     public func body(content: Content) -> some View {
         content
             .overlay {
-                LinearGradient(
-                    stops: [
-                        Gradient.Stop(color: .clear, location: .zero),
-                        Gradient.Stop(color: .clear, location: 0.1),
-                        Gradient.Stop(color: (colorScheme == .dark ? Color.black : .white).opacity(0.5), location: 0.6),
-                        //                            Gradient.Stop(color: (colorScheme == .dark ? Color.black : .white).opacity(0.9), location: 0.7),
-                        Gradient.Stop(color: (colorScheme == .dark ? Color.black : .white).opacity(0.44), location: 1.0),
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .allowsHitTesting(false)
-                //                .padding(.top, 150)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .fixedSize(horizontal: false, vertical: false)
-                .ignoresSafeArea()
-                .overlay {
-                    if !hasOverlayAppeared {
-                        Color.white.opacity(0.0000000001)
-                            .onAppear {
-                                Task { @MainActor in
+                if isOverlayPresented {
+                    LinearGradient(
+                        stops: [
+                            Gradient.Stop(color: .clear, location: .zero),
+                            Gradient.Stop(color: .clear, location: 0.1),
+                            Gradient.Stop(color: (colorScheme == .dark ? Color.black : .white).opacity(0.5), location: 0.6),
+                            //                            Gradient.Stop(color: (colorScheme == .dark ? Color.black : .white).opacity(0.9), location: 0.7),
+                            Gradient.Stop(color: (colorScheme == .dark ? Color.black : .white).opacity(0.44), location: 1.0),
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .allowsHitTesting(false)
+                    //                .padding(.top, 150)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .fixedSize(horizontal: false, vertical: false)
+                    .ignoresSafeArea()
+                    .overlay {
+                        if !hasOverlayAppeared {
+                            Color.white.opacity(0.0000000001)
+                                .onAppear {
+                                    Task { @MainActor in
 #if os(iOS)
-                                    try?  await Task.sleep(nanoseconds: 500_000_000)
+                                        try?  await Task.sleep(nanoseconds: 500_000_000)
 #endif
-                                    withAnimation {
-                                        hasOverlayAppeared = true
+                                        withAnimation {
+                                            hasOverlayAppeared = true
+                                        }
                                     }
                                 }
-                            }
+                        }
                     }
-                }
-                .overlay(alignment: .center) {
-                    if isOverlayPresented {
+                    .overlay(alignment: .center) {
                         StorePrompt(isPresented: $isStoreSheetPresented, headlineText: headlineText, bodyText: bodyText, storeButtonText: storeButtonText, alternativeButtonText: alternativeButtonText, alternativeButtonAction: alternativeButtonAction, toDismissFirst: toDismissFirst ?? .constant(false))
                             .groupBoxShadow(cornerRadius: 12)
                             .padding([.leading, .trailing], 20)
                             .opacity(hasOverlayAppeared ? 1 : 0)
                             .allowsHitTesting(hasOverlayAppeared)
                     }
+                    .scrollDisabledIfAvailable(isOverlayPresented)
                 }
-                .scrollDisabledIfAvailable(isOverlayPresented)
             }
     }
 }
