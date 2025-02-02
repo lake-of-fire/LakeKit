@@ -25,7 +25,10 @@ public extension ActiveComponentBindable {
                 guard let self = self else { return false }
                 return self.activeComponent == component && binding.wrappedValue
             },
-            set: { _ in }
+            set: { [weak self] newValue in
+                guard let self = self else { return }
+                binding.wrappedValue = newValue
+            }
         )
         
         bindingCache[key] = newBinding
