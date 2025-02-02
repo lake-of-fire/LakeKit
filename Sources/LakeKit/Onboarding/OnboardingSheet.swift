@@ -4,14 +4,6 @@ import NavigationBackport
 import MarkdownWebView
 import Pow
 
-/// Warning: This can cause sheets to change identity rapidly upon presentation
-fileprivate extension Binding where Value == Bool {
-    static func &&(_ lhs: Binding<Bool>, _ rhs: Bool) -> Binding<Bool> {
-        return Binding<Bool>( get: { lhs.wrappedValue && rhs },
-                              set: { newValue in lhs.wrappedValue = newValue })
-    }
-}
-
 public struct OnboardingCard: Identifiable, Hashable {
     public let id: String
     public let title: String
@@ -890,7 +882,7 @@ fileprivate struct PageNavigator: View {
 }
 
 public struct OnboardingSheet<CardContent: View>: ViewModifier {
-    let isActive: Bool
+    @Binding var isActive: Bool
     @State var isPresentingStoreSheet = false
     let cards: [OnboardingCard]
     @ViewBuilder let cardContent: (OnboardingCard, Binding<Bool>, Bool) -> CardContent
@@ -918,7 +910,7 @@ public struct OnboardingSheet<CardContent: View>: ViewModifier {
                             $0.presentationSizing(.page)
                         } else { $0 }
                     }
-                    .storeSheet(isPresented: $isPresentingStoreSheet && isActive)
+                    .storeSheet(isPresented: $isPresentingStoreSheet.gatedBy($isActive))
                 // TODO: track onDisappear (after tracking onAppear to make sure it was seen for long enough too) timestamp as last seen date in AppStorage to avoid re-showing onboarding within seconds or minute of last seeing it again. Avoids annoying the user.
             }
             .onAppear {
@@ -953,7 +945,7 @@ public struct OnboardingSheet<CardContent: View>: ViewModifier {
 
 public extension View {
     func onboardingSheet(
-        isActive: Bool = true,
+        isActive: Binding<Bool> = .constant(true),
         cards: [OnboardingCard],
         cardContent: @escaping (OnboardingCard, Binding<Bool>, Bool) -> some View
     ) -> some View {

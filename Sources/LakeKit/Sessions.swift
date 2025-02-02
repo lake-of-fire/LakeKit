@@ -14,14 +14,6 @@ extension Notification {
     }
 }
 
-/// Warning: This can cause sheets to change identity rapidly upon presentation
-fileprivate extension Binding where Value == Bool {
-    static func &&(_ lhs: Binding<Bool>, _ rhs: Bool) -> Binding<Bool> {
-        return Binding<Bool>( get: { lhs.wrappedValue && rhs },
-                              set: { newValue in lhs.wrappedValue = newValue })
-    }
-}
-
 public class Session: ObservableObject {
     public var keychain: KeychainSwift
     
@@ -120,7 +112,7 @@ public enum SessionError: Error {
 public extension View {
     func lakeAuthenticationSession(
         session: Session,
-        isModalWiringActive: Bool
+        isModalWiringActive: Binding<Bool>
     ) -> some View {
         self.modifier(
             LakeAuthenticationSessionModifier(
@@ -133,11 +125,11 @@ public extension View {
 
 public struct LakeAuthenticationSessionModifier: ViewModifier {
     @MainActor @ObservedObject public var session: Session
-    let isModalWiringActive: Bool
+    @Binding var isModalWiringActive: Bool
 
     public func body(content: Content) -> some View {
         content
-            .webAuthenticationSession(isPresented: $session.isPresentingWebAuthentication && isModalWiringActive) {
+            .webAuthenticationSession(isPresented: $session.isPresentingWebAuthentication.gatedBy($isModalWiringActive)) {
                 WebAuthenticationSession(url: URL(string: "https://manabi.io/accounts/signup/?next=/accounts/native-app-login-redirect/manabireader/")!, callbackURLScheme: "manabireader") { callbackURL, error in
                     if let error = error {
                         print(error)
