@@ -4,6 +4,14 @@ import NavigationBackport
 import MarkdownWebView
 import Pow
 
+/// Warning: This can cause sheets to change identity rapidly upon presentation
+fileprivate extension Binding where Value == Bool {
+    static func &&(_ lhs: Binding<Bool>, _ rhs: Bool) -> Binding<Bool> {
+        return Binding<Bool>( get: { lhs.wrappedValue && rhs },
+                              set: { newValue in lhs.wrappedValue = newValue })
+    }
+}
+
 public struct OnboardingCard: Identifiable, Hashable {
     public let id: String
     public let title: String
@@ -892,8 +900,6 @@ public struct OnboardingSheet<CardContent: View>: ViewModifier {
     @State private var isPresented = false
     @State private var isFinished = false
 
-    @State private var ee = UUID().uuidString
-    
     public func body(content: Content) -> some View {
         content
             .sheet(isPresented: $isPresented) {
