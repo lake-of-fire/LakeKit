@@ -177,7 +177,7 @@ struct OnboardingPrimaryButtons: View {
     
     @ViewBuilder
     private func subsidizedOptionsButton() -> some View {
-        PrimaryButton(title: "Subsidized Options", systemImage: nil) {
+        PrimaryButton(title: "Low-Income Subsidies", systemImage: nil) {
             navigationPath.removeLast(navigationPath.count)
             navigationPath.append("free-mode")
         }
@@ -258,6 +258,7 @@ struct OnboardingCardsView<CardContent: View>: View {
     @Environment(\.colorScheme) private var colorScheme
 #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
     @Environment(\.userInterfaceIdiom) private var userInterfaceIdiom
 #endif
     @ScaledMetric(relativeTo: .body) private var maxCardWidth: CGFloat = 500
@@ -265,7 +266,7 @@ struct OnboardingCardsView<CardContent: View>: View {
 
     private var isPortrait: Bool {
 #if os(iOS)
-        return horizontalSizeClass == .compact || userInterfaceIdiom != .phone
+        return (horizontalSizeClass == .compact && verticalSizeClass == .regular) || userInterfaceIdiom != .phone
 #elseif os(macOS)
         return true
 #endif

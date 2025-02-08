@@ -5,18 +5,6 @@ import CloudKit
 import CloudKitSyncMonitor
 import SwiftUtilities
 
-fileprivate struct BuyButtonStyle: ButtonStyle {
-    func makeBody(configuration: Self.Configuration) -> some View {
-        configuration.label
-///           .font(.buttonLabel)
-//            .frame(maxWidth: .infinity, minHeight: height, maxHeight: height)
-//            .foregroundColor(.primaryButtonLabel)
-            .background(configuration.isPressed ? Color.accentColor.opacity(0.8) : Color.white.opacity(0.0000001))
-            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-//            .cornerRadius(.infinity)
-    }
-}
-
 public struct PurchaseOptionView: View {
     public let storeViewModel: StoreViewModel
     public let product: Product
@@ -155,13 +143,13 @@ public struct PurchaseOptionView: View {
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                         
-                        Text(product.description)
-                            .font(.caption)
-                            .multilineTextAlignment(.center)
-                            .lineLimit(9001)
-                            .foregroundColor(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .padding(.vertical, 12)
+//                        Text(product.description)
+//                            .font(.caption)
+//                            .multilineTextAlignment(.center)
+//                            .lineLimit(9001)
+//                            .foregroundColor(.secondary)
+//                            .fixedSize(horizontal: false, vertical: true)
+//                            .padding(.vertical, 12)
                         
                         if product.type == .autoRenewable, [PurchaseState.purchased, .pending, .inProgress].contains(purchaseState) {
                             if purchaseState == .inProgress {
@@ -176,34 +164,37 @@ public struct PurchaseOptionView: View {
                             }
                         } else {
                             VStack {
+                                Group {
 #if os(iOS)
-                                //                            Text(buyTitle ?? product.displayName)
-                                Text("Upgrade")
-                                //                                .font(.callout)
-                                    .bold()
-                                    .multilineTextAlignment(.center)
-                                    .foregroundColor(.white)
-                                    .padding(.horizontal, buttonHorizontalPadding)
-                                    .padding(.vertical, 6)
-                                    .fixedSize(horizontal: false, vertical: true)
-                                    .background(
-                                        Capsule()
-                                            .foregroundColor(Color.accentColor)
-                                    )
-#else
-                                Button {
-                                    submitAction()
-                                } label: {
-                                    //                                Text(buyTitle ?? product.displayName)
+                                    //                            Text(buyTitle ?? product.displayName)
                                     Text("Upgrade")
+                                    //                                .font(.callout)
                                         .bold()
-                                        .padding(.horizontal, 6)
-                                        .padding(.vertical, 4)
-                                }
-                                .buttonStyle(.borderedProminent)
-                                .disabled(!canMakePayments)
-                                .padding(.bottom, unitsLabel.isEmpty ? 4 : 0)
+                                        .multilineTextAlignment(.center)
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, buttonHorizontalPadding)
+                                        .padding(.vertical, 6)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                        .background(
+                                            Capsule()
+                                                .foregroundColor(Color.accentColor)
+                                        )
+#else
+                                    Button {
+                                        submitAction()
+                                    } label: {
+                                        //                                Text(buyTitle ?? product.displayName)
+                                        Text("Upgrade")
+                                            .bold()
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 4)
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .disabled(!canMakePayments)
+                                    .padding(.bottom, unitsLabel.isEmpty ? 4 : 0)
 #endif
+                                }
+                                .padding(.top)
                                 if isUnitsLabelVisible {
                                     Text(unitsLabel)
                                         .font(.caption)
@@ -218,7 +209,6 @@ public struct PurchaseOptionView: View {
                 .frame(idealWidth: buttonIdealWidth)
                 .fixedSize()
             }
-//            .buttonStyle(BuyButtonStyle())
             .buttonStyle(.plain)
 //            .backgroundStyle(.secondary)
 //            .foregroundStyle(.primary)
