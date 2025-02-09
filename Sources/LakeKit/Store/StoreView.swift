@@ -173,6 +173,133 @@ struct StudentDiscountDisclosureGroup<Content: View>: View {
     }
 }
 
+fileprivate struct ViewStudentDiscountButton: View {
+    @Binding var isStudentDiscountExpanded: Bool
+    let scrollValue: ScrollViewProxy
+    
+    var body: some View {
+        Button {
+            scrollValue.scrollTo("education-discount", anchor: .top)
+            isStudentDiscountExpanded = true
+        } label: {
+            (Text("Student & low-income discounts") + Text("  \(Image(systemName: "chevron.right.circle.fill"))"))
+                .font(.callout)
+                .bold()
+                .lineLimit(9001)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .buttonStyle(.bordered)
+#if os(iOS)
+        .modifier {
+            if #available(iOS 15, macOS 14, *) {
+                $0.buttonBorderShape(.capsule)
+            } else { $0 }
+        }
+#endif
+    }
+}
+
+fileprivate struct PrimaryTestimonialView: View {
+    @ObservedObject var storeViewModel: StoreViewModel
+    
+    var body: some View {
+        if let testimonial = storeViewModel.testimonial {
+            VStack(alignment: .center) {
+                if let testimonialTitle = storeViewModel.testimonialTitle {
+                    Text(testimonialTitle)
+                        .font(.headline)
+                        .foregroundStyle(.secondary)
+                }
+                if let testimonialImage = storeViewModel.testimonialImage {
+                    HStack {
+                        Spacer(minLength: 0)
+                        if let testimonialLink = storeViewModel.testimonialLink {
+                            Link(destination: testimonialLink) {
+                                testimonialImage
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(maxHeight: 44)
+                            }
+                            .fixedSize()
+                        } else {
+                            testimonialImage
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(maxHeight: 45)
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .foregroundStyle(.primary)
+                    .padding(.bottom, 8)
+                }
+                if let testimonialLink = storeViewModel.testimonialLink {
+                    Link(destination: testimonialLink) {
+                        Text("“\(testimonial)”") + Text("  \(Image(systemName: "chevron.right.circle"))")
+                            .italic()
+                    }
+                    //                                Link("“\(testimonial)”  ", destination: testimonialLink)
+                    .font(.subheadline)
+                    .foregroundStyle(.primary)
+                } else {
+                    Text("“\(testimonial)”")
+                        .italic()
+                        .font(.subheadline)
+                }
+            }
+        }
+    }
+}
+
+fileprivate struct QuestionsAndAnswersView: View {
+    @ObservedObject var storeViewModel: StoreViewModel
+    
+    var body: some View {
+        GroupBox {
+            VStack(spacing: 12) {
+                HStack {
+                    Text("Q&A")
+                        .font(.title2)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                }
+                ForEach(storeViewModel.faq.elements, id: \.key) { q, a in
+                    FAQDisclosureGroup(question: q, answer: a)
+                }
+            }
+            .padding(10)
+        }
+    }
+}
+
+fileprivate struct StoreFooterView: View {
+    @ObservedObject var storeViewModel: StoreViewModel
+
+    var body: some View {
+        if let chatURL = storeViewModel.chatURL {
+            GroupBox {
+                Text("Got a question? Need help?")
+                    .font(.headline)
+                Link(destination: chatURL) { Label("Chat With Team", systemImage: "message.circle") }
+                    .font(.subheadline)
+                    .padding(.top, 8)
+            }
+            .padding(.top, 8)
+        }
+        HStack(spacing: 20) {
+            Link("Terms of Service", destination: storeViewModel.termsOfService)
+            //                        .frame(maxWidth: .infinity)
+            Divider()
+            Link("Privacy Policy", destination: storeViewModel.privacyPolicy)
+            //                        .frame(maxWidth: .infinity)
+        }
+        .tint(.secondary)
+        .font(.footnote)
+        .fixedSize(horizontal: false, vertical: true)
+        .padding(.top, 10)
+    }
+}
+
 struct FreeTierDisclosureGroup<Content: View>: View {
     let content: Content
     
@@ -282,6 +409,64 @@ public struct StoreView: View {
         return geometrySize.width
     }
     
+    @ViewBuilder private var headlineView: some View {
+        Group {
+            Text(storeViewModel.headline)
+                .font(.title)
+                .bold()
+                .foregroundColor(.primary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(storeViewModel.subheadline)
+                .foregroundColor(.secondary)
+                .font(.subheadline)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, secondaryHorizontalPadding)
+        }
+        .padding(.horizontal)
+    }
+    
+    @ViewBuilder private func primaryPurchasingView(geometry: GeometryProxy, scrollValue: ScrollViewProxy) -> some View {
+        VStack {
+            VStack {
+                Text(storeViewModel.productGroupHeading)
+                    .foregroundColor(.primary)
+                    .multilineTextAlignment(.leading)
+                    .lineSpacing(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.bottom, 4)
+                purchaseOptionsGrid(
+                    products: storeViewModel.products,
+                    maxWidth: storeOptionsMaxWidth(geometrySize: geometry.size)
+                )
+                .frame(maxWidth: storeOptionsMaxWidth(geometrySize: geometry.size))
+                .padding(.bottom)
+                if let productGroupSubtitle = storeViewModel.productGroupSubtitle, !productGroupSubtitle.isEmpty {
+                    Text(productGroupSubtitle)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .font(.caption)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                if storeViewModel.testimonial != nil {
+                    ViewStudentDiscountButton(
+                        isStudentDiscountExpanded: $isStudentDiscountExpanded,
+                        scrollValue: scrollValue
+                    )
+                }
+            }
+            .padding()
+        }
+        .background {
+            #if os(iOS)
+            Color.systemGroupedBackground.opacity(0.8)
+            #elseif os(macOS)
+            Color.gray.opacity(0.5)
+            #endif
+        }
+    }
+
     @ViewBuilder private func purchaseOptionsGrid(products: [StoreProduct], maxWidth: CGFloat) -> some View {
         if #available(iOS 16, macOS 13, *) {
             ViewThatFits {
@@ -332,113 +517,12 @@ public struct StoreView: View {
             ScrollViewReader { scrollValue in
                 ScrollView {
                     VStack(spacing: 10) {
-                        Group {
-                            Text(storeViewModel.headline)
-                                .font(.title)
-                                .bold()
-                                .foregroundColor(.primary)
-                                .multilineTextAlignment(.center)
-                                .fixedSize(horizontal: false, vertical: true)
-                            Text(storeViewModel.subheadline)
-                                .foregroundColor(.secondary)
-                                .font(.subheadline)
-                                .multilineTextAlignment(.center)
-                                .fixedSize(horizontal: false, vertical: true)
-                                .padding(.horizontal, secondaryHorizontalPadding)
-                        }
-                        .padding(.horizontal)
-
-                        VStack {
-                            VStack {
-                                Text(storeViewModel.productGroupHeading)
-                                    .foregroundColor(.primary)
-                                    .multilineTextAlignment(.leading)
-                                    .lineSpacing(2)
-                                    .fixedSize(horizontal: false, vertical: true)
-                                    .padding(.bottom, 4)
-                                purchaseOptionsGrid(products: storeViewModel.products, maxWidth: storeOptionsMaxWidth(geometrySize: geometry.size))
-                                //                        .padding(.horizontal, secondaryHorizontalPadding)
-                                    .frame(maxWidth: storeOptionsMaxWidth(geometrySize: geometry.size))
-                                    .padding(.bottom)
-                                if let productGroupSubtitle = storeViewModel.productGroupSubtitle, !productGroupSubtitle.isEmpty {
-                                    Text(productGroupSubtitle)
-                                        .foregroundColor(.secondary)
-                                        .multilineTextAlignment(.center)
-                                        .font(.caption)
-                                        .fixedSize(horizontal: false, vertical: true)
-                                }
-                                if storeViewModel.testimonial != nil {
-                                    Button {
-                                        scrollValue.scrollTo("education-discount", anchor: .top)
-                                        isStudentDiscountExpanded = true
-                                    } label: {
-                                        (Text("Student & low-income discounts") + Text("  \(Image(systemName: "chevron.right.circle.fill"))"))
-                                            .font(.callout)
-                                            .bold()
-                                            .lineLimit(9001)
-                                            .multilineTextAlignment(.center)
-                                            .fixedSize(horizontal: false, vertical: true)
-                                    }
-                                    .buttonStyle(.bordered)
-#if os(iOS)
-                                    .modifier {
-                                        if #available(iOS 15, macOS 14, *) {
-                                            $0.buttonBorderShape(.capsule)
-                                        } else { $0 }
-                                    }
-#endif
-                                }
-                            }
-                            .padding()
-                        }
-                        .background(Color.systemGroupedBackground.opacity(0.8))
+                        headlineView
+                        primaryPurchasingView(geometry: geometry, scrollValue: scrollValue)
                         
                         Group {
-                            if let testimonial = storeViewModel.testimonial {
-                                VStack(alignment: .center) {
-                                    if let testimonialTitle = storeViewModel.testimonialTitle {
-                                        Text(testimonialTitle)
-                                            .font(.headline)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    if let testimonialImage = storeViewModel.testimonialImage {
-                                        HStack {
-                                            Spacer(minLength: 0)
-                                            if let testimonialLink = storeViewModel.testimonialLink {
-                                                Link(destination: testimonialLink) {
-                                                    testimonialImage
-                                                        .resizable()
-                                                        .aspectRatio(contentMode: .fit)
-                                                        .frame(maxHeight: 44)
-                                                }
-                                                .fixedSize()
-                                            } else {
-                                                testimonialImage
-                                                    .resizable()
-                                                    .aspectRatio(contentMode: .fit)
-                                                    .frame(maxHeight: 45)
-                                            }
-                                            Spacer(minLength: 0)
-                                        }
-                                        .foregroundStyle(.primary)
-                                        .padding(.bottom, 8)
-                                    }
-                                    if let testimonialLink = storeViewModel.testimonialLink {
-                                        Link(destination: testimonialLink) {
-                                            Text("“\(testimonial)”") + Text("  \(Image(systemName: "chevron.right.circle"))")
-                                                .italic()
-                                        }
-                                        //                                Link("“\(testimonial)”  ", destination: testimonialLink)
-                                        .font(.subheadline)
-                                        .foregroundStyle(.primary)
-                                    } else {
-                                        Text("“\(testimonial)”")
-                                            .italic()
-                                            .font(.subheadline)
-                                    }
-                                }
+                            PrimaryTestimonialView(storeViewModel: storeViewModel)
                                 .padding(.horizontal, secondaryHorizontalPadding)
-                            }
                             
                             GroupBox {
                                 StudentDiscountDisclosureGroup(isExpanded: $isStudentDiscountExpanded, discountView: {
@@ -486,49 +570,16 @@ public struct StoreView: View {
                             .font(.callout)
                             .padding(.top, 5)
                             .padding(.horizontal, secondaryHorizontalPadding)
-                            GroupBox {
-                                VStack(spacing: 12) {
-                                    HStack {
-                                        Text("Q&A")
-                                            .font(.title2)
-                                            .foregroundColor(.secondary)
-                                        Spacer()
-                                    }
-                                    ForEach(storeViewModel.faq.elements, id: \.key) { q, a in
-                                        FAQDisclosureGroup(question: q, answer: a)
-                                    }
-                                }
-                                .padding(10)
-                            }
+                            
+                            QuestionsAndAnswersView(storeViewModel: storeViewModel)
                             .padding(.top, 10)
-                            if let chatURL = storeViewModel.chatURL {
-                                GroupBox {
-                                    Text("Got a question? Need help?")
-                                        .font(.headline)
-                                    Link(destination: chatURL) { Label("Chat With Team", systemImage: "message.circle") }
-                                        .font(.subheadline)
-                                        .padding(.top, 8)
-                                }
-                                .padding(.top, 8)
-                            }
-                            HStack(spacing: 20) {
-                                Link("Terms of Service", destination: storeViewModel.termsOfService)
-                                //                        .frame(maxWidth: .infinity)
-                                Divider()
-                                Link("Privacy Policy", destination: storeViewModel.privacyPolicy)
-                                //                        .frame(maxWidth: .infinity)
-                            }
-                            .tint(.secondary)
-                            .font(.footnote)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .padding(.top, 10)
+                            
+                            StoreFooterView(storeViewModel: storeViewModel)
                         }
                         .padding(.horizontal)
                         Spacer()
                     }
-//                    .padding([.leading, .trailing, .bottom])
                     .padding(.bottom)
-                    //                .frame(idealWidth: min(componentMaxWidth(geometrySize: geometry.size), storeWidth), maxWidth: componentMaxWidth(geometrySize: geometry.size), minHeight: storeHeight)
                 }
             }
         }
