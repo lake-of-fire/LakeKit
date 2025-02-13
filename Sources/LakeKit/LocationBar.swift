@@ -85,6 +85,7 @@ public struct LocationBar: View, Equatable {
             return url
         }
         set {
+            debugPrint("# LocationBar.url =", newValue?.absoluteString)
             locationText = newValue?.absoluteString ?? ""
         }
     }
@@ -133,6 +134,7 @@ public struct LocationBar: View, Equatable {
 #endif
         .onSubmit {
             Task {
+//                debugPrint("# LocationBar onSubmit(...) url", url, "locationText", locationText)
                 try await onSubmit(url, locationText)
             }
         }

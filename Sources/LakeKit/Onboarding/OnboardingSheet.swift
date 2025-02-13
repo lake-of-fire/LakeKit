@@ -557,13 +557,13 @@ fileprivate struct FreeModeView: View {
         .navigationTitle("Free Mode")
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack {
-                PrimaryButton(title: "View Discounts", systemImage: nil, controlSize: .regular) {
+                PrimaryButton(title: "Get Your Discount", systemImage: nil, controlSize: .regular) {
                     isPresentingStoreSheet.toggle()
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.accentColor)
                 
-                PrimaryButton(title: hasViewedFreeModeUpsell ? "Continue Without Trying Discounts" : "Skip Upgrade Discount", systemImage: nil, controlSize: .regular) {
+                PrimaryButton(title: hasViewedFreeModeUpsell ? "Continue Without Trying Discounts" : "Skip Discounts", systemImage: nil, controlSize: .regular) {
                     hasSeenOnboarding = true
                     hasRespondedToOnboarding = true
                     isPresentingSheet = false
