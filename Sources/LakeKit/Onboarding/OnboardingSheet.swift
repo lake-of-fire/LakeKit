@@ -147,8 +147,8 @@ struct OnboardingPrimaryButtons: View {
                 Text("With qualifying discounts")
                     .foregroundStyle(.secondary)
                     .font(.caption)
-                    .multilineTextAlignment(.center)
             }
+            .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity)
         }
         .buttonStyle(.plain)
