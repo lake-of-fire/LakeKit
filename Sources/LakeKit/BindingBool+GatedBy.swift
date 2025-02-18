@@ -6,10 +6,6 @@ public extension Binding where Value == Bool {
         return Binding<Bool>( get: { wrappedValue && gate.wrappedValue },
                               set: { newValue in wrappedValue = newValue })
     }
-    func gatedBy2(_ gate: Bool) -> Binding<Bool> {
-        return Binding<Bool>( get: { wrappedValue && gate },
-                              set: { newValue in wrappedValue = newValue })
-    }
 }
 
 
