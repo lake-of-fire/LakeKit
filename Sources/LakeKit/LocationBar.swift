@@ -85,7 +85,7 @@ public struct LocationBar: View, Equatable {
             return url
         }
         set {
-            debugPrint("# LocationBar.url =", newValue?.absoluteString)
+//            debugPrint("# LocationBar.url =", newValue?.absoluteString)
             locationText = newValue?.absoluteString ?? ""
         }
     }
