@@ -61,6 +61,7 @@ let package = Package(
         .package(url: "https://github.com/sushichop/Puppy.git", branch: "main"),
         .package(url: "https://github.com/lake-of-fire/CloudKitSyncMonitor.git", branch: "main"),
         .package(url: "https://github.com/johnpatrickmorgan/NavigationBackport.git", branch: "main"),
+        .package(url: "https://github.com/lake-of-fire/Boutique.git", branch: "main"),
         //        .package(path: "../FramedScreenshotsTool"),
     ],
     targets: [
@@ -110,6 +111,7 @@ let package = Package(
 //                .product(name: "Inferno", package: "Inferno"),
                 .product(name: "CloudKitSyncMonitor", package: "CloudKitSyncMonitor"),
                 .product(name: "NavigationBackport", package: "NavigationBackport"),
+                .product(name: "Boutique", package: "Boutique"),
             ],
             resources: [
 //                .copy("Resources/CSS/Reader.css"),
