@@ -16,6 +16,7 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
     /// Use Store2 from the new Boutique fork; it will be initialized asynchronously.
     private var store2: Store2<CacheEntry>?
     
+    @MainActor
     private var deleteOrphansTimer: DispatchSourceTimer?
     private let debounceInterval: TimeInterval = 16
     
@@ -144,7 +145,7 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
         
         Task {
             try? await store2?.asyncInsert(entry)
-            self.debouncedDeleteOrphans()
+            await self.debouncedDeleteOrphans()
         }
     }
     
@@ -190,6 +191,7 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
         }
     }
     
+    @MainActor
     private func debouncedDeleteOrphans() {
         deleteOrphansTimer?.cancel()
         
@@ -201,7 +203,7 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
                 do {
                     try await self.deleteOrphans()
                 } catch {
-                    print("Error deleting orphan files: \(error)")
+                    print("Error deleting orphans: \(error)")
                 }
             }
         }

@@ -112,6 +112,7 @@ let package = Package(
                 .product(name: "CloudKitSyncMonitor", package: "CloudKitSyncMonitor"),
                 .product(name: "NavigationBackport", package: "NavigationBackport"),
                 .product(name: "Boutique", package: "Boutique"),
+                .product(name: "LRUCache", package: "LRUCache"),
             ],
             resources: [
 //                .copy("Resources/CSS/Reader.css"),
