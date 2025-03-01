@@ -29,7 +29,7 @@ fileprivate struct StoreViewForSheet: View {
                             try? await AppStore.sync()
                         }
                     }
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(.secondary)
                     .disabled(isRestoringPurchases)
                     .fixedSize()
                 }
@@ -37,7 +37,7 @@ fileprivate struct StoreViewForSheet: View {
                     Button("Cancel", role: .cancel) {
                         dismiss()
                     }
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(.secondary)
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
