@@ -115,7 +115,7 @@ struct OnboardingPrimaryButtons: View {
                 renewalString += renewalPeriod.value.formatted() + " "
             }
             if #available(iOS 16, macOS 13, *) {
-                renewalString += renewalPeriod.unit.formatted(highlightedProduct.product.subscriptionPeriodUnitFormatStyle)
+                renewalString += renewalPeriod.unit.formatted(highlightedProduct.product.subscriptionPeriodUnitFormatStyle).lowercased()
             } else {
                 switch renewalPeriod.unit {
                 case .day: renewalString += "day"
@@ -492,7 +492,7 @@ fileprivate struct FreeModeView: View {
                 renewalString += renewalPeriod.value.formatted() + " "
             }
             if #available(iOS 16, macOS 13, *) {
-                renewalString += renewalPeriod.unit.formatted(highlightedProduct.product.subscriptionPeriodUnitFormatStyle)
+                renewalString += renewalPeriod.unit.formatted(highlightedProduct.product.subscriptionPeriodUnitFormatStyle).lowercased()
             } else {
                 switch renewalPeriod.unit {
                 case .day: renewalString += "day"
