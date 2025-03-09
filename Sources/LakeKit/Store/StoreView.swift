@@ -34,10 +34,9 @@ fileprivate struct StoreViewForSheet: View {
                     .fixedSize()
                 }
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", role: .cancel) {
+                    DismissButton {
                         dismiss()
                     }
-                    .foregroundStyle(.secondary)
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
