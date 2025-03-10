@@ -116,7 +116,11 @@ public class StoreViewModel: NSObject, ObservableObject {
                 //                }
                 //            }
                 //            isSubscribed = false
-                guard let group = await storeHelper.subscriptionHelper.groupSubscriptionInfo()?.first, let groupID = group.subscriptionGroup, let subscriptionState = await storeHelper.subscriptionHelper.subscriptionInfo(for: groupID)?.subscriptionStatus?.state else {
+                let allSubscriptionProductIDs = storeHelper.productIds
+                
+                guard try await (storeHelper.productIds ?? []).async.contains(where: {
+                    try await storeHelper.isPurchased(productId: $0)
+                }) else {
                     try Task.checkCancellation()
                     if isSubscribed {
                         isSubscribed = false
@@ -128,11 +132,8 @@ public class StoreViewModel: NSObject, ObservableObject {
                     return
                 }
                 
-                try Task.checkCancellation()
-                
-                let isSubscribed = subscriptionState == .inBillingRetryPeriod || subscriptionState == .inGracePeriod || subscriptionState == .subscribed
-                if isSubscribed != self.isSubscribed {
-                    self.isSubscribed = isSubscribed
+                if !isSubscribed {
+                    isSubscribed = true
                 }
                 if !isInitialized {
                     isInitialized = true
@@ -140,6 +141,8 @@ public class StoreViewModel: NSObject, ObservableObject {
                 
                 AdsViewModel.shared.showAds = showAds
             } catch {
+                print(error)
+                Logger.shared.logger.error("\(error)")
             }
         }
     }
