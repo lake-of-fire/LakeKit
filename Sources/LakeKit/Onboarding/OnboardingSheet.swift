@@ -177,7 +177,7 @@ struct OnboardingPrimaryButtons: View {
     
     @ViewBuilder
     private func subsidizedOptionsButton() -> some View {
-        PrimaryButton(title: "Low-Income Subsidies", systemImage: nil) {
+        PrimaryButton(title: "Skip Upgrades", systemImage: nil) {
             navigationPath.removeLast(navigationPath.count)
             navigationPath.append("free-mode")
         }
@@ -563,7 +563,7 @@ fileprivate struct FreeModeView: View {
                 .buttonStyle(.borderedProminent)
                 .tint(.accentColor)
                 
-                PrimaryButton(title: hasViewedFreeModeUpsell ? "Continue Without Trying Discounts" : "Skip Discounts", systemImage: nil, controlSize: .regular) {
+                PrimaryButton(title: hasViewedFreeModeUpsell ? "Continue Without Trying Discounts" : "Skip Discounts and Continue", systemImage: nil, controlSize: .regular) {
                     hasSeenOnboarding = true
                     hasRespondedToOnboarding = true
                     isPresentingSheet = false
@@ -883,7 +883,6 @@ fileprivate struct PageNavigator: View {
 }
 
 public struct OnboardingSheet<CardContent: View>: ViewModifier {
-    @Binding var isActive: Bool
     @State var isPresentingStoreSheet = false
     let cards: [OnboardingCard]
     @ViewBuilder let cardContent: (OnboardingCard, Binding<Bool>, Bool) -> CardContent
@@ -911,14 +910,11 @@ public struct OnboardingSheet<CardContent: View>: ViewModifier {
                             $0.presentationSizing(.page)
                         } else { $0 }
                     }
-                    .storeSheet(isPresented: $isPresentingStoreSheet.gatedBy($isActive))
+                    .storeSheet(isPresented: $isPresentingStoreSheet)
                 // TODO: track onDisappear (after tracking onAppear to make sure it was seen for long enough too) timestamp as last seen date in AppStorage to avoid re-showing onboarding within seconds or minute of last seeing it again. Avoids annoying the user.
             }
             .onAppear {
                 refresh()
-            }
-            .onChange(of: isActive) { isActive in
-                refresh(isActive: isActive)
             }
             .onChange(of: hasSeenOnboarding) { hasSeenOnboarding in
                 refresh(hasSeenOnboarding: hasSeenOnboarding)
@@ -927,30 +923,28 @@ public struct OnboardingSheet<CardContent: View>: ViewModifier {
                 refresh(hasRespondedToOnboarding: hasRespondedToOnboarding)
             }
             .onChange(of: isPresented) { isPresented in
-                if isActive && !isPresented && !hasRespondedToOnboarding {
+                if !isPresented && !hasRespondedToOnboarding {
                     hasSeenOnboarding = true
                 }
             }
     }
     
-    private func refresh(isActive: Bool? = nil, hasRespondedToOnboarding: Bool? = nil, hasSeenOnboarding: Bool? = nil) {
-        let isActive = isActive ?? self.isActive
+    private func refresh(hasRespondedToOnboarding: Bool? = nil, hasSeenOnboarding: Bool? = nil) {
         let hasRespondedToOnboarding = hasRespondedToOnboarding ?? self.hasRespondedToOnboarding
         let hasSeenOnboarding = hasSeenOnboarding ?? self.hasSeenOnboarding
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 250_000_000)
-            isPresented = isActive && !(hasRespondedToOnboarding || hasSeenOnboarding)
+            isPresented = !(hasRespondedToOnboarding || hasSeenOnboarding)
         }
     }
 }
 
 public extension View {
     func onboardingSheet(
-        isActive: Binding<Bool> = .constant(true),
         cards: [OnboardingCard],
         cardContent: @escaping (OnboardingCard, Binding<Bool>, Bool) -> some View
     ) -> some View {
-        self.modifier(OnboardingSheet(isActive: isActive, cards: cards, cardContent: cardContent))
+        self.modifier(OnboardingSheet(cards: cards, cardContent: cardContent))
     }
 }
 

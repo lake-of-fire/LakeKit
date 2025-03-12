@@ -111,13 +111,11 @@ public enum SessionError: Error {
 
 public extension View {
     func lakeAuthenticationSession(
-        session: Session,
-        isModalWiringActive: Binding<Bool>
+        session: Session
     ) -> some View {
         self.modifier(
             LakeAuthenticationSessionModifier(
-                session: session,
-                isModalWiringActive: isModalWiringActive
+                session: session
             )
         )
     }
@@ -125,11 +123,10 @@ public extension View {
 
 public struct LakeAuthenticationSessionModifier: ViewModifier {
     @MainActor @ObservedObject public var session: Session
-    @Binding var isModalWiringActive: Bool
 
     public func body(content: Content) -> some View {
         content
-            .webAuthenticationSession(isPresented: $session.isPresentingWebAuthentication.gatedBy($isModalWiringActive)) {
+            .webAuthenticationSession(isPresented: $session.isPresentingWebAuthentication) {
                 WebAuthenticationSession(url: URL(string: "https://manabi.io/accounts/signup/?next=/accounts/native-app-login-redirect/manabireader/")!, callbackURLScheme: "manabireader") { callbackURL, error in
                     if let error = error {
                         print(error)

@@ -5,11 +5,11 @@ import SwiftUI
 #if os(iOS)
 public extension View {
     @ViewBuilder
-    func shareSheet<Data>(isActive: Bool, item activityItems: Binding<ActivityItem<Data>?>) -> some View where Data: RandomAccessCollection, Data.Element: Shareable {
+    func shareSheet<Data>(item activityItems: Binding<ActivityItem<Data>?>) -> some View where Data: RandomAccessCollection, Data.Element: Shareable {
 //#if os(macOS)
 //        background(ShareSheet(isActive: isActive, item: activityItems))
 //#elseif os(iOS)
-        background(ShareSheet(isActive: isActive, item: activityItems))
+        background(ShareSheet(item: activityItems))
 //#endif
     }
 }
@@ -91,20 +91,17 @@ public extension View {
 #elseif os(iOS)
 
 private struct ShareSheet<Data>: UIViewControllerRepresentable where Data: RandomAccessCollection, Data.Element: Shareable {
-    let isActive: Bool
     @Binding var item: ActivityItem<Data>?
 
-    init(isActive: Bool, item: Binding<ActivityItem<Data>?>) {
-        self.isActive = isActive
+    init(item: Binding<ActivityItem<Data>?>) {
         _item = item
     }
 
     func makeUIViewController(context: Context) -> Representable {
-        Representable(isActive: isActive, item: $item)
+        Representable(item: $item)
     }
 
     func updateUIViewController(_ controller: Representable, context: Context) {
-        controller.isActive = isActive
         controller.item = $item
     }
 }
@@ -113,28 +110,16 @@ private extension ShareSheet {
     final class Representable: UIViewController, UIAdaptivePresentationControllerDelegate, UISheetPresentationControllerDelegate {
         private weak var controller: UIActivityViewController?
 
-        var isActive: Bool {
-            didSet {
-                guard oldValue != isActive else { return }
-                updateControllerLifecycle(
-                    from: item.wrappedValue,
-                    to: item.wrappedValue,
-                    isActive: isActive
-                )
-            }
-        }
         var item: Binding<ActivityItem<Data>?> {
             didSet {
                 updateControllerLifecycle(
                     from: oldValue.wrappedValue,
-                    to: item.wrappedValue,
-                    isActive: isActive
+                    to: item.wrappedValue
                 )
             }
         }
 
-        init(isActive: Bool, item: Binding<ActivityItem<Data>?>) {
-            self.isActive = isActive
+        init(item: Binding<ActivityItem<Data>?>) {
             self.item = item
             super.init(nibName: nil, bundle: nil)
         }
@@ -143,13 +128,13 @@ private extension ShareSheet {
             fatalError("init(coder:) has not been implemented")
         }
 
-        private func updateControllerLifecycle(from oldValue: ActivityItem<Data>?, to newValue: ActivityItem<Data>?, isActive: Bool) {
-            switch (oldValue, newValue, isActive) {
-            case (.none, .some, true):
+        private func updateControllerLifecycle(from oldValue: ActivityItem<Data>?, to newValue: ActivityItem<Data>?) {
+            switch (oldValue, newValue) {
+            case (.none, .some):
                 presentController()
-            case (.some, .none, true), (_, _, false):
+            case (.some, .none):
                 dismissController()
-            case (.some, .some, true), (.none, .none, true):
+            case (.some, .some), (.none, .none):
                 break
             }
         }
