@@ -96,6 +96,8 @@ public struct EnhancedSearchableModifier: ViewModifier {
 #else
                         TextField(prompt ?? "Search", text: $searchText, prompt: promptText)
                             .textFieldStyle(.roundedBorder)
+                            .submitLabel(.search)
+                            .padding(.horizontal, 10)
 #endif
                     }
                     .focused($focusedField, equals: "search")
