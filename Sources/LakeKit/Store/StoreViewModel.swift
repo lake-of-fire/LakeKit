@@ -142,7 +142,9 @@ public class StoreViewModel: NSObject, ObservableObject {
                 AdsViewModel.shared.showAds = showAds
             } catch {
                 print(error)
-                Logger.shared.logger.error("\(error)")
+                if (error as? CancellationError) == nil {
+                    Logger.shared.logger.error("\(error)")
+                }
             }
         }
     }
