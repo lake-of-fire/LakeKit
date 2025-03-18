@@ -28,14 +28,16 @@ public class Session: ObservableObject {
     
     public init(keychain: KeychainSwift) {
         self.keychain = keychain
-        Task { @MainActor in
             if let userIDString = keychain.get("userID"), let userID = Int(userIDString) {
                 self.userID = userID
-                updateAuthenticationState()
+                Task { @MainActor in
+                    updateAuthenticationState()
+                }
             } else {
-                logout()
+                Task { @MainActor in
+                    logout()
+                }
             }
-        }
     }
     
     @MainActor
