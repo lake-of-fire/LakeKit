@@ -2,6 +2,14 @@ import SwiftUI
 
 /// Warning: This can cause sheets to change identity rapidly upon presentation
 public extension Binding where Value == Bool {
+    func gatedBy(_ gate: Bool) -> Binding<Bool> {
+        return Binding<Bool>(
+            get: { wrappedValue && gate },
+            set: { newValue in
+                wrappedValue = newValue
+            })
+    }
+
     func gatedBy(_ gate: Binding<Bool>) -> Binding<Bool> {
         return Binding<Bool>(
             get: { wrappedValue && gate.wrappedValue },

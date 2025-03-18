@@ -883,6 +883,7 @@ fileprivate struct PageNavigator: View {
 }
 
 public struct OnboardingSheet<CardContent: View>: ViewModifier {
+    let isActive: Bool
     @State var isPresentingStoreSheet = false
     let cards: [OnboardingCard]
     @ViewBuilder let cardContent: (OnboardingCard, Binding<Bool>, Bool) -> CardContent
@@ -941,10 +942,17 @@ public struct OnboardingSheet<CardContent: View>: ViewModifier {
 
 public extension View {
     func onboardingSheet(
+        isActive: Bool,
         cards: [OnboardingCard],
         cardContent: @escaping (OnboardingCard, Binding<Bool>, Bool) -> some View
     ) -> some View {
-        self.modifier(OnboardingSheet(cards: cards, cardContent: cardContent))
+        self.modifier(
+            OnboardingSheet(
+                isActive: isActive,
+                cards: cards,
+                cardContent: cardContent
+            )
+        )
     }
 }
 
