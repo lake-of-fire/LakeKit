@@ -170,6 +170,7 @@ public class Logger: ObservableObject {
 public class LoggingViewModel: ObservableObject {
     @Published public var logs: [TransferableLog] = []
     @Published public var logsText = ""
+    @Published public var reversedLogsText = ""
     @Published public var logsZIPArchive: ZIPArchive?
 
     private let logger: Logger
@@ -184,14 +185,26 @@ public class LoggingViewModel: ObservableObject {
             TransferableLog(url: url, name: url.lastPathComponent)
         }
         
+        let logsCount = logs.count
         let fileContents = logs.compactMap { log -> String? in
             guard let content = try? String(contentsOf: log.url) else { return nil }
+            if logsCount == 1 {
+                return content
+            }
             return "LOG: \(log.name) (\(log.url.lastPathComponent))\n\n" + content
         }
-        
         let logsText = fileContents.joined(separator: "\n\n")
         self.logsText = logsText
         
+        let reversedFileContents = logs.compactMap { log -> String? in
+            guard let content = try? String(contentsOf: log.url).split(separator: "\n").reversed().joined(separator: "\n") else { return nil }
+            if logsCount == 1 {
+                return content
+            }
+            return "LOG: \(log.name) (\(log.url.lastPathComponent))\n\n" + content
+        }
+        self.reversedLogsText = fileContents.joined(separator: "\n\n")
+
         do {
             let archive = try await withCheckedThrowingContinuation { continuation in
                 Task.detached(priority: .background) {
