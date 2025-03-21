@@ -170,7 +170,8 @@ public class Logger: ObservableObject {
 public class LoggingViewModel: ObservableObject {
     @Published public var logs: [TransferableLog] = []
     @Published public var logsText = ""
-    
+    @Published public var logsZIPArchive: ZIPArchive?
+
     private let logger: Logger
     
     // MARK: Initialization
@@ -188,7 +189,38 @@ public class LoggingViewModel: ObservableObject {
             return "LOG: \(log.name) (\(log.url.lastPathComponent))\n\n" + content
         }
         
-        logsText = fileContents.joined(separator: "\n\n")
+        let logsText = fileContents.joined(separator: "\n\n")
+        self.logsText = logsText
+        
+        do {
+            let archive = try await withCheckedThrowingContinuation { continuation in
+                Task.detached(priority: .background) {
+                    let logsData = Data(logsText.utf8)
+                    do {
+                        guard let archive = Archive(accessMode: .create) else {
+                            throw NSError(domain: "LoggingViewModel", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to initialize in-memory ZIP archive."])
+                        }
+                        try archive.addEntry(with: "ManabiReaderLogs.txt", type: .file, uncompressedSize: UInt32(logsData.count), modificationDate: Date(), compressionMethod: .deflate) { (position, size) -> Data in
+                            return logsData.subdata(in: position..<position+size)
+                        }
+                        guard let zipData = archive.data else {
+                            throw NSError(domain: "LoggingViewModel", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to get archive data."])
+                        }
+                        continuation.resume(
+                            returning: ZIPArchive(
+                                title: "ManabiReaderLogs",
+                                content: zipData
+                            )
+                        )
+                    } catch {
+                        continuation.resume(throwing: error)
+                    }
+                }
+            }
+            self.logsZIPArchive = archive
+        } catch {
+            Logger.shared.logger.error("LoggingViewModel error: \(error)")
+        }
     }
 }
 

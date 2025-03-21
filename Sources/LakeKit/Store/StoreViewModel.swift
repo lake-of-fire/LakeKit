@@ -84,9 +84,9 @@ public class StoreViewModel: NSObject, ObservableObject {
         subscriptionRefreshTask = Task { @MainActor in
             do {
                 try Task.checkCancellation()
-//#if DEBUG
-//                isSubscribedFromElsewhere = true
-//#else
+                //#if DEBUG
+                //                isSubscribedFromElsewhere = true
+                //#else
                 if ProcessInfo.processInfo.arguments.contains("pretend-subscribed"), !isSubscribedFromElsewhere {
                     isSubscribedFromElsewhere = true
                 } else if let isSubscribedFromElsewhereCallback = isSubscribedFromElsewhereCallback {
@@ -95,7 +95,7 @@ public class StoreViewModel: NSObject, ObservableObject {
                         self.isSubscribedFromElsewhere = isSubscribedFromElsewhere
                     }
                 }
-//#endif
+                //#endif
                 
                 if isSubscribedFromElsewhere {
                     try Task.checkCancellation()
@@ -140,6 +140,8 @@ public class StoreViewModel: NSObject, ObservableObject {
                 }
                 
                 AdsViewModel.shared.showAds = showAds
+            } catch (let error as CancellationError) {
+                print(error)
             } catch {
                 print(error)
                 if (error as? CancellationError) == nil {
