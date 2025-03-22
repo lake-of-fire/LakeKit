@@ -12,30 +12,6 @@ public class LocationController: ObservableObject {
     public init() { }
 }
 
-//private struct LocationTextFieldModifier: ViewModifier {
-//    var text: String
-//
-//    func body(content: Content) -> some View {
-//        content
-//        // Clear color for the TextField
-//            .foregroundColor(.clear)
-//        // Overlay with text and extra
-//            .overlay(
-//                HStack(spacing: 0.0) {
-//                    // This Swift View splits the text and adds what I need
-//                    //                    TextFieldHighlightedVariables(text)
-//                    //                    Text
-//                    Text("    uh    :)")
-//                    Spacer()
-//                }
-//                    .padding(.top, 2)
-//                    .padding(.leading, 4)
-//                ,
-//                alignment: .topLeading
-//            )
-//    }
-//}
-
 fileprivate struct LocationBarIntrospection: ViewModifier {
     @EnvironmentObject private var locationController: LocationController
     
@@ -55,9 +31,9 @@ fileprivate struct LocationBarIntrospection: ViewModifier {
             }
 #else
             .introspect(.textField, on: .iOS(.v15...)) { textField in
+                // See: https://developer.apple.com/forums/thread/74372
                 if locationController.isPresentingLocationOpening {
                     Task { @MainActor in
-                        // See: https://developer.apple.com/forums/thread/74372
                         if textField.isFirstResponder {
                             locationController.isPresentingLocationOpening = false
                             textField.resignFirstResponder()
@@ -73,7 +49,6 @@ fileprivate struct LocationBarIntrospection: ViewModifier {
 
 public struct LocationBar: View, Equatable {
     @Binding var locationText: String
-//    @Binding var locationTitle: String
     @Binding var selectAll: Bool
     private let onSubmit: ((URL?, String) async throws -> Void)
     @Environment(\.colorScheme) private var colorScheme
@@ -85,57 +60,24 @@ public struct LocationBar: View, Equatable {
             return url
         }
         set {
-//            debugPrint("# LocationBar.url =", newValue?.absoluteString)
             locationText = newValue?.absoluteString ?? ""
         }
     }
     
     @MainActor
     @ViewBuilder private var textField: some View {
-        TextField(
-            "",
+        RoundedTextField(
             text: $locationText,
-            prompt:
-                Text("Search or enter website address")
-                .accessibilityLabel("Location")
-                .foregroundColor(.secondary)
+            placeholder: "Search or enter website address",
+            selectAll: $selectAll
         )
-#if os(iOS)
-        .introspect(.textField, on: .iOS(.v16...)) { @MainActor textField in
-            if selectAll {
-                Task { @MainActor in
-                    selectAll = false
-                    try await Task.sleep(nanoseconds: UInt64(0.1 * 1_000_000_000))
-                    textField.selectAll(nil)
-                }
-            }
-        }
-#endif
-        .truncationMode(.tail)
-        .submitLabel((url == nil && !locationText.isEmpty) ? .search : .go)
-#if os(macOS)
-        .textFieldStyle(.roundedBorder)
-#else
-        .textContentType(.URL)
-        //            .keyboardType(.URL)
-        .textInputAutocapitalization(.never)
-        .autocorrectionDisabled()
-        .textFieldStyle(.plain)
-        .padding(EdgeInsets(top: 8, leading: 10, bottom: 8, trailing: 10))
-        //            .padding(EdgeInsets(top: 6, leading: 8, bottom: 6, trailing: 8))
-        .background(colorScheme == .dark ? Color.secondary.opacity(0.2232) : Color.white) //(white: 239.0 / 255.0))
-                                                                                          //            .textFieldStyle(.roundedBorder)
-        .cornerRadius(12)
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(.secondary.opacity(0.1), lineWidth: 1)
-        )
-        .submitLabel(.go)
-#endif
         .onSubmit {
-            Task {
-//                debugPrint("# LocationBar onSubmit(...) url", url, "locationText", locationText)
-                try await onSubmit(url, locationText)
+            Task { @MainActor in
+                do {
+                    try await onSubmit(url, locationText)
+                } catch {
+                    print(error)
+                }
             }
         }
         .modifier(LocationBarIntrospection())
@@ -167,61 +109,3 @@ public struct LocationBar: View, Equatable {
         return lhs.locationText == rhs.locationText
     }
 }
-//
-//struct BrowserStyleTextFieldModifier: ViewModifier {
-//    var placeholder: String
-//    @Binding var text: String
-//    @State private var isButtonVisible: Bool = true
-//    
-//    func body(content: Content) -> some View {
-//        ZStack {
-//            if isButtonVisible {
-//                Button(placeholder) {
-//                    isButtonVisible = false
-//                    // The button's action will trigger focus and text selection via introspect below.
-//                }
-//                .buttonStyle(PlainButtonStyle())
-//                .frame(maxWidth: .infinity, maxHeight: .infinity)
-//                .transition(.opacity)
-//                .zIndex(1) // Ensure the button is above the TextField until it's hidden.
-//            }
-//            
-//            content
-//                .opacity(isButtonVisible ? 0 : 1)
-//#if os(iOS)
-//                .introspect(.textField, on: .iOS(.v15...)) { textField in
-//                    textField.addTarget(TextFieldFocusHandler.shared, action: #selector(TextFieldFocusHandler.handleFocus(_:)), for: .editingDidBegin)
-//                }
-//#elseif os(macOS)
-//                .introspect(.textField, on: .macOS(.v12...)) { textField in
-//                    if !isButtonVisible {
-//                        DispatchQueue.main.async {
-//                            textField.becomeFirstResponder()
-//                            textField.currentEditor()?.selectAll(nil)
-//                        }
-//                    }
-//                }
-//#endif
-//                .onChange(of: text) { newValue in
-//                    isButtonVisible = newValue.isEmpty
-//                }
-//        }
-//        .animation(.default, value: isButtonVisible)
-//    }
-//}
-//    
-//#if os(iOS)
-//fileprivate class TextFieldFocusHandler: NSObject {
-//    static let shared = TextFieldFocusHandler()
-//    
-//    @objc func handleFocus(_ textField: UITextField) {
-//        textField.selectAll(nil)
-//    }
-//}
-//#endif
-//
-//extension View {
-//    func browserStyleTextField(isFocused: Binding<Bool>, placeholder: String) -> some View {
-//        self.modifier(BrowserStyleTextFieldModifier(isFocused: isFocused, placeholder: placeholder))
-//    }
-//}
