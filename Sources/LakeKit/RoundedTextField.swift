@@ -51,30 +51,29 @@ public struct RoundedTextField: View {
                     }
             }
             
-            TextField("", text: $text, prompt: Text(placeholder)
-                .accessibilityLabel(placeholder)
-                .foregroundColor(.secondary))
-            .focused($isTextFieldFocused)
+            TextField("", text: $text, prompt: Text(placeholder) .accessibilityLabel(placeholder) .foregroundColor(.secondary))
+                .focused($isTextFieldFocused)
 #if os(iOS)
-            .introspect(.textField, on: .iOS(.v16...)) { textField in
-                if let selectAll = selectAll, selectAll.wrappedValue {
-                    Task { @MainActor in
-                        selectAll.wrappedValue = false
-                        // Slight delay to ensure the text field is ready before selecting all.
-                        try await Task.sleep(nanoseconds: UInt64(0.1 * 1_000_000_000))
-                        textField.selectAll(nil)
+                .introspect(.textField, on: .iOS(.v16...)) { textField in
+                    if let selectAll = selectAll, selectAll.wrappedValue {
+                        Task { @MainActor in
+                            selectAll.wrappedValue = false
+                            // Slight delay to ensure the text field is ready before selecting all.
+                            try await Task.sleep(nanoseconds: UInt64(0.1 * 1_000_000_000))
+                            textField.selectAll(nil)
+                        }
                     }
                 }
-            }
-            .truncationMode(.tail)
-            .textContentType(.URL)
-            .textInputAutocapitalization(.never)
-            .autocorrectionDisabled()
-            .textFieldStyle(.plain)
+                .truncationMode(.tail)
+                .textContentType(.URL)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .textFieldStyle(.plain)
 #elseif os(macOS)
-            .textFieldStyle(.roundedBorder)
+                .textFieldStyle(.roundedBorder)
 #endif
         }
+#if os(iOS)
         .padding(EdgeInsets(top: 8, leading: 10, bottom: 8, trailing: 10))
         .background(
             (colorScheme == .dark ? Color.secondary.opacity(0.2232) : Color.white)
@@ -85,5 +84,6 @@ public struct RoundedTextField: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color.secondary.opacity(0.1), lineWidth: 1)
         )
+#endif
     }
 }
