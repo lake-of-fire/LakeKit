@@ -14,8 +14,8 @@ let package = Package(
             targets: ["LakeKit"]),
     ],
     dependencies: [
-//        .package(url: "https://github.com/lake-of-fire/RealmBinary.git", branch: "main"),
-        .package(url: "https://github.com/realm/realm-swift.git", from: "10.53.0"),
+        .package(url: "https://github.com/lake-of-fire/RealmBinary.git", branch: "main"),
+//        .package(url: "https://github.com/realm/realm-swift.git", from: "10.53.0"),
         .package(url: "https://github.com/lake-of-fire/BigSyncKit.git", branch: "main"),
         .package(url: "https://github.com/lake-of-fire/RealmSwiftGaps.git", branch: "main"),
         .package(url: "https://github.com/lake-of-fire/SwiftUIDownloads.git", branch: "main"),
@@ -71,8 +71,8 @@ let package = Package(
             name: "LakeKit",
             dependencies: [
                 .product(name: "SwiftUIWebView", package: "swiftui-webview"),
-//                .product(name: "RealmSwift", package: "RealmBinary"),
-                .product(name: "RealmSwift", package: "realm-swift"),
+                .product(name: "RealmSwift", package: "RealmBinary"),
+//                .product(name: "RealmSwift", package: "realm-swift"),
                 .product(name: "RealmSwiftGaps", package: "RealmSwiftGaps"),
                 .product(name: "SwiftUIDrag", package: "SwiftUIDrag"),
                 .product(name: "Popovers", package: "Popovers"),

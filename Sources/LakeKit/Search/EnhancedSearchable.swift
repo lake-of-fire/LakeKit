@@ -96,6 +96,7 @@ public struct EnhancedSearchableModifier: ViewModifier {
                 .frame(maxWidth: 850)
                 .transition(.opacity)
             }
+            
             content
                 .onChange(of: isPresented) { [oldValue = isPresented] isPresented in
                     guard isPresented, oldValue != isPresented else { return }
@@ -103,6 +104,11 @@ public struct EnhancedSearchableModifier: ViewModifier {
                         focusedField = "search"
                     }
                 }
+        }
+        .onDisappear {
+            Task { @MainActor in
+                focusedField = nil
+            }
         }
         .onChange(of: searchText) { searchText in
             updateSearchingStatus(forSearchText: searchText)
