@@ -94,7 +94,7 @@ public class Logger: ObservableObject {
         let fileURL = url.appendingPathComponent("default.log")
         let rotationConfig = RotationConfig(
             suffixExtension: .date_uuid,
-            maxFileSize: 2 * 1_024 * 1_024,
+            maxFileSize: 1 * 1_024 * 1_024,
             maxArchivedFilesCount: 1)
         
 #if DEBUG
