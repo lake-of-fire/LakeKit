@@ -97,7 +97,7 @@ public struct ICloudStatusReaderModifier: ViewModifier {
     }
     
     private func updateStatus() {
-        Task {
+        Task { @MainActor in
             await updateZonesAccessibility()
             Task { @MainActor in
                 iCloudSyncStateSummary = syncMonitor.syncStateSummary
