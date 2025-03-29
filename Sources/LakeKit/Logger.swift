@@ -12,13 +12,26 @@ public class Logger: ObservableObject {
     public static let shared = Logger()
     public let logger: Logging.Logger
     
+    private var fileLogger: FileRotationLogger?
+    
     init() {
-        logger = Self.makeLogger()
+        (logger, fileLogger) = Self.makeLogger()
         
         do {
             try createLogDirectory()
         } catch {
             print("Could not create the log directory: \(error.localizedDescription)")
+        }
+    }
+    
+    /// Deletes all log files from the log directory.
+    public func clearLogFiles() {
+        do {
+            let url = try Self.logDirectoryURL()
+            fileLogger?.delete(url)
+            print("All log files deleted from \(url.path)")
+        } catch {
+            print("Failed to clear log files: \(error)")
         }
     }
     
@@ -44,13 +57,17 @@ public class Logger: ObservableObject {
         }
     }
     
-    static func makeLogger() -> Logging.Logger {
+    static func makeLogger() -> (Logging.Logger, FileRotationLogger?) {
         var puppy = Puppy()
 #if DEBUG
         puppy.add(makeConsoleLogger())
 #endif
+        var fileLogger: FileRotationLogger?
         do {
-            puppy.add(try makeFileLogger())
+            fileLogger = try makeFileLogger()
+            if let fileLogger {
+                puppy.add(fileLogger)
+            }
         } catch {
             // If the logger can't be created we just log the error through OSLog
             // and create an empty logger.
@@ -68,7 +85,10 @@ public class Logger: ObservableObject {
             return handler
         }
         
-        return Logging.Logger(label: bundleIdentifier() + ".swiftlog")
+        return (
+            Logging.Logger(label: bundleIdentifier() + ".swiftlog"),
+            fileLogger
+        )
     }
     
     func getCurrentLogs() -> [URL] {
@@ -94,7 +114,7 @@ public class Logger: ObservableObject {
         let fileURL = url.appendingPathComponent("default.log")
         let rotationConfig = RotationConfig(
             suffixExtension: .date_uuid,
-            maxFileSize: 1 * 1_024 * 1_024,
+            maxFileSize: UInt64((1.5 * Double(1_024 * 1_024)).rounded()),
             maxArchivedFilesCount: 1)
         
 #if DEBUG
@@ -170,8 +190,9 @@ public class Logger: ObservableObject {
 public class LoggingViewModel: ObservableObject {
     @Published public var logs: [TransferableLog] = []
     @Published public var logsText = ""
-    @Published public var reversedLogsText = ""
+    @Published public var clippedReversedLogsText = ""
     @Published public var logsZIPArchive: ZIPArchive?
+    @Published private var loadTask: Task<Void, Never>? = nil
 
     private let logger: Logger
     
@@ -179,61 +200,84 @@ public class LoggingViewModel: ObservableObject {
     public init(logger: Logger = Logger.shared) {
         self.logger = logger
     }
-
+    
+    public func clearLogs() async {
+        logger.clearLogFiles()
+        await load()
+    }
+    
+    public var isLoading: Bool {
+        if let task = loadTask {
+            return !task.isCancelled
+        }
+        return false
+    }
     public func load() async {
-        logs = logger.getCurrentLogs().map { url in
-            TransferableLog(url: url, name: url.lastPathComponent)
-        }
+        loadTask?.cancel()
         
-        let logsCount = logs.count
-        let fileContents = logs.compactMap { log -> String? in
-            guard let content = try? String(contentsOf: log.url) else { return nil }
-            if logsCount == 1 {
-                return content
+        let newTask = Task { @MainActor in
+            logs = logger.getCurrentLogs().map { url in
+                TransferableLog(url: url, name: url.lastPathComponent)
             }
-            return "LOG: \(log.name) (\(log.url.lastPathComponent))\n\n" + content
-        }
-        let logsText = fileContents.joined(separator: "\n\n")
-        self.logsText = logsText
-        
-        let reversedFileContents = logs.compactMap { log -> String? in
-            guard let content = try? String(contentsOf: log.url).split(separator: "\n").reversed().joined(separator: "\n") else { return nil }
-            if logsCount == 1 {
-                return content
+            
+            let logsCount = logs.count
+            let fileContents = logs.compactMap { log -> String? in
+                guard let content = try? String(contentsOf: log.url) else { return nil }
+                if logsCount == 1 {
+                    return content
+                }
+                return "LOG: \(log.name) (\(log.url.lastPathComponent))\n\n" + content
             }
-            return "LOG: \(log.name) (\(log.url.lastPathComponent))\n\n" + content
-        }
-        self.reversedLogsText = fileContents.joined(separator: "\n\n")
-
-        do {
-            let archive = try await withCheckedThrowingContinuation { continuation in
-                Task.detached(priority: .background) {
-                    let logsData = Data(logsText.utf8)
-                    do {
-                        guard let archive = Archive(accessMode: .create) else {
-                            throw NSError(domain: "LoggingViewModel", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to initialize in-memory ZIP archive."])
-                        }
-                        try archive.addEntry(with: "ManabiReaderLogs.txt", type: .file, uncompressedSize: UInt32(logsData.count), modificationDate: Date(), compressionMethod: .deflate) { (position, size) -> Data in
-                            return logsData.subdata(in: position..<position+size)
-                        }
-                        guard let zipData = archive.data else {
-                            throw NSError(domain: "LoggingViewModel", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to get archive data."])
-                        }
-                        continuation.resume(
-                            returning: ZIPArchive(
-                                title: "ManabiReaderLogs",
-                                content: zipData
+            let logsText = fileContents.joined(separator: "\n\n")
+            self.logsText = logsText
+            
+            let clippedReversedFileContents = logs.compactMap { log -> String? in
+                guard let content = try? String(contentsOf: log.url)
+                    .split(separator: "\n")
+                    .suffix(2000)
+                    .reversed()
+                    .joined(separator: "\n") else { return nil }
+                if logsCount == 1 {
+                    return content
+                }
+                return "LOG: \(log.name) (\(log.url.lastPathComponent))\n\n" + content
+            }
+            self.clippedReversedLogsText = clippedReversedFileContents.joined(separator: "\n\n")
+            
+            do {
+                let archive = try await withCheckedThrowingContinuation { continuation in
+                    Task.detached(priority: .background) {
+                        let logsData = Data(logsText.utf8)
+                        do {
+                            guard let archive = Archive(accessMode: .create) else {
+                                throw NSError(domain: "LoggingViewModel", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to initialize in-memory ZIP archive."])
+                            }
+                            try archive.addEntry(with: "ManabiReaderLogs.txt", type: .file, uncompressedSize: UInt32(logsData.count), modificationDate: Date(), compressionMethod: .deflate) { (position, size) -> Data in
+                                return logsData.subdata(in: position..<position+size)
+                            }
+                            guard let zipData = archive.data else {
+                                throw NSError(domain: "LoggingViewModel", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to get archive data."])
+                            }
+                            continuation.resume(
+                                returning: ZIPArchive(
+                                    title: "ManabiReaderLogs",
+                                    content: zipData
+                                )
                             )
-                        )
-                    } catch {
-                        continuation.resume(throwing: error)
+                        } catch {
+                            continuation.resume(throwing: error)
+                        }
                     }
                 }
+                self.logsZIPArchive = archive
+            } catch {
+                Logger.shared.logger.error("LoggingViewModel error: \(error)")
             }
-            self.logsZIPArchive = archive
-        } catch {
-            Logger.shared.logger.error("LoggingViewModel error: \(error)")
         }
+        
+        loadTask = newTask
+        await newTask.value
+        loadTask = nil
     }
 }
 
