@@ -2,29 +2,34 @@ import SwiftUI
 
 public struct DelayedAppearanceViewModifier: ViewModifier {
     var delay: Double
+    var forceDisplay: Bool
     
     @State private var isVisible: Bool = false
     
-    public init(delay: Double) {
+    public init(delay: Double, forceDisplay: Bool = false) {
         self.delay = delay
+        self.forceDisplay = forceDisplay
     }
     
     public func body(content: Content) -> some View {
         content
-            .opacity(isVisible ? 1 : 0)
+            .opacity(isVisible || forceDisplay ? 1 : 0)
             .onAppear {
-                DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-                    withAnimation {
-                        isVisible = true
+                if forceDisplay {
+                    isVisible = true
+                } else {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                        withAnimation {
+                            isVisible = true
+                        }
                     }
                 }
             }
     }
 }
 
-
 public extension View {
-    func delayedAppearance(delay: Double = 0.4) -> some View {
-        self.modifier(DelayedAppearanceViewModifier(delay: delay))
+    func delayedAppearance(delay: Double = 0.4, forceDisplay: Bool = false) -> some View {
+        self.modifier(DelayedAppearanceViewModifier(delay: delay, forceDisplay: forceDisplay))
     }
 }
