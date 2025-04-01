@@ -15,7 +15,7 @@
 //    @Persisted public var modifiedAt = Date()
 //    @Persisted public var isDeleted = false
 //    
-//    public var needsSyncToServer: Bool {
+//    public var needsSyncToAppServer: Bool {
 //        return false
 //    }
 //    
