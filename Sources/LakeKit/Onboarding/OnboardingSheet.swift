@@ -563,7 +563,7 @@ fileprivate struct FreeModeView: View {
                 .buttonStyle(.borderedProminent)
                 .tint(.accentColor)
                 
-                PrimaryButton(title: hasViewedFreeModeUpsell ? "Continue Without Trying Discounts" : "Skip Discounts and Continue", systemImage: nil, controlSize: .regular) {
+                PrimaryButton(title: hasViewedFreeModeUpsell ? "Continue Without Trying Discounts" : "Skip Discounts", systemImage: nil, controlSize: .regular) {
                     hasSeenOnboarding = true
                     hasRespondedToOnboarding = true
                     isPresentingSheet = false
@@ -895,7 +895,7 @@ public struct OnboardingSheet<CardContent: View>: ViewModifier {
 
     public func body(content: Content) -> some View {
         content
-            .sheet(isPresented: $isPresented) {
+            .sheet(isPresented: $isPresented.gatedBy(isActive)) {
                 OnboardingView(
                     cards: cards,
                     isPresentingSheet: $isPresented,
