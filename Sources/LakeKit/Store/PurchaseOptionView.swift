@@ -179,6 +179,13 @@ public struct PurchaseOptionView: View {
                                             Capsule()
                                                 .foregroundColor(Color.accentColor)
                                         )
+                                        .conditionalEffect(
+                                            .repeat(
+                                                .shine.delay(0.75),
+                                                every: 4
+                                            ),
+                                            condition: true
+                                        )
 #else
                                     Button {
                                         submitAction()

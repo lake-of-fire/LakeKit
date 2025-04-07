@@ -54,6 +54,7 @@ public extension Templates {
             PopoverReader { context in
                 view
                     .padding(padding)
+                    .background(.regularMaterial)
 //                    .background(.thickMaterial)
 //                    .background(.red.opacity(0.25))
 //                        RoundedRectangle(cornerRadius: 16)

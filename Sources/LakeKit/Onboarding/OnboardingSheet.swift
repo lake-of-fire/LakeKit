@@ -177,16 +177,23 @@ struct OnboardingPrimaryButtons: View {
     
     @ViewBuilder
     private func subsidizedOptionsButton() -> some View {
-        PrimaryButton(title: "Skip Upgrades", systemImage: nil) {
+        PrimaryButton(
+            title: "Skip Upgrades",
+            systemImage: nil,
+            controlSize: .regular
+        ) {
             navigationPath.removeLast(navigationPath.count)
             navigationPath.append("free-mode")
         }
-        .buttonStyle(.bordered)
+//        .buttonStyle(.bordered)
+        .buttonStyle(.borderless)
         .tint(.secondary)
+        .buttonBorderShape(.roundedRectangle)
         .background {
             Color.white.opacity(0.0000000001)
                 .edgesIgnoringSafeArea(.all)
         }
+        .padding(.vertical, 5)
     }
     
     @ViewBuilder
@@ -309,7 +316,7 @@ struct OnboardingCardsView<CardContent: View>: View {
 //                Text(" ")
             }
 //            .frame(maxWidth: geometry.insetAdjustedSize.width)
-            .frame(width: geometry.insetAdjustedSize.width)
+//            .frame(width: geometry.insetAdjustedSize.width)
             .onSwipe { direction in
                 guard let currentIndex = cards.firstIndex(where: { $0.id == scrolledID }) else { return }
                 withAnimation {
@@ -403,7 +410,8 @@ struct OnboardingCardsView<CardContent: View>: View {
                 navigationPath: $navigationPath
             )
         }
-        .padding()
+        .padding(.horizontal)
+        .padding(.vertical, 10)
         .frame(maxWidth: .infinity)
     }
     
@@ -557,12 +565,6 @@ fileprivate struct FreeModeView: View {
         .navigationTitle("Free Mode")
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack {
-                PrimaryButton(title: "Get Your Discount", systemImage: nil, controlSize: .regular) {
-                    isPresentingStoreSheet.toggle()
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.accentColor)
-                
                 PrimaryButton(title: hasViewedFreeModeUpsell ? "Continue Without Trying Discounts" : "Skip Discounts", systemImage: nil, controlSize: .regular) {
                     hasSeenOnboarding = true
                     hasRespondedToOnboarding = true
@@ -577,6 +579,12 @@ fileprivate struct FreeModeView: View {
                         $0.buttonStyle(.borderless)
                     }
                 }
+                
+                PrimaryButton(title: "View Your Discounts", systemImage: nil, controlSize: .regular) {
+                    isPresentingStoreSheet.toggle()
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.accentColor)
             }
             .padding()
             .background(.regularMaterial)
@@ -610,6 +618,8 @@ struct OnboardingView<CardContent: View>: View {
                     default: EmptyView()
                     }
                 })
+                .navigationBarHidden(true)
+                .navigationBarTitleDisplayMode(.inline)
         }
     }
     
@@ -658,7 +668,7 @@ struct OnboardingCardView<CardContent: View>: View {
         if card.breakoutCard {
             GroupBox {
                 headlineText
-                    .padding(.horizontal)
+//                    .padding(.horizontal)
             }
         } else {
             headlineText
@@ -676,7 +686,7 @@ struct OnboardingCardView<CardContent: View>: View {
                 .lineLimit(9001)
                 .fixedSize(horizontal: false, vertical: true)
             //                    .foregroundStyle(.secondary)
-                .padding(.horizontal)
+//                .padding(.horizontal)
         }
     }
     
