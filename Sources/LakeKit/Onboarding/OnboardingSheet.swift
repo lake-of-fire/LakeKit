@@ -3,6 +3,9 @@ import StoreHelper
 import NavigationBackport
 import MarkdownWebView
 import Pow
+#if os(iOS)
+import UIKit
+#endif
 
 public struct OnboardingCard: Identifiable, Hashable {
     public let id: String
@@ -162,6 +165,9 @@ struct OnboardingPrimaryButtons: View {
     @ViewBuilder
     private func upgradeButton() -> some View {
         PrimaryButton(title: "Level Up Your Fluency", systemImage: nil) {
+#if os(iOS)
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+#endif
             isPresentingStoreSheet.toggle()
         }
         .buttonStyle(.borderedProminent)
@@ -581,6 +587,9 @@ fileprivate struct FreeModeView: View {
                 }
                 
                 PrimaryButton(title: "View Your Discounts", systemImage: nil, controlSize: .regular) {
+#if os(iOS)
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+#endif
                     isPresentingStoreSheet.toggle()
                 }
                 .buttonStyle(.borderedProminent)
@@ -618,8 +627,10 @@ struct OnboardingView<CardContent: View>: View {
                     default: EmptyView()
                     }
                 })
+#if os(iOS)
                 .navigationBarHidden(true)
                 .navigationBarTitleDisplayMode(.inline)
+#endif
         }
     }
     
