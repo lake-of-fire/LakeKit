@@ -30,7 +30,7 @@
 //        super.init()
 //        
 //        Task { @RealmBackgroundActor in
-//            guard let realm = await RealmBackgroundActor.shared.cachedRealm(for: Self.realmConfiguration) else { return }
+//            let realm = try await RealmBackgroundActor.shared.cachedRealm(for: Self.realmConfiguration)
 //            
 //            realm.objects(LibraryConfiguration.self)
 //                .collectionPublisher
@@ -82,7 +82,7 @@
 //    
 //    @RealmBackgroundActor
 //    public func createEmptyCategory(addToLibrary: Bool) async throws -> FeedCategory {
-//        guard let realm = await RealmBackgroundActor.shared.cachedRealm(for: LibraryDataManager.realmConfiguration) else { fatalError("No Realm for createEmptyCategory") }
+//        let realm = try await RealmBackgroundActor.shared.cachedRealm(for: LibraryDataManager.realmConfiguration) else { fatalError("No Realm for createEmptyCategory") }
 //        let category = FeedCategory()
 //        await realm.asyncRefresh()
 //        try await realm.asyncWrite {
@@ -103,7 +103,7 @@
 //    
 //    @RealmBackgroundActor
 //    public func createEmptyFeed(inCategory category: ThreadSafeReference<FeedCategory>) async throws -> Feed? {
-//        guard let realm = await RealmBackgroundActor.shared.cachedRealm(for: ReaderContentLoader.feedEntryRealmConfiguration) else { return nil }
+//        let realm = try await RealmBackgroundActor.shared.cachedRealm(for: ReaderContentLoader.feedEntryRealmConfiguration) else { return nil }
 //        guard let category = realm.resolve(category) else { return nil }
 //        let feed = Feed()
 //        feed.categoryID = category.id
@@ -117,7 +117,7 @@
 //    
 //    @RealmBackgroundActor
 //    public func getOrCreateAppFeed(rssURL: URL, isReaderModeByDefault: Bool, rssContainsFullContent: Bool) async throws -> Feed? {
-//        guard let realm = await RealmBackgroundActor.shared.cachedRealm(for: ReaderContentLoader.feedEntryRealmConfiguration) else { return nil }
+//        let realm = try await RealmBackgroundActor.shared.cachedRealm(for: ReaderContentLoader.feedEntryRealmConfiguration) else { return nil }
 //        var feed = Feed()
 //        let existingAppFeeds = realm.objects(Feed.self).where({ !$0.isDeleted && $0.categoryID == nil }).filter { $0.rssUrl == rssURL }
 //        if let existing = existingAppFeeds.first {
@@ -180,7 +180,7 @@
 //    
 //    @RealmBackgroundActor
 //    public func createEmptyScript(addToLibrary: Bool) async throws -> UserScript {
-//        guard let realm = await RealmBackgroundActor.shared.cachedRealm(for: LibraryDataManager.realmConfiguration) else { fatalError("No Realm for createEmptyScript") }
+//        let realm = try await RealmBackgroundActor.shared.cachedRealm(for: LibraryDataManager.realmConfiguration) else { fatalError("No Realm for createEmptyScript") }
 //        let script = UserScript()
 //        script.title = ""
 //        if addToLibrary {
@@ -420,7 +420,7 @@
 //        if let rawUUID = opmlEntry.attributeStringValue("uuid") {
 //            uuid = UUID(uuidString: rawUUID)
 //        }
-//        guard let realm = await RealmBackgroundActor.shared.cachedRealm(for: LibraryDataManager.realmConfiguration) else { return (OrderedSet(), OrderedSet(), OrderedSet()) }
+//        let realm = try await RealmBackgroundActor.shared.cachedRealm(for: LibraryDataManager.realmConfiguration) else { return (OrderedSet(), OrderedSet(), OrderedSet()) }
 //        
 //        if opmlEntry.feedURL != nil {
 //            if let uuid = uuid, let feed = realm.object(ofType: Feed.self, forPrimaryKey: uuid) {
