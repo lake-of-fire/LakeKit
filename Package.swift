@@ -58,7 +58,7 @@ let package = Package(
         .package(url: "https://github.com/EmergeTools/Pow.git", branch: "main"),
         .package(url: "https://github.com/apple/swift-log.git", branch: "main"),
         .package(url: "https://github.com/Tunous/DebouncedOnChange.git", branch: "main"),
-        .package(url: "https://github.com/sushichop/Puppy.git", branch: "main"),
+        .package(url: "https://github.com/lake-of-fire/Puppy.git", branch: "main"),
         .package(url: "https://github.com/lake-of-fire/CloudKitSyncMonitor.git", branch: "main"),
         .package(url: "https://github.com/johnpatrickmorgan/NavigationBackport.git", branch: "main"),
         .package(url: "https://github.com/lake-of-fire/Boutique.git", branch: "main"),
