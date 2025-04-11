@@ -95,7 +95,7 @@ public class Logger: ObservableObject {
         do {
             let url = try Self.logDirectoryURL()
             let items = try FileManager.default.contentsOfDirectory(atPath: url.path)
-            return items.compactMap { url.appendingPathComponent($0) }
+            return items.compactMap { url.appendingPathComponent($0) } .sorted(by: { $0.lastPathComponent > $1.lastPathComponent })
         } catch {
             print("Could not list the logs: \(error)")
             return []
@@ -115,7 +115,7 @@ public class Logger: ObservableObject {
         let rotationConfig = RotationConfig(
             suffixExtension: .date_uuid,
             maxFileSize: UInt64((3 * Double(1_024 * 1_024)).rounded()),
-            maxArchivedFilesCount: 1)
+            maxArchivedFilesCount: 15)
         
 #if DEBUG
         let logLevel: LogLevel = .trace
@@ -312,6 +312,7 @@ extension Logger {
             try getCurrentLogs().forEach { logFileURL in
                 if fileManager.fileExists(atPath: logFileURL.path) {
                     try archive.addEntry(with: logFileURL.lastPathComponent, relativeTo: logFileURL.deletingLastPathComponent(), compressionMethod: .deflate)
+                    
                 }
             }
             
