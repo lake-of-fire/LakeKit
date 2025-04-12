@@ -605,13 +605,27 @@ public struct StoreView: View {
         self.storeViewModel = storeViewModel
     }
     
-    @ViewBuilder func productOptionView(storeProduct: StoreProduct, product: Product, maxWidth: CGFloat) -> some View {
+    @ViewBuilder func productOptionView(
+        storeProduct: StoreProduct,
+        product: Product,
+        maxWidth: CGFloat
+    ) -> some View {
         let priceViewModel = PriceViewModel(storeHelper: storeHelper, purchaseState: $purchaseState)
-        PurchaseOptionView(storeViewModel: storeViewModel, product: product, purchaseState: $purchaseState, unitsRemaining: storeProduct.unitsRemaining, unitsPurchased: storeProduct.unitsPurchased, unitsName: storeProduct.unitsName, symbolName: storeProduct.iconSymbolName, buyTitle: storeProduct.buyButtonTitle, maxWidth: maxWidth) {
+        PurchaseOptionView(
+            storeViewModel: storeViewModel,
+            product: product,
+            purchaseState: $purchaseState,
+            unitsRemaining: storeProduct.unitsRemaining,
+            unitsPurchased: storeProduct.unitsPurchased,
+            unitsName: storeProduct.unitsName,
+            symbolName: storeProduct.iconSymbolName,
+            buyTitle: storeProduct.buyButtonTitle,
+            maxWidth: maxWidth
+        ) {
             guard storeProduct.filterPurchase(storeProduct) else { return }
             purchaseState = .inProgress
             Task { @MainActor in
-                if let appAccountToken = storeViewModel.appAccountToken {
+                if let appAccountToken = await storeViewModel.appAccountToken() {
                     await priceViewModel.purchase(product: product, options: [.appAccountToken(appAccountToken)])
                 } else {
                     await priceViewModel.purchase(product: product, options: [])
