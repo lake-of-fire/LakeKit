@@ -16,7 +16,7 @@ public struct ConditionalUnfinishedOnboardingReminder: View {
     }
     
     @ViewBuilder var upgradeText: some View {
-        Text("View Discounts \(Image(systemName: "chevron.right"))").foregroundColor(Color.accentColor)
+        Text("Get Discounts \(Image(systemName: "chevron.right"))").foregroundColor(Color.accentColor)
     }
     
     public var body: some View {
