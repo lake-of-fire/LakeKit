@@ -11,10 +11,10 @@ public extension Templates {
     struct RoundedContainer<Content: View>: View {
         /// The container's corner radius.
         public var cornerRadius = CGFloat(12)
-
+        
         /// The container's background/fill color.
         public var backgroundColor = Color(.systemBackground)
-
+        
         /// The shadow around the content view.
         public var shadow: Shadow? = {
             // See: https://github.com/aheze/Popovers/issues/36#issuecomment-1159931126
@@ -22,13 +22,13 @@ public extension Templates {
             shadow.color = Color(.black.withAlphaComponent(0.3))
             return shadow
         }()
-
+        
         /// The padding around the content view.
         public var padding = CGFloat(16)
-
+        
         /// The content view.
         @ViewBuilder public var view: Content
-
+        
         /**
          A standard container for popovers, complete with arrow.
          - parameter arrowSide: Which side to place the arrow on.
@@ -55,22 +55,26 @@ public extension Templates {
                 view
                     .padding(padding)
                     .background(.regularMaterial)
-//                    .background(.thickMaterial)
-//                    .background(.red.opacity(0.25))
-//                        RoundedRectangle(cornerRadius: 16)
-//                            .fill(.red)
-//                        RoundedBackground(
-//                            cornerRadius: cornerRadius
-//                        )
-//                        .fill(.red)
-//                        .background(.ultraThickMaterial)
-//                    )
+                //                    .background(.thickMaterial)
+                //                    .background(.red.opacity(0.25))
+                //                        RoundedRectangle(cornerRadius: 16)
+                //                            .fill(.red)
+                //                        RoundedBackground(
+                //                            cornerRadius: cornerRadius
+                //                        )
+                //                        .fill(.red)
+                //                        .background(.ultraThickMaterial)
+                //                    )
                     .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: cornerRadius)
+                            .stroke(Color.primary.opacity(0.15), lineWidth: 1)
+                    )
                     .popoverShadow(shadow: .init(color: Color.black.opacity(0.2), radius: 20, x: 0, y: 4 ))
-//                    .background {
-//                        Color.clear
-//                            .popoverShadowIfNeeded(shadow: shadow)
-//                    }
+                //                    .background {
+                //                        Color.clear
+                //                            .popoverShadowIfNeeded(shadow: shadow)
+                //                    }
             }
             .shadow(radius: 20)
         }
@@ -79,31 +83,31 @@ public extension Templates {
 
 public extension Templates {
     // MARK: - Background
-
+    
     /**
      A shape that has an arrow protruding.
      */
     struct RoundedBackground: Shape {
         /// The shape's corner radius
         public var cornerRadius: CGFloat
-
+        
         /// The rectangle's width.
         public static var width = CGFloat(48)
-
+        
         /// The rectangle's height.
         public static var height = CGFloat(12)
-
+        
         /// Offset the arrow from the sides - otherwise it will overflow out of the corner radius.
         /// This is multiplied by the `cornerRadius`.
         /**
-
-                      /\
-                     /_ \
-            ----------     <---- Avoid this gap.
-                        \
-             rectangle  |
+         
+         /\
+         /_ \
+         ----------     <---- Avoid this gap.
+         \
+         rectangle  |
          */
-
+        
         /// Draw the shape.
         public func path(in rect: CGRect) -> Path {
             var path = Path()
