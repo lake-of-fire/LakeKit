@@ -68,9 +68,10 @@ public extension Templates {
                     .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
                     .overlay(
                         RoundedRectangle(cornerRadius: cornerRadius)
-                            .stroke(Color.primary.opacity(0.15), lineWidth: 1)
+                            .stroke(Color.primary.opacity(0.15), lineWidth: 1.5)
                     )
-                    .popoverShadow(shadow: .init(color: Color.black.opacity(0.2), radius: 20, x: 0, y: 4 ))
+//                    .popoverShadow(shadow: .init(color: Color.black.opacity(0.2), radius: 20, x: 0, y: 4 ))
+                    .popoverShadow(shadow: .init(color: Color.black.opacity(0.2), radius: 16, x: 0, y: 0 ))
                 //                    .background {
                 //                        Color.clear
                 //                            .popoverShadowIfNeeded(shadow: shadow)
