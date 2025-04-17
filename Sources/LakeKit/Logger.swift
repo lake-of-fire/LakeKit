@@ -114,8 +114,8 @@ public class Logger: ObservableObject {
         let fileURL = url.appendingPathComponent("default.log")
         let rotationConfig = RotationConfig(
             suffixExtension: .date_uuid,
-            maxFileSize: UInt64((3 * Double(1_024 * 1_024)).rounded()),
-            maxArchivedFilesCount: 15)
+            maxFileSize: UInt64((30 * Double(1_024 * 1_024)).rounded()),
+            maxArchivedFilesCount: 1)
         
 #if DEBUG
         let logLevel: LogLevel = .trace
@@ -188,12 +188,13 @@ public class Logger: ObservableObject {
 
 @MainActor
 public class LoggingViewModel: ObservableObject {
-    @Published public var logs: [TransferableLog] = []
-    @Published public var logsText = ""
-    @Published public var clippedReversedLogsText = ""
+    @Published public var logs: [TransferableLog]?
+    @Published public var logsText: String?
+//    @Published public var clippedReversedLogsText: String?
+    @Published public var clippedLogsText: String?
     @Published public var logsZIPArchive: ZIPArchive?
-    @Published private var loadTask: Task<Void, Never>? = nil
-
+    @Published private var loadTask: Task<Void, Error>? = nil
+    
     private let logger: Logger
     
     // MARK: Initialization
@@ -212,11 +213,13 @@ public class LoggingViewModel: ObservableObject {
         }
         return false
     }
+    
     public func load() async {
         loadTask?.cancel()
         
-        let newTask = Task { @MainActor in
-            logs = logger.getCurrentLogs().map { url in
+        let newTask = Task.detached(priority: .utility) { [weak self] in
+            guard let self else { return }
+            let logs = logger.getCurrentLogs().map { url in
                 TransferableLog(url: url, name: url.lastPathComponent)
             }
             
@@ -229,54 +232,79 @@ public class LoggingViewModel: ObservableObject {
                 return "LOG: \(log.name) (\(log.url.lastPathComponent))\n\n" + content
             }
             let logsText = fileContents.joined(separator: "\n\n")
-            self.logsText = logsText
             
-            let clippedReversedFileContents = logs.compactMap { log -> String? in
-                guard let content = try? String(contentsOf: log.url)
-                    .split(separator: "\n")
-                    .suffix(2000)
-                    .reversed()
-                    .joined(separator: "\n") else { return nil }
-                if logsCount == 1 {
-                    return content
-                }
-                return "LOG: \(log.name) (\(log.url.lastPathComponent))\n\n" + content
-            }
-            self.clippedReversedLogsText = clippedReversedFileContents.joined(separator: "\n\n")
+//            let clippedReversedFileContents = logs.compactMap { log -> String? in
+//                guard let content = try? String(contentsOf: log.url)
+//                    .split(separator: "\n")
+//                    .suffix(2000)
+//                    .reversed()
+//                    .joined(separator: "\n") else { return nil }
+//                if logsCount == 1 {
+//                    return content
+//                }
+//                return "LOG: \(log.name) (\(log.url.lastPathComponent))\n\n" + content
+//            }
+//            let clippedReversedLogsText = clippedReversedFileContents.joined(separator: "\n\n")
+            let clippedLogsText = String(logsText.suffix(Int((0.75 * Double(1_024 * 1_024)).rounded())))
+            
+            try await { @MainActor [weak self] in
+                guard let self else { return }
+                try Task.checkCancellation()
+                self.logs = logs
+                self.logsText = logsText
+                self.clippedLogsText = clippedLogsText
+//                self.clippedReversedLogsText = clippedReversedLogsText
+            }()
             
             do {
                 let archive = try await withCheckedThrowingContinuation { continuation in
-                    Task.detached(priority: .background) {
+                    do {
+                        try Task.checkCancellation()
                         let logsData = Data(logsText.utf8)
-                        do {
-                            guard let archive = Archive(accessMode: .create) else {
-                                throw NSError(domain: "LoggingViewModel", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to initialize in-memory ZIP archive."])
-                            }
-                            try archive.addEntry(with: "ManabiReaderLogs.txt", type: .file, uncompressedSize: UInt32(logsData.count), modificationDate: Date(), compressionMethod: .deflate) { (position, size) -> Data in
-                                return logsData.subdata(in: position..<position+size)
-                            }
-                            guard let zipData = archive.data else {
-                                throw NSError(domain: "LoggingViewModel", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to get archive data."])
-                            }
-                            continuation.resume(
-                                returning: ZIPArchive(
-                                    title: "ManabiReaderLogs",
-                                    content: zipData
-                                )
-                            )
-                        } catch {
-                            continuation.resume(throwing: error)
+                        guard let archive = Archive(accessMode: .create) else {
+                            throw NSError(domain: "LoggingViewModel", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to initialize in-memory ZIP archive."])
                         }
+                        let progress = Progress(totalUnitCount: Int64(logsData.count))
+                        try archive.addEntry(
+                            with: "ManabiReaderLogs.txt",
+                            type: .file,
+                            uncompressedSize: Int64(logsData.count),
+                            modificationDate: Date(),
+                            permissions: nil,
+                            compressionMethod: .deflate,
+                            progress: progress
+                        ) { position, size -> Data in
+                            if Task.isCancelled {
+                                progress.cancel()
+                            }
+                            let start = Int(position)
+                            return logsData.subdata(in: start..<(start + size))
+                        }
+                        guard let zipData = archive.data else {
+                            throw NSError(domain: "LoggingViewModel", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to get archive data."])
+                        }
+                        continuation.resume(
+                            returning: ZIPArchive(
+                                title: "ManabiReaderLogs",
+                                content: zipData
+                            )
+                        )
+                    } catch {
+                        continuation.resume(throwing: error)
                     }
                 }
-                self.logsZIPArchive = archive
+                try await { @MainActor [weak self] in
+                    guard let self else { return }
+                    try Task.checkCancellation()
+                    self.logsZIPArchive = archive
+                }()
             } catch {
                 Logger.shared.logger.error("LoggingViewModel error: \(error)")
             }
         }
         
         loadTask = newTask
-        await newTask.value
+        try? await newTask.value
         loadTask = nil
     }
 }
