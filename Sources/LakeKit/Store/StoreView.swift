@@ -1,7 +1,7 @@
 import SwiftUI
 import StoreHelper
 import StoreKit
-import Collections
+//import Collections
 import Pow
 
 public extension View {
@@ -454,6 +454,9 @@ public struct StoreView: View {
                         scrollValue: scrollValue
                     )
                 }
+                #if DEBUG
+                
+                #endif
             }
             .padding()
         }
@@ -517,6 +520,7 @@ public struct StoreView: View {
                 ScrollView {
                     VStack(spacing: 10) {
                         headlineView
+                        
                         primaryPurchasingView(geometry: geometry, scrollValue: scrollValue)
                         
                         Group {
@@ -526,7 +530,7 @@ public struct StoreView: View {
                             GroupBox {
                                 StudentDiscountDisclosureGroup(isExpanded: $isStudentDiscountExpanded, discountView: {
                                     VStack {
-                                        Text("Students and those who cannot afford the full-price rates are welcome to a special discount. The low-income discount requires that you cannot afford the regular price.")
+                                        Text("Students and those who cannot afford the full-price rates are welcome to a special discount. The low-income discount requires that you cannot afford the regular price. These discounts are subsidized by customers who pay the full price.")
                                             .font(.subheadline)
                                             .padding()
                                             .multilineTextAlignment(.leading)

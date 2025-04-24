@@ -14,7 +14,7 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
     private let cache: LRUCache<String, Any?>
     
     /// Use Store2 from the new Boutique fork; it will be initialized asynchronously.
-    private var store2: Store2<CacheEntry>?
+    private var coreStore: CoreStore<CacheEntry>?
     
     @MainActor
     private var deleteOrphansTimer: DispatchSourceTimer?
@@ -49,27 +49,24 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
         versionString += debugBuildID.uuidString
 #endif
         
-        // Asynchronously initialize Store2 without blocking init.
+        // Asynchronously initialize CoreStore without blocking init.
         Task {
-            self.store2 = try? await Store2<CacheEntry>(
+            guard let coreStore = try? await CoreStore<CacheEntry>(
                 storage: SQLiteStorageEngine(directory: .init(url: cacheDirectory)) ?? SQLiteStorageEngine.default(appendingPath: "LRUFileCache/\(namespace)"),
                 cacheIdentifier: \.id
-            )
+            ) else { return }
+            
+            // Compare version, clear store if needed.
+            if let versionData = try? Data(contentsOf: versionFileURL),
+               String(data: versionData, encoding: .utf8) != versionString {
+                try await coreStore.removeAll()
+            }
+            try? versionString.data(using: .utf8)?.write(to: versionFileURL)
+            
+            self.coreStore = coreStore
+            
             await self.rebuild()
         }
-        
-        // Compare version, clear store if needed.
-        if let versionData = try? Data(contentsOf: versionFileURL),
-           String(data: versionData, encoding: .utf8) != versionString {
-            Task {
-                try? await self.clearStore()
-            }
-        }
-        try? versionString.data(using: .utf8)?.write(to: versionFileURL)
-    }
-    
-    private func clearStore() async throws {
-        try await store2?.asyncRemoveAll() ?? ()
     }
     
     private func cacheKeyHash(_ key: I) -> String? {
@@ -88,13 +85,13 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
     public func removeAll() {
         cache.removeAllValues()
         Task {
-            try? await store2?.asyncRemoveAll()
+            try? await coreStore?.removeAll()
         }
     }
     
     public func value(forKey key: I) -> O? {
         guard let keyHash = cacheKeyHash(key) else { return nil }
-        if let value = cache.value(forKey: keyHash) as? O {
+        if let value = cache.value(forKey: keyHash), let value = value as? O {
             return value
         }
         return nil
@@ -144,13 +141,13 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
         let entry = CacheEntry(id: keyHash, data: dataToStore, encoding: encoding)
         
         Task {
-            try? await store2?.asyncInsert(entry)
+            try? await coreStore?.insert(entry)
             await self.debouncedDeleteOrphans()
         }
     }
     
     private func rebuild() async {
-        let entries = await store2?.items ?? []
+        let entries = await coreStore?.items ?? []
         for entry in entries {
             let keyHash = entry.id
             let decodedValue: O? = decodeValue(from: entry)
@@ -213,12 +210,12 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
     }
     
     private func deleteOrphans() async throws {
-        let contents = await store2?.items.map { $0.id } ?? []
+        let contents = await coreStore?.items.map { $0.id } ?? []
         let existing = Set(contents)
-        let storedEntries = await store2?.items ?? []
+        let storedEntries = await coreStore?.items ?? []
         
         for entry in storedEntries where !existing.contains(entry.id) {
-            try await store2?.asyncRemove(entry)
+            try await coreStore?.remove(entry)
         }
     }
 }
