@@ -27,7 +27,7 @@ public struct ConditionalUnfinishedOnboardingReminder: View {
                 GroupBox {
                     HStack {
                         Label {
-                            Text("Free Mode")
+                            Text("Subsidized Pricing")
                                 .bold()
                         } icon: {
                             Image(systemName: "info.circle.fill").foregroundColor(.accentColor)

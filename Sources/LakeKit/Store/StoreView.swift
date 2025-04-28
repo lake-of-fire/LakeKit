@@ -401,7 +401,7 @@ public struct StoreView: View {
     }
     
     private func storeOptionsMaxWidth(geometrySize: CGSize) -> CGFloat {
-        return geometrySize.width - 10
+        return max(0, geometrySize.width - 10)
     }
     
     private func componentMaxWidth(geometrySize: CGSize) -> CGFloat {
