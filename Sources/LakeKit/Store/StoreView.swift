@@ -150,7 +150,7 @@ struct StudentDiscountDisclosureGroup<Content: View>: View {
                     Text("Subsidized pricing for affordability")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
-                    Text("Student & Low-Income Discount") // \(Image(systemName: "chevron.right"))")
+                    Text("Student & Low-Income Discounts") // \(Image(systemName: "chevron.right"))")
                     .font(.headline)
                     .bold()
                 }

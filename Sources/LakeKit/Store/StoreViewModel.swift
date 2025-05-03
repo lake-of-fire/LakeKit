@@ -5,6 +5,7 @@ import StoreHelper
 public class AdsViewModel: NSObject, ObservableObject {
     public static var shared = AdsViewModel()
     
+    @Published public var isInitialized = false
     @Published public var showAds = false
 }
 
@@ -127,6 +128,7 @@ public class StoreViewModel: NSObject, ObservableObject {
                         isInitialized = true
                     }
                     AdsViewModel.shared.showAds = showAds
+                    AdsViewModel.shared.isInitialized = true
                     return
                 }
                 
@@ -150,6 +152,7 @@ public class StoreViewModel: NSObject, ObservableObject {
                         isInitialized = true
                     }
                     AdsViewModel.shared.showAds = showAds
+                    AdsViewModel.shared.isInitialized = true
                     return
                 }
                 
@@ -161,6 +164,7 @@ public class StoreViewModel: NSObject, ObservableObject {
                 }
                 
                 AdsViewModel.shared.showAds = showAds
+                AdsViewModel.shared.isInitialized = true
             } catch (let error as CancellationError) {
                 print(error)
             } catch {
