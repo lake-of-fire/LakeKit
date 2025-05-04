@@ -10,6 +10,8 @@ public class AdsViewModel: NSObject, ObservableObject {
 }
 
 public class StoreViewModel: NSObject, ObservableObject {
+    /// Validates a referral code asynchronously. Returns true if valid.
+    let validateReferralCode: (String) async throws -> Bool
     /// For server overrides, other apps, etc.
     @Published public var isInitialized = false
     
@@ -60,7 +62,8 @@ public class StoreViewModel: NSObject, ObservableObject {
         privacyPolicy: URL,
         chatURL: URL? = nil,
         faq: OrderedDictionary<String, String>,
-        isSubscribedFromElsewhereCallback: ((StoreViewModel) async -> Bool)? = nil
+        isSubscribedFromElsewhereCallback: ((StoreViewModel) async -> Bool)? = nil,
+        referralCodeValidator: @escaping (String) async throws -> Bool = { _ in false }
     ) {
         self.satisfyingPrerequisite = satisfyingPrerequisite
         self.products = products
@@ -82,6 +85,7 @@ public class StoreViewModel: NSObject, ObservableObject {
         self.chatURL = chatURL
         self.faq = faq
         self.isSubscribedFromElsewhereCallback = isSubscribedFromElsewhereCallback
+        self.validateReferralCode = referralCodeValidator
     }
     
     public var productGridColumns: [GridItem] {

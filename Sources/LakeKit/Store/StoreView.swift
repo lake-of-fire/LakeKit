@@ -4,6 +4,7 @@ import StoreKit
 //import Collections
 import Pow
 
+
 public extension View {
     func storeSheet(isPresented: Binding<Bool>) -> some View {
         self.modifier(StoreSheetModifier(isPresented: isPresented))
@@ -14,7 +15,7 @@ fileprivate struct StoreViewForSheet: View {
     @Binding var isPresented: Bool
     @EnvironmentObject private var storeViewModel: StoreViewModel
     @Environment(\.dismiss) var dismiss
-
+    
     @State var isRestoringPurchases = false
     
     var body: some View {
@@ -88,7 +89,7 @@ fileprivate struct StoreViewForSheet: View {
 
 public struct StoreSheetModifier: ViewModifier {
     @Binding var isPresented: Bool
-
+    
     public func body(content: Content) -> some View {
         content
             .sheet(isPresented: $isPresented) {
@@ -151,8 +152,8 @@ struct StudentDiscountDisclosureGroup<Content: View>: View {
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                     Text("Student & Low-Income Discounts") // \(Image(systemName: "chevron.right"))")
-                    .font(.headline)
-                    .bold()
+                        .font(.headline)
+                        .bold()
                 }
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
@@ -196,6 +197,56 @@ fileprivate struct ViewStudentDiscountButton: View {
             } else { $0 }
         }
 #endif
+    }
+}
+
+fileprivate struct AddReferralCodeButton: View {
+    @AppStorage("pendingReferralCode") private var pendingReferralCode: String?
+    @EnvironmentObject private var storeViewModel: StoreViewModel
+    
+    @State private var referralCodeInput: String = ""
+    @State private var showingReferralAlert: Bool = false
+    @State private var referralStatusMessage: String?
+    
+    var body: some View {
+        Button {
+            showingReferralAlert = true
+        } label: {
+            Text("Have a referral code?")
+        }
+        .buttonStyle(.borderless)
+        .alert("Enter Referral Code", isPresented: $showingReferralAlert) {
+            TextField("Referral Code", text: $referralCodeInput)
+            Button("OK") {
+                pendingReferralCode = referralCodeInput.lowercased()
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("Please enter your referral code to apply it to your purchase.")
+        }
+        .onChange(of: pendingReferralCode) { newValue in
+            guard let code = newValue?.lowercased(), !code.isEmpty else {
+                referralStatusMessage = nil
+                return
+            }
+            Task { @MainActor in
+                do {
+                    let isValid = try await storeViewModel.validateReferralCode(code)
+                    referralStatusMessage = isValid
+                    ? "Referral code \(code) is valid!"
+                    : "Referral code \(code) is invalid or has expired."
+                } catch {
+                    referralStatusMessage = "Failed to validate referral code: \(error.localizedDescription)"
+                }
+            }
+        }
+        if let message = referralStatusMessage {
+            Text(message)
+                .font(.footnote)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.top, 4)
+        }
     }
 }
 
@@ -273,7 +324,7 @@ fileprivate struct QuestionsAndAnswersView: View {
 
 fileprivate struct StoreFooterView: View {
     @ObservedObject var storeViewModel: StoreViewModel
-
+    
     var body: some View {
         if let chatURL = storeViewModel.chatURL {
             GroupBox {
@@ -318,8 +369,8 @@ struct FreeTierDisclosureGroup<Content: View>: View {
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                     Text("Free Tier") // \(Image(systemName: "chevron.right"))")
-                    .font(.headline)
-                    .bold()
+                        .font(.headline)
+                        .bold()
                 }
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
@@ -361,7 +412,7 @@ public struct StoreProduct: Identifiable {
         self.buyButtonTitle = buyButtonTitle
         self.filterPurchase = filterPurchase
     }
-
+    
     func product(storeHelper: StoreHelper) -> Product? {
         return storeHelper.product(from: id)
     }
@@ -370,6 +421,8 @@ public struct StoreProduct: Identifiable {
 public struct StoreView: View {
     @Binding public var isPresented: Bool
     @ObservedObject public var storeViewModel: StoreViewModel
+    
+    @AppStorage("pendingReferralCode") private var pendingReferralCode: String?
     
     @ScaledMetric(relativeTo: .title2) private var storeWidth = 666
     @ScaledMetric(relativeTo: .title2) private var storeHeight = 590
@@ -382,7 +435,7 @@ public struct StoreView: View {
     @State private var purchaseState: PurchaseState = .unknown
     @State private var isPresentingTokenLimitError = false
     @State private var isStudentDiscountExpanded = false
-
+    
     public var productGridColumns: [GridItem] {
 #if os(iOS)
         if horizontalSizeClass == .compact {
@@ -454,25 +507,25 @@ public struct StoreView: View {
                         scrollValue: scrollValue
                     )
                 }
-                #if DEBUG
-                
-                #endif
+#if DEBUG
+                AddReferralCodeButton()
+#endif
             }
             .padding()
         }
         .background {
-            #if os(iOS)
+#if os(iOS)
             Color.systemGroupedBackground.opacity(0.8)
-            #elseif os(macOS)
+#elseif os(macOS)
             Color.gray.opacity(0.5)
-            #endif
+#endif
         }
     }
-
+    
     @ViewBuilder private func purchaseOptionsGrid(products: [StoreProduct], maxWidth: CGFloat) -> some View {
         if #available(iOS 16, macOS 13, *) {
             ViewThatFits {
-                 HStack(alignment: .top, spacing: 0) {
+                HStack(alignment: .top, spacing: 0) {
                     Spacer(minLength: 0)
                     HStack(alignment: .top, spacing: 20) {
                         purchaseOptions(products: products, maxWidth: maxWidth)
@@ -506,15 +559,16 @@ public struct StoreView: View {
     }
     
     @ViewBuilder private func purchaseOptions(products: [StoreProduct], maxWidth: CGFloat) -> some View {
-            ForEach(products) { (storeProduct: StoreProduct) in
-                if let product = storeProduct.product(storeHelper: storeHelper) {
-                    productOptionView(storeProduct: storeProduct, product: product, maxWidth: maxWidth)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
+        ForEach(products) { (storeProduct: StoreProduct) in
+            if let product = storeProduct.product(storeHelper: storeHelper) {
+                productOptionView(storeProduct: storeProduct, product: product, maxWidth: maxWidth)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+        }
     }
     
     public var body: some View {
+        // FIXME:
         GeometryReader { geometry in
             ScrollViewReader { scrollValue in
                 ScrollView {
@@ -540,6 +594,10 @@ public struct StoreView: View {
                                         purchaseOptionsGrid(products: storeViewModel.studentProducts, maxWidth: storeOptionsMaxWidth(geometrySize: geometry.size))
                                         //                                    .fixedSize(horizontal: true, vertical: false)
                                             .frame(maxWidth: storeOptionsMaxWidth(geometrySize: geometry.size))
+                                        
+#if DEBUG
+                                        AddReferralCodeButton()
+#endif
                                     }
                                     .padding(.top, 5)
                                     .padding(.bottom, 10)
@@ -575,7 +633,7 @@ public struct StoreView: View {
                             .padding(.horizontal, secondaryHorizontalPadding)
                             
                             QuestionsAndAnswersView(storeViewModel: storeViewModel)
-                            .padding(.top, 10)
+                                .padding(.top, 10)
                             
                             StoreFooterView(storeViewModel: storeViewModel)
                         }
@@ -595,14 +653,14 @@ public struct StoreView: View {
         }
     }
     
-//    private var productOptionFrameMaxWidth: CGFloat? {
-//#if os(iOS)
-//        if horizontalSizeClass == .compact {
-//            return nil
-//        } else { }
-//#endif
-//        return .infinity
-//    }
+    //    private var productOptionFrameMaxWidth: CGFloat? {
+    //#if os(iOS)
+    //        if horizontalSizeClass == .compact {
+    //            return nil
+    //        } else { }
+    //#endif
+    //        return .infinity
+    //    }
     
     public init(isPresented: Binding<Bool>, storeViewModel: StoreViewModel) {
         _isPresented = isPresented
@@ -634,6 +692,9 @@ public struct StoreView: View {
                 } else {
                     await priceViewModel.purchase(product: product, options: [])
                 }
+                
+                // FIXME:
+                pendingReferralCode = nil
             }
         }
         //        .frame(maxWidth: productOptionFrameMaxWidth)
