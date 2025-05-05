@@ -30,7 +30,7 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
     private struct CacheEntry: Codable, Equatable {
         let id: String       // The key hash
         let data: Data?      // Stored data (compressed or raw)
-        let encoding: String // "raw", "lzfse", "json", or "nil"
+        let encoding: String // "raw", "lz4", "json", "json.lz4", or "nil"
     }
     
     public init(namespace: String, version: Int? = nil, totalBytesLimit: Int = .max, countLimit: Int = .max) {
@@ -108,8 +108,8 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
                 if let uint8Array = value as? [UInt8] {
                     let rawData = Data(uint8Array)
                     if rawData.count > 200_000 {
-                        dataToStore = try (rawData as NSData).compressed(using: .lzfse) as Data
-                        encoding = "lzfse"
+                        dataToStore = try (rawData as NSData).compressed(using: .lz4) as Data
+                        encoding = "lz4"
                     } else {
                         dataToStore = rawData
                         encoding = "raw"
@@ -117,15 +117,26 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
                 } else if let stringValue = value as? String {
                     if stringValue.utf16.count > 200_000 {
                         dataToStore = try (stringValue.data(using: .utf8)! as NSData)
-                            .compressed(using: .lzfse) as Data
-                        encoding = "lzfse"
+                            .compressed(using: .lz4) as Data
+                        encoding = "lz4"
                     } else {
                         dataToStore = stringValue.data(using: .utf8)
                         encoding = "raw"
                     }
+                } else if let dataValue = value as? Data {
+                    if dataValue.count ?? 0 > 200_000 {
+                        encoding = "lz4"
+                    } else {
+                        encoding = "raw"
+                    }
                 } else {
                     dataToStore = try jsonEncoder.encode(value)
-                    encoding = "json"
+                    if let rawData = dataToStore, rawData.count ?? 0 > 200_000 {
+                        dataToStore = try (rawData as NSData).compressed(using: .lz4) as Data
+                        encoding = "json.lz4"
+                    } else {
+                        encoding = "json"
+                    }
                 }
             } catch {
                 print("Encoding error: \(error)")
@@ -164,16 +175,24 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
         case "raw":
             if O.self == String.self { return String(data: data, encoding: .utf8) as? O }
             if O.self == [UInt8].self { return [UInt8](data) as? O }
-            return try? JSONDecoder().decode(O.self, from: data)
-        case "lzfse":
+            return data as? O
+        case "lz4":
             do {
-                let decompressed = try (data as NSData).decompressed(using: .lzfse)
+                let decompressed = try (data as NSData).decompressed(using: .lz4)
                 if O.self == String.self {
                     return String(data: decompressed as Data, encoding: .utf8) as? O
                 }
                 if O.self == [UInt8].self {
                     return [UInt8](decompressed) as? O
                 }
+                return decompressed as? O
+            } catch {
+                print("Decompression error: \(error)")
+                return nil
+            }
+        case "json.lz4":
+            do {
+                let decompressed = try (data as NSData).decompressed(using: .lz4)
                 return try JSONDecoder().decode(O.self, from: decompressed as Data)
             } catch {
                 print("Decompression error: \(error)")
