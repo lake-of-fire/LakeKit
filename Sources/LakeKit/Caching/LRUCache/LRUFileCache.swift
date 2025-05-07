@@ -82,6 +82,13 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
             .replacingOccurrences(of: "=", with: "")
     }
     
+    public func removeValue(forKey key: I) {
+        guard let keyHash = cacheKeyHash(key) else { return }
+        cache.removeValue(forKey: keyHash)
+        Task {
+            try? await coreStore?.removeByID(keyHash)
+        }
+    }
     public func removeAll() {
         cache.removeAllValues()
         Task {
@@ -98,6 +105,7 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
     }
     
     public func setValue(_ value: O?, forKey key: I) {
+//        debugPrint("# setval ", key, value.debugDescription.prefix(300))
         guard let keyHash = cacheKeyHash(key) else { return }
         
         var dataToStore: Data?
