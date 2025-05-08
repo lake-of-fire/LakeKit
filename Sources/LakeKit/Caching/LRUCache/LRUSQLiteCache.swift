@@ -1,28 +1,36 @@
 import Foundation
 import LRUCache
 import SwiftUtilities
+// TODO: Move to levi/Boutique for moving off MainActor
+import Boutique
 
 #if DEBUG
 fileprivate let debugBuildID = UUID()
 #endif
 
 /// A Boutique-powered LRU cache that persists values in SQLite.
-open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
+open class LRUSQLiteCache<I: Encodable, O: Codable>: ObservableObject {
     @Published public var cacheDirectory: URL
     private let cache: LRUCache<String, Any?>
     
+    /// Use Store2 from the new Boutique fork; it will be initialized asynchronously.
+    private var coreStore: CoreStore<CacheEntry>?
+    
     @MainActor
     private var deleteOrphansTimer: DispatchSourceTimer?
-#if DEBUG
-    private let debounceInterval: TimeInterval = 4
-#else
     private let debounceInterval: TimeInterval = 16
-#endif
     
     private var jsonEncoder: JSONEncoder {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
         return encoder
+    }
+    
+    /// Represents an entry in the cache, storing the value's data and encoding type.
+    private struct CacheEntry: Codable, Equatable {
+        let id: String       // The key hash
+        let data: Data?      // Stored data (compressed or raw)
+        let encoding: String // "raw", "lz4", "json", "json.lz4", or "nil"
     }
     
     public init(namespace: String, version: Int? = nil, totalBytesLimit: Int = .max, countLimit: Int = .max) {
@@ -33,10 +41,6 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
         let cacheDirectory = cacheRoot.appendingPathComponent("LRUFileCache").appendingPathComponent(namespace)
         self.cacheDirectory = cacheDirectory
         
-        if !fileManager.fileExists(atPath: cacheDirectory.path) {
-            try? fileManager.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
-        }
-        
         cache = LRUCache(totalCostLimit: totalBytesLimit, countLimit: countLimit)
         
         let versionFileURL = cacheDirectory.appendingPathComponent("lru_cache_version.txt")
@@ -45,9 +49,24 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
         versionString += debugBuildID.uuidString
 #endif
         
-        try? versionString.data(using: .utf8)?.write(to: versionFileURL)
-        
-        rebuild()
+        // Asynchronously initialize CoreStore without blocking init.
+        Task {
+            guard let coreStore = try? await CoreStore<CacheEntry>(
+                storage: SQLiteStorageEngine(directory: .init(url: cacheDirectory)) ?? SQLiteStorageEngine.default(appendingPath: "LRUFileCache/\(namespace)"),
+                cacheIdentifier: \.id
+            ) else { return }
+            
+            // Compare version, clear store if needed.
+            if let versionData = try? Data(contentsOf: versionFileURL),
+               String(data: versionData, encoding: .utf8) != versionString {
+                try await coreStore.removeAll()
+            }
+            try? versionString.data(using: .utf8)?.write(to: versionFileURL)
+            
+            self.coreStore = coreStore
+            
+            await self.rebuild()
+        }
     }
     
     private func cacheKeyHash(_ key: I) -> String? {
@@ -66,21 +85,14 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
     public func removeValue(forKey key: I) {
         guard let keyHash = cacheKeyHash(key) else { return }
         cache.removeValue(forKey: keyHash)
-        let baseURL = cacheDirectory.appendingPathComponent(keyHash)
-        let fileManager = FileManager.default
-        if let files = try? fileManager.contentsOfDirectory(at: baseURL.deletingLastPathComponent(), includingPropertiesForKeys: nil) {
-            for file in files where file.deletingPathExtension().lastPathComponent == keyHash {
-                try? fileManager.removeItem(at: file)
-            }
+        Task {
+            try? await coreStore?.removeByID(keyHash)
         }
     }
     public func removeAll() {
         cache.removeAllValues()
-        let fileManager = FileManager.default
-        if let files = try? fileManager.contentsOfDirectory(at: cacheDirectory, includingPropertiesForKeys: nil) {
-            for file in files where !file.lastPathComponent.hasPrefix(".") {
-                try? fileManager.removeItem(at: file)
-            }
+        Task {
+            try? await coreStore?.removeAll()
         }
     }
     
@@ -93,7 +105,7 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
     }
     
     public func setValue(_ value: O?, forKey key: I) {
-        //        debugPrint("# setval ", key, value.debugDescription.prefix(300))
+//        debugPrint("# setval ", key, value.debugDescription.prefix(300))
         guard let keyHash = cacheKeyHash(key) else { return }
         
         var dataToStore: Data?
@@ -141,63 +153,66 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
             encoding = "nil"
         }
         
-//        DispatchQueue.main.async {
-        self.cache.setValue(value, forKey: keyHash, cost: dataToStore?.count ?? 1)
-//        }
-        
-        let baseURL = cacheDirectory.appendingPathComponent(keyHash)
-        let fileURL = baseURL.appendingPathExtension(encoding)
-        if let data = dataToStore {
-            try? data.write(to: fileURL, options: .atomic)
-        } else {
-            FileManager.default.createFile(atPath: fileURL.path, contents: nil, attributes: nil)
+        DispatchQueue.main.async {
+            self.cache.setValue(value, forKey: keyHash, cost: dataToStore?.count ?? 1)
         }
         
+        let entry = CacheEntry(id: keyHash, data: dataToStore, encoding: encoding)
+        
         Task {
+            try? await coreStore?.insert(entry)
             await self.debouncedDeleteOrphans()
         }
     }
     
-    private func rebuild() {
-        let fileManager = FileManager.default
-        if let contents = try? fileManager.contentsOfDirectory(at: cacheDirectory, includingPropertiesForKeys: nil, options: .skipsHiddenFiles) {
-            for item in contents {
-                let keyHash = item.deletingPathExtension().lastPathComponent
-                let ext = item.pathExtension
-                var value: O?
-                if ext == "nil" {
-                    value = nil
-                } else if ext == "json" {
-                    if let data = try? Data(contentsOf: item),
-                       let decoded = try? JSONDecoder().decode(O.self, from: data) {
-                        value = decoded
-                    }
-                } else if ext == "lz4" {
-                    if let compressed = try? Data(contentsOf: item),
-                       let decompressed = try? (compressed as NSData).decompressed(using: .lz4),
-                       let decoded = try? JSONDecoder().decode(O.self, from: decompressed as Data) {
-                        value = decoded
-                    }
-                } else {
-                    if O.self == String.self {
-                        if let data = try? Data(contentsOf: item),
-                           let string = String(data: data, encoding: .utf8) as? O {
-                            value = string
-                        }
-                    } else if O.self == [UInt8].self {
-                        if let data = try? Data(contentsOf: item) {
-                            value = [UInt8](data) as? O
-                        }
-                    } else if let data = try? Data(contentsOf: item),
-                              let decoded = try? JSONDecoder().decode(O.self, from: data) {
-                        value = decoded
-                    }
-                }
-                let cost = (try? Data(contentsOf: item).count) ?? 1
-//                DispatchQueue.main.async {
-                    self.cache.setValue(value, forKey: keyHash, cost: cost)
-//                }
+    private func rebuild() async {
+        let entries = await coreStore?.items ?? []
+        for entry in entries {
+            debugPrint("# REBUILD", entry.id)
+            let keyHash = entry.id
+            let decodedValue: O? = decodeValue(from: entry)
+            DispatchQueue.main.async {
+                let cost = entry.data?.count ?? 1
+                self.cache.setValue(decodedValue, forKey: keyHash, cost: cost)
             }
+        }
+    }
+    
+    private func decodeValue(from entry: CacheEntry) -> O? {
+        guard let data = entry.data else { return nil }
+        switch entry.encoding {
+        case "raw":
+            if O.self == String.self { return String(data: data, encoding: .utf8) as? O }
+            if O.self == [UInt8].self { return [UInt8](data) as? O }
+            return data as? O
+        case "lz4":
+            do {
+                let decompressed = try (data as NSData).decompressed(using: .lz4)
+                if O.self == String.self {
+                    return String(data: decompressed as Data, encoding: .utf8) as? O
+                }
+                if O.self == [UInt8].self {
+                    return [UInt8](decompressed) as? O
+                }
+                return decompressed as? O
+            } catch {
+                print("Decompression error: \(error)")
+                return nil
+            }
+        case "json.lz4":
+            do {
+                let decompressed = try (data as NSData).decompressed(using: .lz4)
+                return try JSONDecoder().decode(O.self, from: decompressed as Data)
+            } catch {
+                print("Decompression error: \(error)")
+                return nil
+            }
+        case "json":
+            return try? JSONDecoder().decode(O.self, from: data)
+        case "nil":
+            return nil
+        default:
+            return nil
         }
     }
     
@@ -209,10 +224,12 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
         timer.schedule(deadline: .now() + debounceInterval)
         
         timer.setEventHandler {
-            do {
-                try self.deleteOrphanFiles()
-            } catch {
-                print("Error deleting orphans: \(error)")
+            Task {
+                do {
+                    try await self.deleteOrphans()
+                } catch {
+                    print("Error deleting orphans: \(error)")
+                }
             }
         }
         
@@ -220,16 +237,13 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
         timer.resume()
     }
     
-    private func deleteOrphanFiles() throws {
-        let fileManager = FileManager.default
-        let existing = Set(cache.allKeys)
-        if let contents = try? fileManager.contentsOfDirectory(at: cacheDirectory, includingPropertiesForKeys: nil) {
-            for file in contents where !file.lastPathComponent.hasPrefix(".") {
-                let keyHash = file.deletingPathExtension().lastPathComponent
-                if !existing.contains(keyHash) {
-                    try? fileManager.removeItem(at: file)
-                }
-            }
+    private func deleteOrphans() async throws {
+        let contents = await coreStore?.items.map { $0.id } ?? []
+        let existing = Set(contents)
+        let storedEntries = await coreStore?.items ?? []
+        
+        for entry in storedEntries where !existing.contains(entry.id) {
+            try await coreStore?.remove(entry)
         }
     }
 }
