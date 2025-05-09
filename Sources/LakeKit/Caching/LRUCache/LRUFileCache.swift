@@ -16,13 +16,11 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
     @Published public var cacheDirectory: URL
     private let cache: LRUCache<String, Any?>
     
-    @LRUFileCacheActor
-    private var deleteOrphansTimer: DispatchSourceTimer?
-#if DEBUG
-    private let debounceInterval: TimeInterval = 4
-#else
-    private let debounceInterval: TimeInterval = 16
-#endif
+    /// Maximum size (in bytes) for items kept in-memory. Larger items are disk-only.
+    private let memoryThreshold = 1_048_576 // 1 MB
+    
+    /// Keys stored on disk but not loaded into the in-memory cache.
+    private var diskOnlyKeys: Set<String> = []
     
     private var jsonEncoder: JSONEncoder {
         let encoder = JSONEncoder()
@@ -44,11 +42,11 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
         
         cache = LRUCache(totalCostLimit: totalBytesLimit, countLimit: countLimit)
         
-        let versionFileURL = cacheDirectory.appendingPathComponent(".lru_cache_version.txt")
+        let versionFileURL = cacheRoot.appendingPathComponent("lru-cache-version-\(namespace).txt")
         var versionString = version.map(String.init) ?? Bundle.main.versionString
-#if DEBUG
-        versionString += debugBuildID.uuidString
-#endif
+        //#if DEBUG
+        //        versionString += debugBuildID.uuidString
+        //#endif
         
         if let versionData = try? Data(contentsOf: versionFileURL) {
             if String(data: versionData, encoding: .utf8) != versionString {
@@ -60,7 +58,7 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
             try? fileManager.removeItem(at: cacheDirectory)
             try? fileManager.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
         }
-            
+        
         try? versionString.data(using: .utf8)?.write(to: versionFileURL)
         
         rebuild()
@@ -72,11 +70,20 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
         var hashData = withUnsafeBytes(of: hash) { Data($0) }
         while hashData.first == 0 { hashData.removeFirst() }
         
-        let base64String = hashData.base64EncodedString()
-        return base64String
-            .replacingOccurrences(of: "+", with: "-")
-            .replacingOccurrences(of: "/", with: "_")
-            .replacingOccurrences(of: "=", with: "")
+        let base64 = hashData.base64EncodedString()
+        var output = [UInt8]()
+        output.reserveCapacity(base64.utf8.count)
+        
+        for c in base64.utf8 {
+            switch c {
+            case UInt8(ascii: "+"): output.append(UInt8(ascii: "-"))
+            case UInt8(ascii: "/"): output.append(UInt8(ascii: "_"))
+            case UInt8(ascii: "="): break
+            default: output.append(c)
+            }
+        }
+        
+        return String(decoding: output, as: UTF8.self)
     }
     
     public func removeValue(forKey key: I) {
@@ -89,6 +96,7 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
                 try? fileManager.removeItem(at: file)
             }
         }
+        diskOnlyKeys.remove(keyHash)
     }
     public func removeAll() {
         cache.removeAllValues()
@@ -98,12 +106,57 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
                 try? fileManager.removeItem(at: file)
             }
         }
+        diskOnlyKeys.removeAll()
     }
     
     public func value(forKey key: I) -> O? {
         guard let keyHash = cacheKeyHash(key) else { return nil }
-        if let value = cache.value(forKey: keyHash), let value = value as? O {
-            return value
+        // 1) Try in-memory cache
+        if let cached = cache.value(forKey: keyHash) as? O {
+            return cached
+        }
+        // 2) If marked on disk, load from disk each time
+        guard diskOnlyKeys.contains(keyHash) else { return nil }
+        let baseURL = cacheDirectory.appendingPathComponent(keyHash)
+        let exts = ["nil", "raw", "lz4", "json", "json-lz4"]
+        for ext in exts {
+            let fileURL = baseURL.appendingPathExtension(ext)
+            guard FileManager.default.fileExists(atPath: fileURL.path) else { continue }
+            do {
+                switch ext {
+                case "nil":
+                    return nil
+                case "raw":
+                    let data = try Data(contentsOf: fileURL)
+                    if O.self == Data.self {
+                        return data as? O
+                    }
+                case "lz4":
+                    let compressed = try Data(contentsOf: fileURL)
+                    let data = try (compressed as NSData).decompressed(using: .lz4) as Data
+                    if O.self == Data.self {
+                        return data as? O
+                    }
+                case "json":
+                    let jsonData = try Data(contentsOf: fileURL)
+                    return try JSONDecoder().decode(O.self, from: jsonData)
+                case "json-lz4":
+                    let compressed = try Data(contentsOf: fileURL)
+                    let decompressed = try (compressed as NSData).decompressed(using: .lz4) as Data
+                    return try JSONDecoder().decode(O.self, from: decompressed)
+                default:
+                    break
+                }
+                // handle String and [UInt8] for raw data
+                let raw = try Data(contentsOf: fileURL)
+                if O.self == String.self {
+                    return String(data: raw, encoding: .utf8) as? O
+                } else if O.self == [UInt8].self {
+                    return [UInt8](raw) as? O
+                }
+            } catch {
+                continue
+            }
         }
         return nil
     }
@@ -157,9 +210,18 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
             encoding = "nil"
         }
         
-//        DispatchQueue.main.async {
-        self.cache.setValue(value, forKey: keyHash, cost: dataToStore?.count ?? 1)
-//        }
+        //        DispatchQueue.main.async {
+        let dataSize = dataToStore?.count ?? 1
+        let isLarge = dataSize > memoryThreshold
+        if !isLarge {
+            // small enough: cache in memory
+            self.cache.setValue(value, forKey: keyHash, cost: dataSize)
+            diskOnlyKeys.remove(keyHash)
+        } else {
+            // too large: disk-only
+            diskOnlyKeys.insert(keyHash)
+        }
+        //        }
         
         let baseURL = cacheDirectory.appendingPathComponent(keyHash)
         let fileURL = baseURL.appendingPathExtension(encoding)
@@ -168,82 +230,76 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
         } else {
             FileManager.default.createFile(atPath: fileURL.path, contents: nil, attributes: nil)
         }
-        
-        Task {
-            await self.debouncedDeleteOrphans()
-        }
     }
     
     private func rebuild() {
+        diskOnlyKeys.removeAll()
         let fileManager = FileManager.default
         if let contents = try? fileManager.contentsOfDirectory(at: cacheDirectory, includingPropertiesForKeys: nil, options: .skipsHiddenFiles) {
             for item in contents {
                 let keyHash = item.deletingPathExtension().lastPathComponent
                 let ext = item.pathExtension
+                // Track this file on disk
+                // diskAllKeys.insert(keyHash)
+                // Determine size to decide memory vs disk-only
+                let attrs = try? FileManager.default.attributesOfItem(atPath: item.path)
+                let fileSize = (attrs?[.size] as? NSNumber)?.intValue ?? 0
+                
                 var value: O?
-                var cost = 0
-                if ext == "nil" {
-                    value = nil
-                } else {
-                    guard var data = try? Data(contentsOf: item) else {
-                        continue
-                    }
-                    if ext == "lz4" || ext == "json-lz4", let decompressed = try? (data as NSData).decompressed(using: .lz4) {
-                        data = decompressed as Data
-                    }
-                    
-                    if O.self == Data.self {
-                        value = data as? O
-                    } else if O.self == String.self {
-                        if let string = String(data: data, encoding: .utf8) as? O {
-                            value = string
+                if fileSize <= memoryThreshold {
+                    if ext == "nil" {
+                        value = nil
+                    } else if ext == "json" {
+                        if let data = try? Data(contentsOf: item),
+                           let decoded = try? JSONDecoder().decode(O.self, from: data) {
+                            value = decoded
                         }
-                    } else if O.self == [UInt8].self {
-                        value = [UInt8](data) as? O
-                    } else if let decoded = try? JSONDecoder().decode(O.self, from: data) {
-                        value = decoded
+                    } else if ext == "lz4" {
+                        if let compressed = try? Data(contentsOf: item),
+                           let decompressed = try? (compressed as NSData).decompressed(using: .lz4),
+                           let decoded = try? JSONDecoder().decode(O.self, from: decompressed as Data) {
+                            value = decoded
+                        }
+                    } else {
+                        if O.self == String.self {
+                            if let data = try? Data(contentsOf: item),
+                               let string = String(data: data, encoding: .utf8) as? O {
+                                value = string
+                            }
+                        } else if O.self == [UInt8].self {
+                            if let data = try? Data(contentsOf: item) {
+                                value = [UInt8](data) as? O
+                            }
+                        } else if let data = try? Data(contentsOf: item),
+                                  let decoded = try? JSONDecoder().decode(O.self, from: data) {
+                            value = decoded
+                        }
                     }
-                    cost = data.count
-                }
-//                DispatchQueue.main.async {
+                    let cost = (try? Data(contentsOf: item).count) ?? 1
+                    //                    DispatchQueue.main.async {
                     self.cache.setValue(value, forKey: keyHash, cost: cost)
-//                }
+                    //                    }
+                    diskOnlyKeys.remove(keyHash)
+                } else {
+                    diskOnlyKeys.insert(keyHash)
+                }
             }
             debugPrint("# FIN REBUILD", cacheDirectory, cache.allKeys)
         }
     }
     
-    @LRUFileCacheActor
-    private func debouncedDeleteOrphans() {
-        debugPrint("# debo", cacheDirectory, cache.allKeys)
-        deleteOrphansTimer?.cancel()
-        
-        let timer = DispatchSource.makeTimerSource(queue: DispatchQueue.global(qos: .background))
-        timer.schedule(deadline: .now() + debounceInterval)
-        
-        timer.setEventHandler {
-            do {
-                try self.deleteOrphanFiles()
-            } catch {
-                print("Error deleting orphans: \(error)")
-            }
-        }
-        
-        deleteOrphansTimer = timer
-        timer.resume()
-    }
-    
-    private func deleteOrphanFiles() throws {
-        let fileManager = FileManager.default
-        let existing = Set(cache.allKeys)
-        debugPrint("# del", cacheDirectory, cache.allKeys)
-        if let contents = try? fileManager.contentsOfDirectory(at: cacheDirectory, includingPropertiesForKeys: nil) {
-            for file in contents where !file.lastPathComponent.hasPrefix(".") {
-                let keyHash = file.deletingPathExtension().lastPathComponent
-                if !existing.contains(keyHash) {
-                    try? fileManager.removeItem(at: file)
-                }
-            }
-        }
-    }
+    //    private func deleteOrphanFiles() throws {
+    //        let fileManager = FileManager.default
+    //        let existing = Set(cache.allKeys).union(diskOnlyKeys)
+    //        debugPrint("# del", cacheDirectory, cache.allKeys)
+    //        if let contents = try? fileManager.contentsOfDirectory(at: cacheDirectory, includingPropertiesForKeys: nil) {
+    //            for file in contents where !file.lastPathComponent.hasPrefix(".") {
+    //                let keyHash = file.deletingPathExtension().lastPathComponent
+    //                if !existing.contains(keyHash) {
+    //                    try? fileManager.removeItem(at: file)
+    //                    diskOnlyKeys.remove(keyHash)
+    //                }
+    //            }
+    //        }
+    //    }
 }
