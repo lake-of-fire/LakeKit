@@ -1,3 +1,4 @@
+// TODO: If cache gets evicted from memory, or for when that happens, put back into memory when accessing from disk fallback on each value call
 import Foundation
 import LRUCache
 import SwiftUtilities
@@ -44,9 +45,9 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
         
         let versionFileURL = cacheRoot.appendingPathComponent("lru-cache-version-\(namespace).txt")
         var versionString = version.map(String.init) ?? Bundle.main.versionString
-        //#if DEBUG
-        //        versionString += debugBuildID.uuidString
-        //#endif
+#if DEBUG
+        versionString += debugBuildID.uuidString
+#endif
         
         if let versionData = try? Data(contentsOf: versionFileURL) {
             if String(data: versionData, encoding: .utf8) != versionString {
@@ -275,6 +276,7 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
                             value = decoded
                         }
                     }
+                    // TODO: Reuse data objects from above
                     let cost = (try? Data(contentsOf: item).count) ?? 1
                     //                    DispatchQueue.main.async {
                     self.cache.setValue(value, forKey: keyHash, cost: cost)
@@ -284,7 +286,7 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
                     diskOnlyKeys.insert(keyHash)
                 }
             }
-            debugPrint("# FIN REBUILD", cacheDirectory, cache.allKeys)
+//            debugPrint("# FIN REBUILD", cacheDirectory, cache.allKeys)
         }
     }
     
