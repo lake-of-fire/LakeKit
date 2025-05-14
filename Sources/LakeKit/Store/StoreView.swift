@@ -269,14 +269,14 @@ fileprivate struct PrimaryTestimonialView: View {
                                 testimonialImage
                                     .resizable()
                                     .aspectRatio(contentMode: .fit)
-                                    .frame(maxHeight: 44)
+                                    .frame(maxHeight: 40)
                             }
                             .fixedSize()
                         } else {
                             testimonialImage
                                 .resizable()
                                 .aspectRatio(contentMode: .fit)
-                                .frame(maxHeight: 45)
+                                .frame(maxHeight: 40)
                         }
                         Spacer(minLength: 0)
                     }
@@ -517,7 +517,7 @@ public struct StoreView: View {
 #if os(iOS)
             Color.systemGroupedBackground.opacity(0.8)
 #elseif os(macOS)
-            Color.gray.opacity(0.5)
+            Color.gray.opacity(0.15)
 #endif
         }
     }

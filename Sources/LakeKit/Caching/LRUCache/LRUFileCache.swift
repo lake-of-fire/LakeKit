@@ -89,6 +89,7 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
     
     public func removeValue(forKey key: I) {
         guard let keyHash = cacheKeyHash(key) else { return }
+//        debugPrint("# REMOVE", key, cacheDirectory.lastPathComponent)
         cache.removeValue(forKey: keyHash)
         let baseURL = cacheDirectory.appendingPathComponent(keyHash)
         let fileManager = FileManager.default
@@ -100,6 +101,7 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
         diskOnlyKeys.remove(keyHash)
     }
     public func removeAll() {
+//        debugPrint("# REMOVE ALL", cacheDirectory.lastPathComponent)
         cache.removeAllValues()
         let fileManager = FileManager.default
         if let files = try? fileManager.contentsOfDirectory(at: cacheDirectory, includingPropertiesForKeys: nil) {
@@ -111,49 +113,60 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
     }
     
     public func value(forKey key: I) -> O? {
-        guard let keyHash = cacheKeyHash(key) else { return nil }
+        guard let keyHash = cacheKeyHash(key) else {
+//            debugPrint("# no key hash", key, cacheDirectory.lastPathComponent)
+            return nil
+        }
         // 1) Try in-memory cache
         if let cached = cache.value(forKey: keyHash) as? O {
+//            debugPrint("# got cache", key, cacheDirectory.lastPathComponent)
             return cached
         }
         // 2) If marked on disk, load from disk each time
-        guard diskOnlyKeys.contains(keyHash) else { return nil }
+        guard diskOnlyKeys.contains(keyHash) else {
+//            debugPrint("# no disk", key, cacheDirectory.lastPathComponent)
+            return nil
+        }
         let baseURL = cacheDirectory.appendingPathComponent(keyHash)
-        let exts = ["nil", "raw", "lz4", "json", "json-lz4"]
+        let exts = ["lz4", "json-lz4", "json", "raw", "nil"]
         for ext in exts {
             let fileURL = baseURL.appendingPathExtension(ext)
-            guard FileManager.default.fileExists(atPath: fileURL.path) else { continue }
+            guard FileManager.default.fileExists(atPath: fileURL.path) else {
+                continue
+            }
+//            debugPrint("# got disk ext", key, fileURL.lastPathComponent, cacheDirectory.lastPathComponent)
             do {
+                var data: Data?
                 switch ext {
                 case "nil":
+                    // FIXME: Test this... must return "nil"ish
                     return nil
                 case "raw":
-                    let data = try Data(contentsOf: fileURL)
-                    if O.self == Data.self {
-                        return data as? O
-                    }
+                    data = try Data(contentsOf: fileURL)
                 case "lz4":
                     let compressed = try Data(contentsOf: fileURL)
-                    let data = try (compressed as NSData).decompressed(using: .lz4) as Data
-                    if O.self == Data.self {
-                        return data as? O
-                    }
+                    data = try (compressed as NSData).decompressed(using: .lz4) as Data
                 case "json":
-                    let jsonData = try Data(contentsOf: fileURL)
-                    return try JSONDecoder().decode(O.self, from: jsonData)
+                    data = try Data(contentsOf: fileURL)
+//                    return try JSONDecoder().decode(O.self, from: jsonData)
                 case "json-lz4":
                     let compressed = try Data(contentsOf: fileURL)
-                    let decompressed = try (compressed as NSData).decompressed(using: .lz4) as Data
-                    return try JSONDecoder().decode(O.self, from: decompressed)
+                    data = try (compressed as NSData).decompressed(using: .lz4) as Data
+//                    return try JSONDecoder().decode(O.self, from: decompressed)
                 default:
                     break
                 }
-                // handle String and [UInt8] for raw data
-                let raw = try Data(contentsOf: fileURL)
+                guard let data else {
+                    return nil
+                }
                 if O.self == String.self {
-                    return String(data: raw, encoding: .utf8) as? O
+                    return String(data: data, encoding: .utf8) as? O
                 } else if O.self == [UInt8].self {
-                    return [UInt8](raw) as? O
+                    return [UInt8](data) as? O
+                } else if O.self == Data.self {
+                    return data as? O
+                } else {
+                    return try JSONDecoder().decode(O.self, from: data)
                 }
             } catch {
                 continue
@@ -163,7 +176,8 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
     }
     
     public func setValue(_ value: O?, forKey key: I) {
-        //        debugPrint("# setval ", key, value.debugDescription.prefix(300))
+//                debugPrint("# setval ", key, value.debugDescription.prefix(300))
+//        debugPrint("# setval ", key, cacheDirectory.lastPathComponent)
         guard let keyHash = cacheKeyHash(key) else { return }
         
         var dataToStore: Data?
