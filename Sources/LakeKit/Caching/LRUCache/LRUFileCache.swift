@@ -1,4 +1,3 @@
-// TODO: If cache gets evicted from memory, or for when that happens, put back into memory when accessing from disk fallback on each value call
 import Foundation
 import LRUCache
 import SwiftUtilities
@@ -12,7 +11,7 @@ fileprivate actor LRUFileCacheActor {
 fileprivate let debugBuildID = UUID()
 #endif
 
-/// A Boutique-powered LRU cache that persists values in SQLite.
+/// Large objects get stored on disk in the cache directory that Apple manages, which doesn't need LRU management.
 open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
     @Published public var cacheDirectory: URL
     private let cache: LRUCache<String, Any?>
