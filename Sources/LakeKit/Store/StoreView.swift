@@ -212,9 +212,11 @@ fileprivate struct AddReferralCodeButton: View {
         Button {
             showingReferralAlert = true
         } label: {
-            Text("Have a referral code?")
+            (Text("Have a referral code?") + Text("  \(Image(systemName: "chevron.right.circle"))"))
+
         }
         .buttonStyle(.borderless)
+        .controlSize(.small)
         .alert("Enter Referral Code", isPresented: $showingReferralAlert) {
             TextField("Referral Code", text: $referralCodeInput)
             Button("OK") {
@@ -266,10 +268,14 @@ fileprivate struct PrimaryTestimonialView: View {
                         Spacer(minLength: 0)
                         if let testimonialLink = storeViewModel.testimonialLink {
                             Link(destination: testimonialLink) {
-                                testimonialImage
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fit)
-                                    .frame(maxHeight: 40)
+                                HStack(spacing: 0) {
+                                    Spacer(minLength: 0)
+                                    testimonialImage
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fit)
+                                        .frame(maxHeight: 40)
+                                    Spacer(minLength: 0)
+                                }
                             }
                             .fixedSize()
                         } else {

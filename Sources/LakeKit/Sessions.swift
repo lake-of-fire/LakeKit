@@ -134,7 +134,7 @@ public struct LakeAuthenticationSessionModifier: ViewModifier {
         content
             .webAuthenticationSession(isPresented: $session.isPresentingWebAuthentication.gatedBy(isActive)) {
                 WebAuthenticationSession(url: URL(string: "https://manabi.io/accounts/signup/?next=/accounts/native-app-login-redirect/manabireader/")!, callbackURLScheme: "manabireader") { callbackURL, error in
-                    if let error = error {
+                    if let error {
                         print(error)
                         if !session.isAuthenticated {
                             session.cancelAuthentication(error: error)
