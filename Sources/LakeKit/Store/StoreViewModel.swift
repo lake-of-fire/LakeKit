@@ -1,5 +1,6 @@
 import SwiftUI
 import Collections
+import StoreKit
 import StoreHelper
 
 public class AdsViewModel: NSObject, ObservableObject {
@@ -12,6 +13,7 @@ public class AdsViewModel: NSObject, ObservableObject {
 public class StoreViewModel: NSObject, ObservableObject {
     /// Validates a referral code asynchronously. Returns true if valid.
     let validateReferralCode: (String) async throws -> Bool
+    let processReferralCodeUse: (String, String) async throws -> Void
     /// For server overrides, other apps, etc.
     @Published public var isInitialized = false
     
@@ -37,6 +39,9 @@ public class StoreViewModel: NSObject, ObservableObject {
     @Published public var chatURL: URL? = nil
     @Published public var faq = OrderedDictionary<String, String>()
     
+    @Published public var purchaseState: PurchaseState = .unknown
+    
+    @AppStorage("pendingReferralCode") private var pendingReferralCode: String?
     @PublishedAppStorage("LakeKit.isSubscribed") public var isSubscribed = false
     @PublishedAppStorage("LakeKit.isSubscribedFromElsewhere") public var isSubscribedFromElsewhere = false
     @MainActor var isSubscribedFromElsewhereCallback: ((StoreViewModel) async -> Bool)? = nil
@@ -63,7 +68,8 @@ public class StoreViewModel: NSObject, ObservableObject {
         chatURL: URL? = nil,
         faq: OrderedDictionary<String, String>,
         isSubscribedFromElsewhereCallback: ((StoreViewModel) async -> Bool)? = nil,
-        referralCodeValidator: @escaping (String) async throws -> Bool = { _ in false }
+        validateReferralCode: @escaping (String) async throws -> Bool = { _ in false },
+        processReferralCodeUse: @escaping (String, String) async throws -> Void = { _, _ in }
     ) {
         self.satisfyingPrerequisite = satisfyingPrerequisite
         self.products = products
@@ -85,7 +91,8 @@ public class StoreViewModel: NSObject, ObservableObject {
         self.chatURL = chatURL
         self.faq = faq
         self.isSubscribedFromElsewhereCallback = isSubscribedFromElsewhereCallback
-        self.validateReferralCode = referralCodeValidator
+        self.validateReferralCode = validateReferralCode
+        self.processReferralCodeUse = processReferralCodeUse
     }
     
     public var productGridColumns: [GridItem] {
@@ -102,6 +109,58 @@ public class StoreViewModel: NSObject, ObservableObject {
         let priceViewModel = PriceViewModel(storeHelper: storeHelper, purchaseState: .constant(.notStarted))
         let prePurchaseSubInfo = await priceViewModel.getPrePurchaseSubscriptionInfo(productId: highlightedProductID)
         return prePurchaseSubInfo
+    }
+    
+    @MainActor
+    public func purchase(storeProduct: StoreProduct, storeKitProduct: Product, priceViewModel: PriceViewModel) {
+        guard storeProduct.filterPurchase(storeProduct) else { return }
+        purchaseState = .inProgress
+        Task { @MainActor in
+            if let appAccountToken = await appAccountToken() {
+                await priceViewModel.purchase(product: storeKitProduct, options: [.appAccountToken(appAccountToken)])
+            } else {
+                await priceViewModel.purchase(product: storeKitProduct, options: [])
+            }
+            
+            await processPendingReferralCodeIfNeeded()
+        }
+    }
+    
+    /// Attempts to process a pending referral code by attaching it to the latest App Store receipt.
+    /// - Note: `processReferralCodeUse` expects **(receipt, referralCode)** in that order.
+    @MainActor
+    public func processPendingReferralCodeIfNeeded() async {
+        guard let code = pendingReferralCode?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !code.isEmpty else { return }
+        do {
+            // Get the original transaction ID for any active entitlement
+            var originalTransactionID: String? = nil
+            for await result in Transaction.currentEntitlements {
+                if case .verified(let transaction) = result {
+                    originalTransactionID = String(transaction.originalID)
+                    break
+                }
+            }
+            
+            // Grab the up-to-date unified receipt for the app
+            guard let receiptURL = Bundle.main.appStoreReceiptURL,
+                  let receiptData = try? Data(contentsOf: receiptURL),
+                  !receiptData.isEmpty else { return }
+            let receiptBase64 = receiptData.base64EncodedString()
+            
+            // Log a warning if referral code is attached to an existing transaction
+            if let originalTransactionID {
+                Logger.shared.logger.warning("Attaching referral code \(code) to transaction \(originalTransactionID)")
+            }
+            
+            // Send the receipt + referral code to the backend
+            try await processReferralCodeUse(receiptBase64, code)
+            
+            // Clear the referral code only if the call succeeded
+            pendingReferralCode = nil
+        } catch {
+            Logger.shared.logger.error("Failed to process pending referral code \(code): \(error)")
+        }
     }
     
     @MainActor
@@ -133,6 +192,9 @@ public class StoreViewModel: NSObject, ObservableObject {
                     }
                     AdsViewModel.shared.showAds = showAds
                     AdsViewModel.shared.isInitialized = true
+                    
+                    await processPendingReferralCodeIfNeeded()
+                    
                     return
                 }
                 
@@ -169,6 +231,8 @@ public class StoreViewModel: NSObject, ObservableObject {
                 
                 AdsViewModel.shared.showAds = showAds
                 AdsViewModel.shared.isInitialized = true
+                
+                await processPendingReferralCodeIfNeeded()
             } catch (let error as CancellationError) {
                 print(error)
             } catch {

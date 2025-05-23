@@ -438,7 +438,6 @@ public struct StoreView: View {
 #endif
     
     @EnvironmentObject private var storeHelper: StoreHelper
-    @State private var purchaseState: PurchaseState = .unknown
     @State private var isPresentingTokenLimitError = false
     @State private var isStudentDiscountExpanded = false
     
@@ -678,11 +677,11 @@ public struct StoreView: View {
         product: Product,
         maxWidth: CGFloat
     ) -> some View {
-        let priceViewModel = PriceViewModel(storeHelper: storeHelper, purchaseState: $purchaseState)
+        let priceViewModel = PriceViewModel(storeHelper: storeHelper, purchaseState: $storeViewModel.purchaseState)
         PurchaseOptionView(
             storeViewModel: storeViewModel,
             product: product,
-            purchaseState: $purchaseState,
+            purchaseState: $storeViewModel.purchaseState,
             unitsRemaining: storeProduct.unitsRemaining,
             unitsPurchased: storeProduct.unitsPurchased,
             unitsName: storeProduct.unitsName,
@@ -690,18 +689,11 @@ public struct StoreView: View {
             buyTitle: storeProduct.buyButtonTitle,
             maxWidth: maxWidth
         ) {
-            guard storeProduct.filterPurchase(storeProduct) else { return }
-            purchaseState = .inProgress
-            Task { @MainActor in
-                if let appAccountToken = await storeViewModel.appAccountToken() {
-                    await priceViewModel.purchase(product: product, options: [.appAccountToken(appAccountToken)])
-                } else {
-                    await priceViewModel.purchase(product: product, options: [])
-                }
-                
-                // FIXME:
-                pendingReferralCode = nil
-            }
+            storeViewModel.purchase(
+                storeProduct: storeProduct,
+                storeKitProduct: product,
+                priceViewModel: priceViewModel
+            )
         }
         //        .frame(maxWidth: productOptionFrameMaxWidth)
         //            .frame(maxHeight: .infinity)
@@ -709,7 +701,7 @@ public struct StoreView: View {
         .changeEffect(
             .shine.delay(2),
             value: isPresented,
-            isEnabled: isPresented && [.notPurchased, .notStarted, .unknown].contains(purchaseState)
+            isEnabled: isPresented && [.notPurchased, .notStarted, .unknown].contains(storeViewModel.purchaseState)
         )
         .shadow(radius: 4)
     }
