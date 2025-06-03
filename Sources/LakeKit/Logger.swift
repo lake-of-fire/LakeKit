@@ -61,6 +61,7 @@ public class Logger: ObservableObject {
         var puppy = Puppy()
 #if DEBUG
         puppy.add(makeConsoleLogger())
+        puppy.add(ConsoleLogger("print", logFormat: ConsoleLogFormatter()))
 #endif
         var fileLogger: FileRotationLogger?
         do {
@@ -190,7 +191,7 @@ public class Logger: ObservableObject {
 public class LoggingViewModel: ObservableObject {
     @Published public var logs: [TransferableLog]?
     @Published public var logsText: String?
-//    @Published public var clippedReversedLogsText: String?
+    //    @Published public var clippedReversedLogsText: String?
     @Published public var clippedLogsText: String?
     @Published public var logsZIPArchive: ZIPArchive?
     @Published private var loadTask: Task<Void, Error>? = nil
@@ -233,18 +234,18 @@ public class LoggingViewModel: ObservableObject {
             }
             let logsText = fileContents.joined(separator: "\n\n")
             
-//            let clippedReversedFileContents = logs.compactMap { log -> String? in
-//                guard let content = try? String(contentsOf: log.url)
-//                    .split(separator: "\n")
-//                    .suffix(2000)
-//                    .reversed()
-//                    .joined(separator: "\n") else { return nil }
-//                if logsCount == 1 {
-//                    return content
-//                }
-//                return "LOG: \(log.name) (\(log.url.lastPathComponent))\n\n" + content
-//            }
-//            let clippedReversedLogsText = clippedReversedFileContents.joined(separator: "\n\n")
+            //            let clippedReversedFileContents = logs.compactMap { log -> String? in
+            //                guard let content = try? String(contentsOf: log.url)
+            //                    .split(separator: "\n")
+            //                    .suffix(2000)
+            //                    .reversed()
+            //                    .joined(separator: "\n") else { return nil }
+            //                if logsCount == 1 {
+            //                    return content
+            //                }
+            //                return "LOG: \(log.name) (\(log.url.lastPathComponent))\n\n" + content
+            //            }
+            //            let clippedReversedLogsText = clippedReversedFileContents.joined(separator: "\n\n")
             let clippedLogsText = String(logsText.suffix(Int((0.75 * Double(1_024 * 1_024)).rounded())))
             
             try await { @MainActor [weak self] in
@@ -253,7 +254,7 @@ public class LoggingViewModel: ObservableObject {
                 self.logs = logs
                 self.logsText = logsText
                 self.clippedLogsText = clippedLogsText
-//                self.clippedReversedLogsText = clippedReversedLogsText
+                //                self.clippedReversedLogsText = clippedReversedLogsText
             }()
             
             do {
@@ -363,3 +364,20 @@ extension Logger {
         }
     }
 }
+
+struct ConsoleLogFormatter: LogFormattable {
+    func formatMessage(
+        _ level: LogLevel,
+        message: String,
+        tag: String,
+        function: String,
+        file: String,
+        line: UInt,
+        swiftLogInfo: [String: String],
+        label: String,
+        date: Date,
+        threadID: UInt64
+    ) -> String {
+        return "[\(level)] \(message)"
+    }
+    }
