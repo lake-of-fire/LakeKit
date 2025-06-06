@@ -235,8 +235,8 @@ fileprivate struct AddReferralCodeButton: View {
                 do {
                     let isValid = try await storeViewModel.validateReferralCode(code)
                     referralStatusMessage = isValid
-                    ? "Referral code \(code) is valid!"
-                    : "Referral code \(code) is invalid or has expired."
+                    ? "Referral code \"\(code)\" is valid!"
+                    : "Referral code \"\(code)\" is invalid or has expired."
                 } catch {
                     referralStatusMessage = "Failed to validate referral code: \(error.localizedDescription)"
                 }
