@@ -96,7 +96,7 @@ struct OnboardingPrimaryButtons: View {
     let isFinishedOnboarding: Bool
     @Binding var isPresentingSheet: Bool
     @Binding var isPresentingStoreSheet: Bool
-    @Binding var navigationPath: NBNavigationPath
+    @Binding var navigationPath: [String]
     
     @State private var highlightedProduct: PrePurchaseSubscriptionInfo?
     
@@ -243,7 +243,7 @@ struct OnboardingCardsView<CardContent: View>: View {
     let cards: [OnboardingCard]
     @Binding var isPresentingSheet: Bool
     @Binding var isFinished: Bool
-    @Binding var navigationPath: NBNavigationPath
+    @Binding var navigationPath: [String]
     @Binding var isPresentingStoreSheet: Bool
     @ViewBuilder let cardContent: (OnboardingCard, Binding<Bool>, Bool) -> CardContent
     
@@ -471,7 +471,7 @@ struct OnboardingCardsView<CardContent: View>: View {
         isPresentingSheet: Binding<Bool>,
         isFinished: Binding<Bool>,
         isPresentingStoreSheet: Binding<Bool>,
-        navigationPath: Binding<NBNavigationPath>,
+        navigationPath: Binding<[String]>,
         cardContent: @escaping (OnboardingCard, Binding<Bool>, Bool) -> CardContent
     ) {
         self.cards = cards
@@ -618,29 +618,51 @@ struct OnboardingView<CardContent: View>: View {
     @Binding var isPresentingStoreSheet: Bool
     @ViewBuilder let cardContent: (OnboardingCard, Binding<Bool>, Bool) -> CardContent
     
-    @State private var navigationPath = NBNavigationPath()
+    @State private var navigationPath = [String]()
     
-    var body: some View {
-        NBNavigationStack(path: $navigationPath) {
-            OnboardingCardsView(
-                cards: cards,
-                isPresentingSheet: $isPresentingSheet,
-                isFinished: $isFinished,
-                isPresentingStoreSheet: $isPresentingStoreSheet,
-                navigationPath: $navigationPath,
-                cardContent: cardContent
-            )
-                .nbNavigationDestination(for: String.self, destination: { dest in
+    @ViewBuilder private var onboardingCardsView: some View {
+        OnboardingCardsView(
+            cards: cards,
+            isPresentingSheet: $isPresentingSheet,
+            isFinished: $isFinished,
+            isPresentingStoreSheet: $isPresentingStoreSheet,
+            navigationPath: $navigationPath,
+            cardContent: cardContent
+        )
+        .modifier {
+            if #available(iOS 16, macOS 13, *) {
+                $0.navigationDestination(for: String.self, destination: { dest in
                     switch dest {
                     case "free-mode":
                         FreeModeView(isPresentingSheet: $isPresentingSheet, isPresentingStoreSheet: $isPresentingStoreSheet)
                     default: EmptyView()
                     }
                 })
+            } else {
+                $0.nbNavigationDestination(for: String.self, destination: { dest in
+                    switch dest {
+                    case "free-mode":
+                        FreeModeView(isPresentingSheet: $isPresentingSheet, isPresentingStoreSheet: $isPresentingStoreSheet)
+                    default: EmptyView()
+                    }
+                })
+            }
+        }
 #if os(iOS)
-                .navigationBarHidden(true)
-                .navigationBarTitleDisplayMode(.inline)
+        .navigationBarHidden(true)
+        .navigationBarTitleDisplayMode(.inline)
 #endif
+    }
+    
+    var body: some View {
+        if #available(iOS 16, macOS 13, *) {
+            NavigationStack(path: $navigationPath) {
+                onboardingCardsView
+            }
+        } else {
+            NBNavigationStack(path: $navigationPath) {
+                onboardingCardsView
+            }
         }
     }
     
