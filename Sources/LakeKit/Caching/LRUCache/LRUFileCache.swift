@@ -111,6 +111,13 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
         diskOnlyKeys.removeAll()
     }
     
+    public func hasKey(_ key: I) -> Bool {
+        guard let keyHash = cacheKeyHash(key) else {
+            return false
+        }
+        return diskOnlyKeys.contains(keyHash) || cache.hasKey(keyHash)
+    }
+    
     public func value(forKey key: I) -> O? {
         guard let keyHash = cacheKeyHash(key) else {
 //            debugPrint("# no key hash", key, cacheDirectory.lastPathComponent)

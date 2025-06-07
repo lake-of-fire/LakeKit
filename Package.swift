@@ -51,7 +51,7 @@ let package = Package(
 //        .package(url: "https://github.com/danielsaidi/SwiftUIKit.git", branch: "master"),
         .package(url: "https://github.com/lake-of-fire/FilePicker.git", branch: "main"),
         .package(url: "https://github.com/weichsel/ZIPFoundation.git", branch: "development"),
-        .package(url: "https://github.com/nicklockwood/LRUCache.git", branch: "main"),
+        .package(url: "https://github.com/lake-of-fire/LRUCache.git", branch: "main"),
 //        .package(url: "https://github.com/kean/Pulse.git", branch: "main"),
         .package(url: "https://github.com/stevengharris/SplitView.git", branch: "main"),
         .package(url: "https://github.com/lake-of-fire/VisionLiveText_SwiftUICompatible.git", branch: "main"),
