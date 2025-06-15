@@ -52,6 +52,11 @@ public struct ClearBorderedButtonStyle: ButtonStyle {
     public func makeBody(configuration: Configuration) -> some View {
         ZStack {
             configuration.label
+                .foregroundColor(.accentColor)
+                .opacity(configuration.isPressed ? 0.4 : 1)
+#if os(iOS)
+                .animation(configuration.isPressed ? nil : .easeOut(duration: 0.18), value: configuration.isPressed)
+#endif
         }
         .background(.white.opacity(0.0000000001))
         .frame(minWidth: minWidth, minHeight: minHeight)
