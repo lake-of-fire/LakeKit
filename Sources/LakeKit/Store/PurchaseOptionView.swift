@@ -7,7 +7,62 @@ import SwiftUtilities
 
 public struct PurchaseOptionView: View {
     public let storeViewModel: StoreViewModel
+    public let storeProductVersions: StoreProductVersions
+    @Binding public var purchaseState: PurchaseState
+    public let maxWidth: CGFloat
+    public let action: ((StoreProduct, Product) -> Void)
+    
+    @AppStorage("pendingReferralCode") private var pendingReferralCode: String?
+    
+    //    @ScaledMetric(relativeTo: .caption) private var subtitleWidth = 50
+    //    @ScaledMetric(relativeTo: .caption) private var subtitleHeight = 40
+    @ScaledMetric(relativeTo: .body) private var buttonIdealWidth = 145
+    @ScaledMetric(relativeTo: .body) private var buttonHorizontalPadding = 12
+    
+    @Environment(\.isICloudSyncActive) private var isICloudSyncActive: Bool
+    @Environment(\.iCloudSyncStateSummary) private var iCloudSyncStateSummary: SyncMonitor.SyncSummaryStatus
+    @Environment(\.iCloudSyncError) private var iCloudSyncError: Error?
+    @State private var isPresentingICloudIssue = false
+    
+    @EnvironmentObject private var storeHelper: StoreHelper
+    @State private var prePurchaseSubInfo: PrePurchaseSubscriptionInfo?
+    @State private var canMakePayments: Bool = false
+    
+    private var hasValidReferralCode: Bool {
+        return !(pendingReferralCode?.isEmpty ?? true)
+    }
+    
+    var storeProduct: StoreProduct {
+        if hasValidReferralCode {
+            return storeProductVersions.referralProduct
+        } else {
+            return storeProductVersions.product
+        }
+    }
+    
+    public var body: some View {
+        if let product = storeProduct.product(storeHelper: storeHelper) {
+            PurchaseOptionVersionView(
+                storeViewModel: storeViewModel,
+                product: product,
+                storeProduct: storeProduct,
+                purchaseState: $purchaseState,
+                unitsRemaining: storeProduct.unitsRemaining,
+                unitsPurchased: storeProduct.unitsPurchased,
+                unitsName: storeProduct.unitsName,
+                symbolName: storeProduct.iconSymbolName,
+                buyTitle: storeProduct.buyButtonTitle,
+                maxWidth: maxWidth,
+                action: action
+            )
+        }
+    }
+}
+
+fileprivate struct PurchaseOptionVersionView: View {
+    public let storeViewModel: StoreViewModel
     public let product: Product
+    public let storeProduct: StoreProduct
     @Binding public var purchaseState: PurchaseState
     public let unitsRemaining: Int?
     public let unitsPurchased: Int?
@@ -15,7 +70,9 @@ public struct PurchaseOptionView: View {
     public let symbolName: String
     public let buyTitle: String?
     public let maxWidth: CGFloat
-    public let action: (() -> Void)
+    public let action: ((StoreProduct, Product) -> Void)
+    
+    @AppStorage("pendingReferralCode") private var pendingReferralCode: String?
     
 //    @ScaledMetric(relativeTo: .caption) private var subtitleWidth = 50
 //    @ScaledMetric(relativeTo: .caption) private var subtitleHeight = 40
@@ -30,7 +87,33 @@ public struct PurchaseOptionView: View {
     @EnvironmentObject private var storeHelper: StoreHelper
     @State private var prePurchaseSubInfo: PrePurchaseSubscriptionInfo?
     @State private var canMakePayments: Bool = false
-
+    
+    init(
+        storeViewModel: StoreViewModel,
+        product: Product,
+        storeProduct: StoreProduct,
+        purchaseState: Binding<PurchaseState>,
+        unitsRemaining: Int? = nil,
+        unitsPurchased: Int? = nil,
+        unitsName: String? = nil,
+        symbolName: String,
+        buyTitle: String?,
+        maxWidth: CGFloat,
+        action: @escaping ((StoreProduct, Product) -> Void)
+    ) {
+        self.storeViewModel = storeViewModel
+        self.product = product
+        self.storeProduct = storeProduct
+        self._purchaseState = purchaseState
+        self.unitsRemaining = unitsRemaining
+        self.unitsPurchased = unitsPurchased
+        self.unitsName = unitsName
+        self.symbolName = symbolName
+        self.buyTitle = buyTitle
+        self.maxWidth = maxWidth
+        self.action = action
+    }
+    
     private var displayPrice: String {
         if product.type == .autoRenewable {
             // TODO: Support promos if needed
@@ -87,10 +170,10 @@ public struct PurchaseOptionView: View {
     }
     
     private var isUnitsLabelVisible: Bool {
-        return storeViewModel.products.contains(where: { !$0.isSubscription })
+        return storeViewModel.products.contains(where: { !$0.product.isSubscription || !$0.referralProduct.isSubscription })
     }
     
-    public var body: some View {
+    var body: some View {
             Button {
                 submitAction()
             } label: {
@@ -264,27 +347,14 @@ public struct PurchaseOptionView: View {
             }
         })
     }
-    
-    public init(storeViewModel: StoreViewModel, product: Product, purchaseState: Binding<PurchaseState>, unitsRemaining: Int? = nil, unitsPurchased: Int? = nil, unitsName: String? = nil, symbolName: String, buyTitle: String?, maxWidth: CGFloat, action: @escaping (() -> Void)) {
-        self.storeViewModel = storeViewModel
-        self.product = product
-        self._purchaseState = purchaseState
-        self.unitsRemaining = unitsRemaining
-        self.unitsPurchased = unitsPurchased
-        self.unitsName = unitsName
-        self.symbolName = symbolName
-        self.buyTitle = buyTitle
-        self.maxWidth = maxWidth
-        self.action = action
-    }
-    
+   
     func submitAction() {
         Task.detached {
             guard await storeViewModel.satisfyingPrerequisite() else { return }
             Task { @MainActor in
                 isPresentingICloudIssue = (product.type == .consumable) && !isICloudSyncActive && iCloudSyncStateSummary != .notStarted && iCloudSyncStateSummary != .succeeded
                 if (product.type == .autoRenewable) || isICloudSyncActive {
-                    action()
+                    action(storeProduct, product)
                 }
             }
         }

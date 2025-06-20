@@ -20,9 +20,11 @@ public class StoreViewModel: NSObject, ObservableObject {
     @Published public var isRestoringPurchases = false
     
     let satisfyingPrerequisite: () async -> Bool
+    
     let highlightedProductID: String
-    @Published public var products: [StoreProduct]
-    @Published public var studentProducts: [StoreProduct]
+    @Published public var products: [StoreProductVersions]
+    @Published public var studentProducts: [StoreProductVersions]
+    
     let appAccountToken: () async -> UUID?
     @Published public var headline: String
     @Published public var subheadline: String
@@ -49,8 +51,8 @@ public class StoreViewModel: NSObject, ObservableObject {
     
     public init(
         satisfyingPrerequisite: @escaping () async -> Bool = { true },
-        products: [StoreProduct],
-        studentProducts: [StoreProduct],
+        products: [StoreProductVersions],
+        studentProducts: [StoreProductVersions],
         highlightedProductID: String,
         appAccountToken: @escaping () async -> UUID? = { nil },
         headline: String,

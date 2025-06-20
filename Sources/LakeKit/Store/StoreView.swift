@@ -207,7 +207,8 @@ fileprivate struct AddReferralCodeButton: View {
     @State private var referralCodeInput: String = ""
     @State private var showingReferralAlert: Bool = false
     @State private var referralStatusMessage: String?
-    
+    @State private var referralCodeToValidate: String?
+
     var body: some View {
         Button {
             showingReferralAlert = true
@@ -219,24 +220,32 @@ fileprivate struct AddReferralCodeButton: View {
         .controlSize(.small)
         .alert("Enter Referral Code", isPresented: $showingReferralAlert) {
             TextField("Referral Code", text: $referralCodeInput)
+                .textInputAutocapitalization(.characters)
+                .autocorrectionDisabled(true)
             Button("OK") {
-                pendingReferralCode = referralCodeInput.lowercased()
+                referralCodeToValidate = referralCodeInput.lowercased()
             }
             Button("Cancel", role: .cancel) { }
         } message: {
-            Text("Please enter your referral code to apply it to your purchase.")
+            Text("Enter your referral code to apply it to your purchase.")
         }
-        .onChange(of: pendingReferralCode) { newValue in
+        .onChange(of: referralCodeToValidate) { newValue in
             guard let code = newValue?.lowercased(), !code.isEmpty else {
                 referralStatusMessage = nil
+                pendingReferralCode = nil
                 return
             }
             Task { @MainActor in
                 do {
                     let isValid = try await storeViewModel.validateReferralCode(code)
                     referralStatusMessage = isValid
-                    ? "Referral code \"\(code)\" is valid!"
-                    : "Referral code \"\(code)\" is invalid or has expired."
+                    ? "Referral code \"\(code.uppercased())\" is valid!"
+                    : "Referral code \"\(code.uppercased())\" invalid or expired."
+                    if isValid {
+                        pendingReferralCode = code
+                    } else {
+                        pendingReferralCode = nil
+                    }
                 } catch {
                     referralStatusMessage = "Failed to validate referral code: \(error.localizedDescription)"
                 }
@@ -267,17 +276,17 @@ fileprivate struct PrimaryTestimonialView: View {
                     HStack {
                         Spacer(minLength: 0)
                         if let testimonialLink = storeViewModel.testimonialLink {
-                            Link(destination: testimonialLink) {
-                                HStack(spacing: 0) {
-                                    Spacer(minLength: 0)
+                            HStack(spacing: 0) {
+                                Spacer(minLength: 0)
+                                Link(destination: testimonialLink) {
                                     testimonialImage
                                         .resizable()
                                         .aspectRatio(contentMode: .fit)
                                         .frame(maxHeight: 40)
-                                    Spacer(minLength: 0)
                                 }
+                                .fixedSize()
+                                Spacer(minLength: 0)
                             }
-                            .fixedSize()
                         } else {
                             testimonialImage
                                 .resizable()
@@ -424,6 +433,39 @@ public struct StoreProduct: Identifiable {
     }
 }
 
+public struct StoreProductVersions: Identifiable {
+    public let product: StoreProduct
+    public let referralProduct: StoreProduct
+
+    public var id: String {
+        return product.id
+    }
+    
+    public enum StoreProductVersion {
+        case product
+        case referralProduct
+    }
+    
+    public init(
+        product: StoreProduct,
+        referralProduct: StoreProduct
+    ) {
+        self.product = product
+        self.referralProduct = referralProduct
+    }
+    
+    func product(version: StoreProductVersion, storeHelper: StoreHelper) -> Product? {
+        let product: StoreProduct
+        switch version {
+        case .product:
+            product = self.product
+        case .referralProduct:
+            product = referralProduct
+        }
+        return storeHelper.product(from: product.id)
+    }
+}
+
 public struct StoreView: View {
     @Binding public var isPresented: Bool
     @ObservedObject public var storeViewModel: StoreViewModel
@@ -438,9 +480,10 @@ public struct StoreView: View {
 #endif
     
     @EnvironmentObject private var storeHelper: StoreHelper
+    
     @State private var isPresentingTokenLimitError = false
     @State private var isStudentDiscountExpanded = false
-    
+ 
     public var productGridColumns: [GridItem] {
 #if os(iOS)
         if horizontalSizeClass == .compact {
@@ -493,12 +536,14 @@ public struct StoreView: View {
                     .lineSpacing(2)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.bottom, 4)
+                
                 purchaseOptionsGrid(
-                    products: storeViewModel.products,
+                    storeProductVersions: storeViewModel.products,
                     maxWidth: storeOptionsMaxWidth(geometrySize: geometry.size)
                 )
                 .frame(maxWidth: storeOptionsMaxWidth(geometrySize: geometry.size))
                 .padding(.bottom)
+                
                 if let productGroupSubtitle = storeViewModel.productGroupSubtitle, !productGroupSubtitle.isEmpty {
                     Text(productGroupSubtitle)
                         .foregroundColor(.secondary)
@@ -506,6 +551,7 @@ public struct StoreView: View {
                         .font(.caption)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                
                 if storeViewModel.testimonial != nil {
                     ViewStudentDiscountButton(
                         isStudentDiscountExpanded: $isStudentDiscountExpanded,
@@ -527,13 +573,19 @@ public struct StoreView: View {
         }
     }
     
-    @ViewBuilder private func purchaseOptionsGrid(products: [StoreProduct], maxWidth: CGFloat) -> some View {
+    @ViewBuilder private func purchaseOptionsGrid(
+        storeProductVersions: [StoreProductVersions],
+        maxWidth: CGFloat
+    ) -> some View {
         if #available(iOS 16, macOS 13, *) {
             ViewThatFits {
                 HStack(alignment: .top, spacing: 0) {
                     Spacer(minLength: 0)
                     HStack(alignment: .top, spacing: 20) {
-                        purchaseOptions(products: products, maxWidth: maxWidth)
+                        purchaseOptions(
+                            storeProductVersions: storeProductVersions,
+                            maxWidth: maxWidth
+                        )
                     }
                     .fixedSize()
                     Spacer(minLength: 0)
@@ -541,13 +593,19 @@ public struct StoreView: View {
                 HStack(alignment: .top, spacing: 0) {
                     Spacer(minLength: 0)
                     HStack(alignment: .top, spacing: 10) {
-                        purchaseOptions(products: products, maxWidth: maxWidth)
+                        purchaseOptions(
+                            storeProductVersions: storeProductVersions,
+                            maxWidth: maxWidth
+                        )
                     }
                     .fixedSize()
                     Spacer(minLength: 0)
                 }
                 VStack(alignment: .center) {
-                    purchaseOptions(products: products, maxWidth: maxWidth)
+                    purchaseOptions(
+                        storeProductVersions: storeProductVersions,
+                        maxWidth: maxWidth
+                    )
                 }
                 .fixedSize()
             }
@@ -556,19 +614,26 @@ public struct StoreView: View {
             HStack(alignment: .top, spacing: 0) {
                 Spacer(minLength: 0)
                 HStack(alignment: .top, spacing: 10) {
-                    purchaseOptions(products: products, maxWidth: maxWidth)
+                    purchaseOptions(
+                        storeProductVersions: storeProductVersions,
+                        maxWidth: maxWidth
+                    )
                 }
                 Spacer(minLength: 0)
             }
         }
     }
     
-    @ViewBuilder private func purchaseOptions(products: [StoreProduct], maxWidth: CGFloat) -> some View {
-        ForEach(products) { (storeProduct: StoreProduct) in
-            if let product = storeProduct.product(storeHelper: storeHelper) {
-                productOptionView(storeProduct: storeProduct, product: product, maxWidth: maxWidth)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
+    @ViewBuilder private func purchaseOptions(
+        storeProductVersions: [StoreProductVersions],
+        maxWidth: CGFloat
+    ) -> some View {
+        ForEach(storeProductVersions) { (storeProductVersions: StoreProductVersions) in
+            productOptionView(
+                storeProductVersions: storeProductVersions,
+                maxWidth: maxWidth
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
     
@@ -587,21 +652,27 @@ public struct StoreView: View {
                                 .padding(.horizontal, secondaryHorizontalPadding)
                             
                             GroupBox {
-                                StudentDiscountDisclosureGroup(isExpanded: $isStudentDiscountExpanded, discountView: {
-                                    VStack {
-                                        Text("Students and those who cannot afford the full-price rates are welcome to a special discount. The low-income discount requires that you cannot afford the regular price. These discounts are subsidized by customers who pay the full price.")
-                                            .font(.subheadline)
-                                            .padding()
-                                            .multilineTextAlignment(.leading)
-                                            .lineLimit(9001)
-                                            .fixedSize(horizontal: false, vertical: true)
-                                        
-                                        purchaseOptionsGrid(products: storeViewModel.studentProducts, maxWidth: storeOptionsMaxWidth(geometrySize: geometry.size))
+                                StudentDiscountDisclosureGroup(
+                                    isExpanded: $isStudentDiscountExpanded,
+                                    discountView: {
+                                        VStack {
+                                            Text("Students and those who cannot afford the full-price rates are welcome to a special discount. The low-income discount requires that you cannot afford the regular price. These discounts are subsidized by customers who pay the full price.")
+                                                .font(.subheadline)
+                                                .padding()
+                                                .multilineTextAlignment(.leading)
+                                                .lineLimit(9001)
+                                                .fixedSize(horizontal: false, vertical: true)
+                                            
+                                            purchaseOptionsGrid(
+                                                storeProductVersions: storeViewModel.studentProducts,
+                                                maxWidth: storeOptionsMaxWidth(geometrySize: geometry.size)
+                                            )
                                         //                                    .fixedSize(horizontal: true, vertical: false)
                                             .frame(maxWidth: storeOptionsMaxWidth(geometrySize: geometry.size))
                                         
 #if DEBUG
                                         AddReferralCodeButton()
+                                            .padding(.top, 10)
 #endif
                                     }
                                     .padding(.top, 5)
@@ -673,22 +744,16 @@ public struct StoreView: View {
     }
     
     @ViewBuilder func productOptionView(
-        storeProduct: StoreProduct,
-        product: Product,
+        storeProductVersions: StoreProductVersions,
         maxWidth: CGFloat
     ) -> some View {
         let priceViewModel = PriceViewModel(storeHelper: storeHelper, purchaseState: $storeViewModel.purchaseState)
         PurchaseOptionView(
             storeViewModel: storeViewModel,
-            product: product,
+            storeProductVersions: storeProductVersions,
             purchaseState: $storeViewModel.purchaseState,
-            unitsRemaining: storeProduct.unitsRemaining,
-            unitsPurchased: storeProduct.unitsPurchased,
-            unitsName: storeProduct.unitsName,
-            symbolName: storeProduct.iconSymbolName,
-            buyTitle: storeProduct.buyButtonTitle,
             maxWidth: maxWidth
-        ) {
+        ) { storeProduct, product in
             storeViewModel.purchase(
                 storeProduct: storeProduct,
                 storeKitProduct: product,
