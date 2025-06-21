@@ -238,9 +238,6 @@ fileprivate struct AddReferralCodeButton: View {
             Task { @MainActor in
                 do {
                     let isValid = try await storeViewModel.validateReferralCode(code)
-                    referralStatusMessage = isValid
-                    ? "Referral code \"\(code.uppercased())\" is valid!"
-                    : "Referral code \"\(code.uppercased())\" invalid or expired."
                     if isValid {
                         pendingReferralCode = code
                     } else {
@@ -251,13 +248,31 @@ fileprivate struct AddReferralCodeButton: View {
                 }
             }
         }
+        .task(id: pendingReferralCode) { @MainActor in
+            refreshMessage()
+        }
+        
         if let message = referralStatusMessage {
             Text(message)
                 .font(.footnote)
-                .foregroundColor(.secondary)
+                .foregroundColor(!(pendingReferralCode?.isEmpty ?? true) ? .green : .red)
+                .fontWeight(.heavy)
                 .multilineTextAlignment(.center)
                 .padding(.top, 4)
         }
+    }
+    
+    @MainActor
+    private func refreshMessage() {
+        guard let code = pendingReferralCode, !code.isEmpty else {
+            guard let referralCodeToValidate, !referralCodeToValidate.isEmpty else {
+                referralStatusMessage = nil
+                return
+            }
+            referralStatusMessage = "Referral code \"\(referralCodeToValidate.uppercased())\" invalid or expired."
+            return
+        }
+        referralStatusMessage = "Referral code \"\(code.uppercased())\" is active!"
     }
 }
 
@@ -414,10 +429,21 @@ public struct StoreProduct: Identifiable {
     
     public let iconSymbolName: String
     public let buyButtonTitle: String?
-    
+    public let badgeText: String?
+
     public let filterPurchase: ((StoreProduct) -> Bool)
     
-    public init(id: String, isSubscription: Bool, unitsRemaining: Int? = nil, unitsPurchased: Int? = nil, unitsName: String? = nil, iconSymbolName: String, buyButtonTitle: String? = nil, filterPurchase: @escaping ((StoreProduct) -> Bool) = { _ in return true } ) {
+    public init(
+        id: String,
+        isSubscription: Bool,
+        unitsRemaining: Int? = nil,
+        unitsPurchased: Int? = nil,
+        unitsName: String? = nil,
+        iconSymbolName: String,
+        buyButtonTitle: String? = nil,
+        badgeText: String? = nil,
+        filterPurchase: @escaping ((StoreProduct) -> Bool) = { _ in return true }
+    ) {
         self.id = id
         self.isSubscription = isSubscription
         self.unitsRemaining = unitsRemaining
@@ -425,6 +451,7 @@ public struct StoreProduct: Identifiable {
         self.unitsName = unitsName
         self.iconSymbolName = iconSymbolName
         self.buyButtonTitle = buyButtonTitle
+        self.badgeText = badgeText
         self.filterPurchase = filterPurchase
     }
     
@@ -562,13 +589,22 @@ public struct StoreView: View {
                 AddReferralCodeButton()
 #endif
             }
-            .padding()
+            .padding(8)
         }
         .background {
 #if os(iOS)
-            Color.systemGroupedBackground.opacity(0.8)
+//            Color.systemGroupedBackground.opacity(0.8)
+            Rectangle()
+                .modifier {
+                    if #available(iOS 16, macOS 13, *) {
+                        $0.fill(Color.systemGroupedBackground.opacity(0.65).gradient)
+                    } else {
+                        $0.fill(Color.systemGroupedBackground.opacity(0.65))
+                    }
+                }
 #elseif os(macOS)
-            Color.gray.opacity(0.15)
+                .fill(Color.gray.opacity(0.15))
+//            Color.gray.opacity(0.15)
 #endif
         }
     }

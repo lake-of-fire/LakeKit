@@ -14,19 +14,7 @@ public struct PurchaseOptionView: View {
     
     @AppStorage("pendingReferralCode") private var pendingReferralCode: String?
     
-    //    @ScaledMetric(relativeTo: .caption) private var subtitleWidth = 50
-    //    @ScaledMetric(relativeTo: .caption) private var subtitleHeight = 40
-    @ScaledMetric(relativeTo: .body) private var buttonIdealWidth = 145
-    @ScaledMetric(relativeTo: .body) private var buttonHorizontalPadding = 12
-    
-    @Environment(\.isICloudSyncActive) private var isICloudSyncActive: Bool
-    @Environment(\.iCloudSyncStateSummary) private var iCloudSyncStateSummary: SyncMonitor.SyncSummaryStatus
-    @Environment(\.iCloudSyncError) private var iCloudSyncError: Error?
-    @State private var isPresentingICloudIssue = false
-    
     @EnvironmentObject private var storeHelper: StoreHelper
-    @State private var prePurchaseSubInfo: PrePurchaseSubscriptionInfo?
-    @State private var canMakePayments: Bool = false
     
     private var hasValidReferralCode: Bool {
         return !(pendingReferralCode?.isEmpty ?? true)
@@ -74,11 +62,12 @@ fileprivate struct PurchaseOptionVersionView: View {
     
     @AppStorage("pendingReferralCode") private var pendingReferralCode: String?
     
-//    @ScaledMetric(relativeTo: .caption) private var subtitleWidth = 50
-//    @ScaledMetric(relativeTo: .caption) private var subtitleHeight = 40
+    //    @ScaledMetric(relativeTo: .caption) private var subtitleWidth = 50
+    //    @ScaledMetric(relativeTo: .caption) private var subtitleHeight = 40
     @ScaledMetric(relativeTo: .body) private var buttonIdealWidth = 145
-    @ScaledMetric(relativeTo: .body) private var buttonHorizontalPadding = 12
-    
+    @ScaledMetric(relativeTo: .body) private var buttonHorizontalPadding = 20
+    @ScaledMetric(relativeTo: .caption2) private var popularBadgeHeight: CGFloat = 20
+
     @Environment(\.isICloudSyncActive) private var isICloudSyncActive: Bool
     @Environment(\.iCloudSyncStateSummary) private var iCloudSyncStateSummary: SyncMonitor.SyncSummaryStatus
     @Environment(\.iCloudSyncError) private var iCloudSyncError: Error?
@@ -87,7 +76,8 @@ fileprivate struct PurchaseOptionVersionView: View {
     @EnvironmentObject private var storeHelper: StoreHelper
     @State private var prePurchaseSubInfo: PrePurchaseSubscriptionInfo?
     @State private var canMakePayments: Bool = false
-    
+    @State private var offerSubtitle: String?
+
     init(
         storeViewModel: StoreViewModel,
         product: Product,
@@ -114,14 +104,33 @@ fileprivate struct PurchaseOptionVersionView: View {
         self.action = action
     }
     
-    private var displayPrice: String {
-        if product.type == .autoRenewable {
-            // TODO: Support promos if needed
-            return product.displayPrice
-        } else if product.type == .consumable {
-            return product.displayPrice
+    /// The eligible introductory or promotional offer for this product, if any.
+    private var availableOffer: SubscriptionOfferInfo? {
+        guard product.type == .autoRenewable, let info = prePurchaseSubInfo else { return nil }
+        // Promotional offers take precedence.
+        if info.promotionalOffersEligible, let promo = info.promotionalOffers.first {
+            return promo
         }
-        return "$---"
+        // Fall back to an introductory offer if the user is eligible.
+        if info.introductoryOfferEligible, let intro = info.introductoryOffer {
+            return intro
+        }
+        return nil
+    }
+    
+    /// `true` when the current offer represents an actual price discount
+    /// (i.e. it is *not* just a free‑trial period).
+    private var hasDiscountedPrice: Bool {
+        guard let mode = availableOffer?.paymentMode else { return false }
+        return mode != .freeTrial
+    }
+    
+    /// Price string shown most prominently (discounted price if applicable).
+    private var displayPrice: String {
+        if hasDiscountedPrice, let offerPrice = availableOffer?.offerPrice {
+            return offerPrice
+        }
+        return product.displayPrice
     }
     
     private var displayPriceType: String {
@@ -174,138 +183,195 @@ fileprivate struct PurchaseOptionVersionView: View {
     }
     
     var body: some View {
-            Button {
-                submitAction()
-            } label: {
-                GroupBox {
-                    VStack(spacing: 0) {
-                        HStack(spacing: 0) {
-                            Circle()
-                                .modifier {
-                                    if #available(iOS 16, macOS 13, *) {
-                                        $0.fill(Color.accentColor.gradient)
-                                    } else {
-                                        $0.foregroundColor(Color.accentColor)
+        Button {
+            submitAction()
+        } label: {
+            GroupBox {
+                VStack(spacing: 0) {
+                    HStack(spacing: 0) {
+                        Circle()
+                            .modifier {
+                                if #available(iOS 16, macOS 13, *) {
+//                                    $0.fill(Color.accentColor.gradient)
+                                    $0.strokeBorder(Color.accentColor.gradient, lineWidth: 2)
+                                } else {
+//                                    $0.foregroundColor(Color.accentColor)
+                                    $0.strokeBorder(Color.accentColor, lineWidth: 2)
+                                }
+                            }
+                            .frame(width: 40, height: 40)
+                            .overlay {
+                                Image(systemName: symbolName)
+                                    .font(.system(size: 17))
+//                                    .foregroundColor(.white)
+                                    .modifier {
+                                        if #available(iOS 16, macOS 13, *) {
+                                            $0
+                                                .foregroundStyle(Color.accentColor.gradient)
+                                                .fontWeight(.semibold)
+                                        } else {
+                                            $0.foregroundColor(Color.accentColor)
+                                        }
                                     }
-                                }
-                                .frame(width: 40, height: 40)
-                                .overlay {
-                                    Image(systemName: symbolName)
-                                        .font(.system(size: 18))
-                                        .foregroundColor(.white)
-                                        .fixedSize()
-                                }
-                                .clipShape(Circle())
-                                .fixedSize()
-                            Spacer()
-                                .frame(minWidth: 5, idealWidth: 15)
-                            VStack(spacing: 0) {
-                                Text(displayPrice)
-                                    .font(.headline)
-                                    .bold()
-                                    .fixedSize(horizontal: false, vertical: true)
-                                Text(displayPriceType)
-                                    .multilineTextAlignment(.center)
-                                    .foregroundColor(.primary)
+                                    .fixedSize()
+                            }
+                            .clipShape(Circle())
+                            .fixedSize()
+                        Spacer()
+                            .frame(minWidth: 5, idealWidth: 15)
+                        VStack(spacing: 0) {
+                            // Original price with strikethrough when a discounted offer exists
+                            if hasDiscountedPrice {
+                                Text(product.displayPrice)
+                                    .font(.caption2)
+                                    .strikethrough()
                                     .foregroundColor(.secondary)
-                                    .font(.caption)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
-                        }
-                        .fixedSize(horizontal: true, vertical: false)
-                        .padding(.horizontal, 2)
-                        .padding(.vertical, 2)
-                        
-                        if buyTitle != nil {
-                            Text(product.displayName)
+                            
+                            // Main (possibly discounted) price
+                            Text(displayPrice)
                                 .font(.headline)
+                                .bold()
+                                .fixedSize(horizontal: false, vertical: true)
+                            
+                            // Renewal / one‑time descriptor
+                            Text(displayPriceType)
                                 .multilineTextAlignment(.center)
-                                .lineLimit(9001)
-                                .padding(.horizontal, 5)
-                                .foregroundColor(.primary)
+//                                .foregroundColor(.secondary)
+                                .font(.caption)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
-                        
-//                        Text(product.description)
-//                            .font(.caption)
-//                            .multilineTextAlignment(.center)
-//                            .lineLimit(9001)
-//                            .foregroundColor(.secondary)
-//                            .fixedSize(horizontal: false, vertical: true)
-//                            .padding(.vertical, 12)
-                        
-                        if product.type == .autoRenewable, [PurchaseState.purchased, .pending, .inProgress].contains(purchaseState) {
-                            if purchaseState == .inProgress {
-                                ProgressView()
-                                //                                    .padding()
-                            } else {
-                                Text(purchaseState.shortDescription())
-                                    .bold()
-                                    .italic()
-                                    .foregroundColor(.primary)
-                                    .padding()
-                            }
+                    }
+                    .fixedSize(horizontal: true, vertical: false)
+                    .padding(.horizontal, 2)
+                    .padding(.vertical, 2)
+                    
+                    if let subtitle = offerSubtitle {
+                        Text(subtitle)
+                            .multilineTextAlignment(.center)
+                            .foregroundColor(.secondary)
+                            .font(.caption)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.top, 4)
+                    }
+                    
+                    if buyTitle != nil {
+                        Text(product.displayName)
+                            .font(.headline)
+                            .multilineTextAlignment(.center)
+                            .lineLimit(9001)
+                            .padding(.horizontal, 5)
+                            .foregroundColor(.primary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    
+                    //                        Text(product.description)
+                    //                            .font(.caption)
+                    //                            .multilineTextAlignment(.center)
+                    //                            .lineLimit(9001)
+                    //                            .foregroundColor(.secondary)
+                    //                            .fixedSize(horizontal: false, vertical: true)
+                    //                            .padding(.vertical, 12)
+                    
+                    if product.type == .autoRenewable, [PurchaseState.purchased, .pending, .inProgress].contains(purchaseState) {
+                        if purchaseState == .inProgress {
+                            ProgressView()
+                            //                                    .padding()
                         } else {
-                            VStack {
-                                Group {
+                            Text(purchaseState.shortDescription())
+                                .bold()
+                                .italic()
+                                .foregroundColor(.primary)
+                                .padding()
+                        }
+                    } else {
+                        VStack {
+                            Group {
 #if os(iOS)
-                                    //                            Text(buyTitle ?? product.displayName)
-                                    Text("Upgrade")
-                                    //                                .font(.callout)
-                                        .bold()
-                                        .multilineTextAlignment(.center)
-                                        .foregroundColor(.white)
-                                        .padding(.horizontal, buttonHorizontalPadding)
-                                        .padding(.vertical, 6)
-                                        .fixedSize(horizontal: false, vertical: true)
-                                        .background(
-                                            Capsule()
-                                                .foregroundColor(Color.accentColor)
-                                        )
-                                        .conditionalEffect(
-                                            .repeat(
-                                                .shine.delay(0.75),
-                                                every: 4
-                                            ),
-                                            condition: true
-                                        )
+                                //                            Text(buyTitle ?? product.displayName)
+                                Text("Unlock")
+                                //                                .font(.callout)
+                                    .fontWeight(.semibold)
+                                    .multilineTextAlignment(.center)
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, buttonHorizontalPadding)
+                                    .padding(.vertical, 5)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .background(
+                                        Capsule()
+                                            .foregroundColor(Color.accentColor)
+                                    )
+                                    .conditionalEffect(
+                                        .repeat(
+                                            .shine.delay(0.75),
+                                            every: 4
+                                        ),
+                                        condition: true
+                                    )
 #else
-                                    Button {
-                                        submitAction()
-                                    } label: {
-                                        //                                Text(buyTitle ?? product.displayName)
-                                        Text("Upgrade")
-                                            .bold()
-                                            .padding(.horizontal, 6)
-                                            .padding(.vertical, 4)
-                                    }
-                                    .buttonStyle(.borderedProminent)
-                                    .disabled(!canMakePayments)
-                                    .padding(.bottom, unitsLabel.isEmpty ? 4 : 0)
+                                Button {
+                                    submitAction()
+                                } label: {
+                                    //                                Text(buyTitle ?? product.displayName)
+                                    Text("Unlock")
+                                        .fontWeight(.semibold)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 3)
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .disabled(!canMakePayments)
+                                .padding(.bottom, unitsLabel.isEmpty ? 4 : 0)
 #endif
-                                }
-                                .padding(.top)
-                                if isUnitsLabelVisible {
-                                    Text(unitsLabel)
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                        .frame(minHeight: 24)
-                                        .padding(.bottom, unitsLabel.isEmpty ? 4 : 6)
-                                }
+                            }
+                            .padding(.top, 10)
+                            
+                            if isUnitsLabelVisible {
+                                Text(unitsLabel)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .frame(minHeight: 24)
+                                    .padding(.bottom, unitsLabel.isEmpty ? 4 : 6)
                             }
                         }
                     }
                 }
-                .frame(idealWidth: buttonIdealWidth)
-                .fixedSize()
             }
-            .buttonStyle(.plain)
-//            .backgroundStyle(.secondary)
-//            .foregroundStyle(.primary)
-//            .frame(idealWidth: buttonIdealWidth)
-//        }
-//        .frame(maxWidth: maxWidth)
-//        .buttonBorderShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .frame(idealWidth: buttonIdealWidth)
+            .fixedSize()
+            .overlay(alignment: .top) {
+                if let badgeText = storeProduct.badgeText {
+                    ZStack {
+                        Text(badgeText)
+                            .font(.caption2)
+                            .bold()
+                            .textCase(.uppercase)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 10)
+                            .frame(minHeight: popularBadgeHeight)
+                    }
+                    .background(
+                        Capsule()
+                            .modifier {
+                                if #available(iOS 16, macOS 13, *) {
+                                    $0.fill(Color.green.gradient)
+                                } else {
+                                    $0.foregroundColor(Color.green)
+                                }
+                            }
+                    )
+                    .offset(y: -popularBadgeHeight / 2)
+                }
+            }
+            .padding(.top, popularBadgeHeight / 2) // So badge doesn’t get clipped
+        }
+        .buttonStyle(.plain)
+        //            .backgroundStyle(.secondary)
+        //            .foregroundStyle(.primary)
+        //            .frame(idealWidth: buttonIdealWidth)
+        //        }
+        //        .frame(maxWidth: maxWidth)
+        //        .buttonBorderShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         //        .buttonStyle(.borderless)
         .disabled(!canMakePayments || purchaseState == .purchased || purchaseState == .unknown)
         //        .overlay(
@@ -317,16 +383,22 @@ fileprivate struct PurchaseOptionVersionView: View {
         //        .clipped()
         //        .buttonBorderShape(.roundedRectangle)
         //        .border(Color.accentColor, width: 2)
-        .task {
-            Task { @MainActor in
-                canMakePayments = AppStore.canMakePayments
-                
-                let isPurchased = (try? await storeHelper.isPurchased(product: product)) ?? false
-                purchaseState = isPurchased ? .purchased : .notPurchased
-                
-                if purchaseState != .purchased {
-                    let priceViewModel = PriceViewModel(storeHelper: storeHelper, purchaseState: $purchaseState)
-                    prePurchaseSubInfo = await priceViewModel.getPrePurchaseSubscriptionInfo(productId: product.id)
+        .task(id: storeProduct.id) { @MainActor in
+            canMakePayments = AppStore.canMakePayments
+            
+            let isPurchased = (try? await storeHelper.isPurchased(product: product)) ?? false
+            purchaseState = isPurchased ? .purchased : .notPurchased
+            
+            if purchaseState != .purchased {
+                let priceViewModel = PriceViewModel(storeHelper: storeHelper, purchaseState: $purchaseState)
+                prePurchaseSubInfo = await priceViewModel.getPrePurchaseSubscriptionInfo(productId: product.id)
+                if let prePurchaseSubInfo {
+                    offerSubtitle = createOfferDisplay(
+                        product: product,
+                        prePurchaseSubInfo: prePurchaseSubInfo
+                    )
+                } else {
+                    
                 }
             }
         }
@@ -347,7 +419,86 @@ fileprivate struct PurchaseOptionVersionView: View {
             }
         })
     }
-   
+    
+    private func createOfferDisplay(
+        product: Product,
+        prePurchaseSubInfo: PrePurchaseSubscriptionInfo
+    ) -> String? {
+        guard let offer = availableOffer, let sub = product.subscription else {
+            return nil
+        }
+        if prePurchaseSubInfo.promotionalOffersEligible, !prePurchaseSubInfo.promotionalOffers.isEmpty, let promoOffer = sub.promotionalOffers.first {
+            return createOfferDisplay(
+                for: promoOffer.paymentMode,
+                product: product,
+                price: promoOffer.displayPrice,
+                period: promoOffer.period,
+                periodCount: promoOffer.periodCount,
+                offerType: promoOffer.type
+            )
+        } else if prePurchaseSubInfo.introductoryOfferEligible, let introOffer = product.subscription?.introductoryOffer {
+            return createOfferDisplay(
+                for: introOffer.paymentMode,
+                product: product,
+                price: introOffer.displayPrice,
+                period: introOffer.period,
+                periodCount: introOffer.periodCount,
+                offerType: introOffer.type
+            )
+        }
+        return nil
+    }
+    
+    private func createOfferDisplay(
+        for paymentMode: Product.SubscriptionOffer.PaymentMode,
+        product: Product,
+        price: String,
+        period: Product.SubscriptionPeriod,
+        periodCount: Int,
+        offerType: Product.SubscriptionOffer.OfferType
+    ) -> String? {
+        guard let sub = product.subscription else { return nil }
+        let offer = sub.promotionalOffers
+        
+        switch paymentMode {
+        case .payAsYouGo:
+            return "for the \(periodCount == 1 ? "first" : "first \(periodCount)") \(periodUnitText(period.unit, product: product)) and then \(product.displayPrice) per \(periodUnitText(period.unit, product: product)) after that"
+        case .payUpFront:
+            let result = "by paying up-front for the \(periodCount == 1 ? "first" : "first \(periodCount)") \(periodUnitText(period.unit, product: product)) and then \(product.displayPrice) per \(periodUnitText(period.unit, product: product)) after that"
+            return "\(periodText(period, product: product)) at\n \(offerType == .introductory ? "an introductory" : "a promotional") price of\n \(price)"
+        case .freeTrial:
+            return "\(periodText(period, product: product))\n\(offerType == .introductory ? "free trial" : "promotional period at no charge")"
+        default:
+            return nil
+        }
+    }
+    
+    // Forked from StoreHelper
+    private func periodUnitText(_ unit: Product.SubscriptionPeriod.Unit, product: Product) -> String {
+        if #available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, visionOS 1.0, *) {
+            let format = product.subscriptionPeriodUnitFormatStyle.locale(.current)
+            return unit.formatted(format)
+        } else if #available(iOS 15.4, macOS 12.3, tvOS 15.4, watchOS 8.6, *) {
+            return unit.localizedDescription
+        } else {
+            switch unit {
+            case .day:          return "day"
+            case .week:         return "week"
+            case .month:        return "month"
+            case .year:         return "year"
+            @unknown default:   return "unknown"
+            }
+        }
+    }
+    
+    // Forked from StoreHelper
+    private func periodText(_ period: Product.SubscriptionPeriod, product: Product) -> String {
+        var format = product.subscriptionPeriodFormatStyle
+        format.style = .wide
+        format.locale = .current
+        return period.formatted(format)
+    }
+    
     func submitAction() {
         Task.detached {
             guard await storeViewModel.satisfyingPrerequisite() else { return }
@@ -358,5 +509,14 @@ fileprivate struct PurchaseOptionVersionView: View {
                 }
             }
         }
+    }
+}
+
+fileprivate extension Color {
+    static var gold: Color {
+        //        get { return UIColor(red: 255/255, green: 243/255, blue: 117/255, alpha: 1) }
+        Color(red: 254.0/255, green: 180.0/255, blue: 0.0/255)
+        //        get { return UIColor(red: 236/255, green: 180/255, blue: 71/255, alpha: 1) }
+        //        get { return UIColor(red: 175/255, green: 153/255, blue: 91/255, alpha: 1) }
     }
 }
