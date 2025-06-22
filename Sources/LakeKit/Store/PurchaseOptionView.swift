@@ -338,13 +338,6 @@ fileprivate struct PurchaseOptionVersionView: View {
                     }
                 }
             }
-#if os(iOS)
-            .modifier {
-                if #available(iOS 16, macOS 13, *) {
-                    $0.backgroundStyle(Color.systemBackground)
-                } else { $0 }
-            }
-#endif
             .frame(idealWidth: buttonIdealWidth)
             .fixedSize()
             .overlay(alignment: .top) {
@@ -372,6 +365,13 @@ fileprivate struct PurchaseOptionVersionView: View {
                 }
             }
             .padding(.top, popularBadgeHeight / 2) // So badge doesn’t get clipped
+#if os(iOS)
+            .modifier {
+                if #available(iOS 16, macOS 13, *) {
+                    $0.backgroundStyle(Color.systemBackground)
+                } else { $0 }
+            }
+#endif
         }
         .buttonStyle(.plain)
         //            .backgroundStyle(.secondary)
