@@ -183,13 +183,15 @@ fileprivate struct ViewStudentDiscountButton: View {
             isStudentDiscountExpanded = true
         } label: {
             (Text("Student & low-income discounts") + Text("  \(Image(systemName: "chevron.right.circle.fill"))"))
-                .font(.callout)
+//                .font(.callout)
                 .bold()
                 .lineLimit(9001)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
+//                .padding(5)
         }
-        .buttonStyle(.bordered)
+//        .buttonStyle(.bordered)
+        .buttonStyle(.borderless)
 #if os(iOS)
         .modifier {
             if #available(iOS 15, macOS 14, *) {
@@ -210,55 +212,56 @@ fileprivate struct AddReferralCodeButton: View {
     @State private var referralCodeToValidate: String?
 
     var body: some View {
-        Button {
-            showingReferralAlert = true
-        } label: {
-            (Text("Have a referral code?") + Text("  \(Image(systemName: "chevron.right.circle"))"))
-
-        }
-        .buttonStyle(.borderless)
-        .controlSize(.small)
-        .alert("Enter Referral Code", isPresented: $showingReferralAlert) {
-            TextField("Referral Code", text: $referralCodeInput)
-                .textInputAutocapitalization(.characters)
-                .autocorrectionDisabled(true)
-            Button("OK") {
-                referralCodeToValidate = referralCodeInput.lowercased()
+        VStack {
+            Button {
+                showingReferralAlert = true
+            } label: {
+                (Text("Have a referral code?") + Text("  \(Image(systemName: "chevron.right.circle"))"))
             }
-            Button("Cancel", role: .cancel) { }
-        } message: {
-            Text("Enter your referral code to apply it to your purchase.")
-        }
-        .onChange(of: referralCodeToValidate) { newValue in
-            guard let code = newValue?.lowercased(), !code.isEmpty else {
-                referralStatusMessage = nil
-                pendingReferralCode = nil
-                return
+            .buttonStyle(.borderless)
+            .controlSize(.small)
+            .alert("Enter Referral Code", isPresented: $showingReferralAlert) {
+                TextField("Referral Code", text: $referralCodeInput)
+                    .textInputAutocapitalization(.characters)
+                    .autocorrectionDisabled(true)
+                Button("OK") {
+                    referralCodeToValidate = referralCodeInput.lowercased()
+                }
+                Button("Cancel", role: .cancel) { }
+            } message: {
+                Text("Enter your referral code to apply it to your purchase.")
             }
-            Task { @MainActor in
-                do {
-                    let isValid = try await storeViewModel.validateReferralCode(code)
-                    if isValid {
-                        pendingReferralCode = code
-                    } else {
-                        pendingReferralCode = nil
+            .onChange(of: referralCodeToValidate) { newValue in
+                guard let code = newValue?.lowercased(), !code.isEmpty else {
+                    referralStatusMessage = nil
+                    pendingReferralCode = nil
+                    return
+                }
+                Task { @MainActor in
+                    do {
+                        let isValid = try await storeViewModel.validateReferralCode(code)
+                        if isValid {
+                            pendingReferralCode = code
+                        } else {
+                            pendingReferralCode = nil
+                        }
+                    } catch {
+                        referralStatusMessage = "Failed to validate referral code: \(error.localizedDescription)"
                     }
-                } catch {
-                    referralStatusMessage = "Failed to validate referral code: \(error.localizedDescription)"
                 }
             }
-        }
-        .task(id: pendingReferralCode) { @MainActor in
-            refreshMessage()
-        }
-        
-        if let message = referralStatusMessage {
-            Text(message)
-                .font(.footnote)
-                .foregroundColor(!(pendingReferralCode?.isEmpty ?? true) ? .green : .red)
-                .fontWeight(.heavy)
-                .multilineTextAlignment(.center)
-                .padding(.top, 4)
+            .task(id: pendingReferralCode) { @MainActor in
+                refreshMessage()
+            }
+            
+            if let message = referralStatusMessage {
+                Text(message)
+                    .font(.footnote)
+                    .foregroundColor(!(pendingReferralCode?.isEmpty ?? true) ? .secondary : .red)
+                    .fontWeight(.semibold)
+                    .multilineTextAlignment(.center)
+//                    .padding(.top, 4)
+            }
         }
     }
     
@@ -272,7 +275,7 @@ fileprivate struct AddReferralCodeButton: View {
             referralStatusMessage = "Referral code \"\(referralCodeToValidate.uppercased())\" invalid or expired."
             return
         }
-        referralStatusMessage = "Referral code \"\(code.uppercased())\" is active!"
+        referralStatusMessage = "✔️ Referral code \"\(code.uppercased())\" is active!"
     }
 }
 
@@ -297,7 +300,7 @@ fileprivate struct PrimaryTestimonialView: View {
                                     testimonialImage
                                         .resizable()
                                         .aspectRatio(contentMode: .fit)
-                                        .frame(maxHeight: 40)
+                                        .frame(maxHeight: 36)
                                 }
                                 .fixedSize()
                                 Spacer(minLength: 0)
@@ -306,7 +309,7 @@ fileprivate struct PrimaryTestimonialView: View {
                             testimonialImage
                                 .resizable()
                                 .aspectRatio(contentMode: .fit)
-                                .frame(maxHeight: 40)
+                                .frame(maxHeight: 36)
                         }
                         Spacer(minLength: 0)
                     }
@@ -569,7 +572,7 @@ public struct StoreView: View {
                     maxWidth: storeOptionsMaxWidth(geometrySize: geometry.size)
                 )
                 .frame(maxWidth: storeOptionsMaxWidth(geometrySize: geometry.size))
-                .padding(.bottom)
+                .padding(.bottom, 10)
                 
                 if let productGroupSubtitle = storeViewModel.productGroupSubtitle, !productGroupSubtitle.isEmpty {
                     Text(productGroupSubtitle)
@@ -708,7 +711,7 @@ public struct StoreView: View {
                                         
 #if DEBUG
                                         AddReferralCodeButton()
-                                            .padding(.top, 10)
+                                            .padding(.top, 16)
 #endif
                                     }
                                     .padding(.top, 5)

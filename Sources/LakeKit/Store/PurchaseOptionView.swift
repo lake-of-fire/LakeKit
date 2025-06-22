@@ -65,7 +65,7 @@ fileprivate struct PurchaseOptionVersionView: View {
     //    @ScaledMetric(relativeTo: .caption) private var subtitleWidth = 50
     //    @ScaledMetric(relativeTo: .caption) private var subtitleHeight = 40
     @ScaledMetric(relativeTo: .body) private var buttonIdealWidth = 145
-    @ScaledMetric(relativeTo: .body) private var buttonHorizontalPadding = 20
+    @ScaledMetric(relativeTo: .body) private var buttonHorizontalPadding = 24
     @ScaledMetric(relativeTo: .caption2) private var popularBadgeHeight: CGFloat = 20
 
     @Environment(\.isICloudSyncActive) private var isICloudSyncActive: Bool
@@ -325,7 +325,8 @@ fileprivate struct PurchaseOptionVersionView: View {
 #endif
                             }
                             .padding(.top, 10)
-                            
+                            .padding(.bottom, 10)
+
                             if isUnitsLabelVisible {
                                 Text(unitsLabel)
                                     .font(.caption)
@@ -337,6 +338,13 @@ fileprivate struct PurchaseOptionVersionView: View {
                     }
                 }
             }
+#if os(iOS)
+            .modifier {
+                if #available(iOS 16, macOS 13, *) {
+                    $0.backgroundStyle(Color.systemBackground)
+                } else { $0 }
+            }
+#endif
             .frame(idealWidth: buttonIdealWidth)
             .fixedSize()
             .overlay(alignment: .top) {
