@@ -325,7 +325,6 @@ fileprivate struct PurchaseOptionVersionView: View {
 #endif
                             }
                             .padding(.top, 10)
-                            .padding(.bottom, 10)
 
                             if isUnitsLabelVisible {
                                 Text(unitsLabel)
@@ -345,7 +344,7 @@ fileprivate struct PurchaseOptionVersionView: View {
                     ZStack {
                         Text(badgeText)
                             .font(.caption2)
-                            .bold()
+                            .fontWeight(.heavy)
                             .textCase(.uppercase)
                             .foregroundColor(.white)
                             .padding(.horizontal, 10)

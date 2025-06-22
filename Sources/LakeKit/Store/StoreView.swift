@@ -590,7 +590,7 @@ public struct StoreView: View {
                 }
 #if DEBUG
                 AddReferralCodeButton()
-                    .padding(.top, 8)
+                    .padding(.top, 5)
 #endif
             }
             .padding(8)
