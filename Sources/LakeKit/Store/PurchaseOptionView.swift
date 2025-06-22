@@ -367,8 +367,8 @@ fileprivate struct PurchaseOptionVersionView: View {
             .padding(.top, popularBadgeHeight / 2) // So badge doesn’t get clipped
 #if os(iOS)
             .modifier {
-                if #available(iOS 16, macOS 13, *) {
-                    $0.backgroundStyle(colorScheme == .dark ? nil : Color.systemBackground)
+                if #available(iOS 16, macOS 13, *), colorScheme == .light {
+                    $0.backgroundStyle(Color.systemBackground)
                 } else { $0 }
             }
 #endif
