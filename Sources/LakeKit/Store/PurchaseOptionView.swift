@@ -71,6 +71,7 @@ fileprivate struct PurchaseOptionVersionView: View {
     @Environment(\.isICloudSyncActive) private var isICloudSyncActive: Bool
     @Environment(\.iCloudSyncStateSummary) private var iCloudSyncStateSummary: SyncMonitor.SyncSummaryStatus
     @Environment(\.iCloudSyncError) private var iCloudSyncError: Error?
+    @Environment(\.colorScheme) private var colorScheme
     @State private var isPresentingICloudIssue = false
     
     @EnvironmentObject private var storeHelper: StoreHelper
@@ -367,7 +368,7 @@ fileprivate struct PurchaseOptionVersionView: View {
 #if os(iOS)
             .modifier {
                 if #available(iOS 16, macOS 13, *) {
-                    $0.backgroundStyle(Color.systemBackground)
+                    $0.backgroundStyle(colorScheme == .dark ? nil : Color.systemBackground)
                 } else { $0 }
             }
 #endif
