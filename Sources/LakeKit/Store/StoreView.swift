@@ -311,7 +311,7 @@ fileprivate struct PrimaryTestimonialView: View {
         if let awardTestimonial = storeViewModel.awardTestimonial {
             VStack(alignment: .center) {
                 if let awardTitle = storeViewModel.awardTitle, let awardImage = storeViewModel.awardImage {
-                    HStack(alignment: .bottom, spacing: 0) {
+                    HStack(alignment: .center, spacing: 0) {
                         Spacer(minLength: 0)
                         laurelImage(side: .left)
                             .padding(.trailing, 5)
@@ -541,9 +541,10 @@ public struct StoreView: View {
                     )
                 }
                 AddReferralCodeButton()
-                    .padding(.top, 5)
+                    .padding(.top, 3)
             }
-            .padding(8)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 16)
         }
         .background {
 #if os(iOS)
@@ -646,7 +647,7 @@ public struct StoreView: View {
                                     isExpanded: $isStudentDiscountExpanded,
                                     discountView: {
                                         VStack {
-                                            Text("Students and those who cannot afford the full-price rates are welcome to a special discount. The low-income discount requires that you cannot afford the regular price. These discounts are subsidized by customers who pay the full price.")
+                                            Text("Students and those who cannot afford the full-price rates are welcome to a special discount. The low-income discount requires that you cannot afford the regular price.\n\nThis discount is subsidized by customers who pay the full price.")
                                                 .font(.subheadline)
                                                 .padding()
                                                 .multilineTextAlignment(.leading)

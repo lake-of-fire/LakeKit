@@ -596,7 +596,7 @@ fileprivate struct FreeModeView: View {
                     }
                 }
                 
-                PrimaryButton(title: "Check Discounts Qualification", systemImage: nil, controlSize: .regular) {
+                PrimaryButton(title: "Check Discount Qualification", systemImage: nil, controlSize: .regular) {
 #if os(iOS)
                     UIImpactFeedbackGenerator(style: .medium).impactOccurred()
 #endif
