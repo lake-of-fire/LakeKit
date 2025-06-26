@@ -31,10 +31,10 @@ public class StoreViewModel: NSObject, ObservableObject {
     @Published public var productGroupHeading: String
     @Published public var productGroupSubtitle: String?
     @Published public var freeTierExplanation: String?
-    @Published public var testimonialTitle: String?
-    @Published public var testimonialImage: Image?
-    @Published public var testimonial: String?
-    @Published public var testimonialLink: URL?
+    @Published public var awardTitle: String?
+    @Published public var awardImage: Image?
+    @Published public var awardTestimonial: String?
+    @Published public var awardLink: URL?
     @Published public var benefits: [String]
     @Published public var termsOfService: URL
     @Published public var privacyPolicy: URL
@@ -60,10 +60,10 @@ public class StoreViewModel: NSObject, ObservableObject {
         productGroupHeading: String,
         productGroupSubtitle: String?,
         freeTierExplanation: String? = nil,
-        testimonialTitle: String?,
-        testimonialImage: Image?,
-        testimonial: String,
-        testimonialLink: URL?,
+        awardTitle: String?,
+        awardImage: Image?,
+        awardTestimonial: String,
+        awardLink: URL?,
         benefits: [String],
         termsOfService: URL,
         privacyPolicy: URL,
@@ -83,10 +83,10 @@ public class StoreViewModel: NSObject, ObservableObject {
         self.productGroupHeading = productGroupHeading
         self.productGroupSubtitle = productGroupSubtitle
         self.freeTierExplanation = freeTierExplanation
-        self.testimonialTitle = testimonialTitle
-        self.testimonialImage = testimonialImage
-        self.testimonial = testimonial
-        self.testimonialLink = testimonialLink
+        self.awardTitle = awardTitle
+        self.awardImage = awardImage
+        self.awardTestimonial = awardTestimonial
+        self.awardLink = awardLink
         self.benefits = benefits
         self.termsOfService = termsOfService
         self.privacyPolicy = privacyPolicy
@@ -244,5 +244,79 @@ public class StoreViewModel: NSObject, ObservableObject {
                 }
             }
         }
+    }
+}
+
+public struct StoreProduct: Identifiable {
+    public let id: String
+    
+    public let isSubscription: Bool
+    public let unitsRemaining: Int?
+    public let unitsPurchased: Int?
+    public let unitsName: String?
+    
+    public let iconSymbolName: String
+    public let buyButtonTitle: String?
+    public let badgeText: String?
+    
+    public let filterPurchase: ((StoreProduct) -> Bool)
+    
+    public init(
+        id: String,
+        isSubscription: Bool,
+        unitsRemaining: Int? = nil,
+        unitsPurchased: Int? = nil,
+        unitsName: String? = nil,
+        iconSymbolName: String,
+        buyButtonTitle: String? = nil,
+        badgeText: String? = nil,
+        filterPurchase: @escaping ((StoreProduct) -> Bool) = { _ in return true }
+    ) {
+        self.id = id
+        self.isSubscription = isSubscription
+        self.unitsRemaining = unitsRemaining
+        self.unitsPurchased = unitsPurchased
+        self.unitsName = unitsName
+        self.iconSymbolName = iconSymbolName
+        self.buyButtonTitle = buyButtonTitle
+        self.badgeText = badgeText
+        self.filterPurchase = filterPurchase
+    }
+    
+    func product(storeHelper: StoreHelper) -> Product? {
+        return storeHelper.product(from: id)
+    }
+}
+
+public struct StoreProductVersions: Identifiable {
+    public let product: StoreProduct
+    public let referralProduct: StoreProduct
+    
+    public var id: String {
+        return product.id
+    }
+    
+    public enum StoreProductVersion {
+        case product
+        case referralProduct
+    }
+    
+    public init(
+        product: StoreProduct,
+        referralProduct: StoreProduct
+    ) {
+        self.product = product
+        self.referralProduct = referralProduct
+    }
+    
+    func product(version: StoreProductVersion, storeHelper: StoreHelper) -> Product? {
+        let product: StoreProduct
+        switch version {
+        case .product:
+            product = self.product
+        case .referralProduct:
+            product = referralProduct
+        }
+        return storeHelper.product(from: product.id)
     }
 }

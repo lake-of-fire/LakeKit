@@ -183,14 +183,14 @@ fileprivate struct ViewStudentDiscountButton: View {
             isStudentDiscountExpanded = true
         } label: {
             (Text("Student & low-income discounts") + Text("  \(Image(systemName: "chevron.right.circle.fill"))"))
-//                .font(.callout)
+            //                .font(.callout)
                 .bold()
                 .lineLimit(9001)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
-//                .padding(5)
+            //                .padding(5)
         }
-//        .buttonStyle(.bordered)
+        //        .buttonStyle(.bordered)
         .buttonStyle(.borderless)
 #if os(iOS)
         .modifier {
@@ -210,7 +210,7 @@ fileprivate struct AddReferralCodeButton: View {
     @State private var showingReferralAlert: Bool = false
     @State private var referralStatusMessage: String?
     @State private var referralCodeToValidate: String?
-
+    
     var body: some View {
         VStack {
             Button {
@@ -257,10 +257,10 @@ fileprivate struct AddReferralCodeButton: View {
             if let message = referralStatusMessage {
                 Text(message)
                     .font(.footnote)
-                    .foregroundColor(!(pendingReferralCode?.isEmpty ?? true) ? .secondary : .red)
+                    .foregroundColor(!(pendingReferralCode?.isEmpty ?? true) ? .primary : .red)
                     .fontWeight(.semibold)
                     .multilineTextAlignment(.center)
-//                    .padding(.top, 4)
+                //                    .padding(.top, 4)
             }
         }
     }
@@ -282,50 +282,76 @@ fileprivate struct AddReferralCodeButton: View {
 fileprivate struct PrimaryTestimonialView: View {
     @ObservedObject var storeViewModel: StoreViewModel
     
+    @ScaledMetric private var laurelHeight: CGFloat = 75
+    @ScaledMetric private var awardImageHeight: CGFloat = 36
+    enum LaurelSide {
+        case left
+        case right
+        
+        var imageSuffix: String {
+            switch self {
+            case .left: return "Left"
+            case .right: return "Right"
+            }
+        }
+    }
+    
+    @ViewBuilder
+    func laurelImage(side: LaurelSide) -> some View {
+        Image("Laurel \(side.imageSuffix)")
+            .renderingMode(.template)
+            .resizable()
+            .aspectRatio(contentMode: .fit)
+//            .frame(height: height)
+            .foregroundStyle(.secondary)
+            .frame(height: laurelHeight)
+    }
+    
     var body: some View {
-        if let testimonial = storeViewModel.testimonial {
+        if let awardTestimonial = storeViewModel.awardTestimonial {
             VStack(alignment: .center) {
-                if let testimonialTitle = storeViewModel.testimonialTitle {
-                    Text(testimonialTitle)
-                        .font(.headline)
-                        .foregroundStyle(.secondary)
-                }
-                if let testimonialImage = storeViewModel.testimonialImage {
-                    HStack {
+                if let awardTitle = storeViewModel.awardTitle, let awardImage = storeViewModel.awardImage {
+                    HStack(alignment: .bottom, spacing: 0) {
                         Spacer(minLength: 0)
-                        if let testimonialLink = storeViewModel.testimonialLink {
-                            HStack(spacing: 0) {
-                                Spacer(minLength: 0)
-                                Link(destination: testimonialLink) {
-                                    testimonialImage
+                        laurelImage(side: .left)
+                            .padding(.trailing, 5)
+                        
+                        VStack(alignment: .center) {
+                            Text(awardTitle)
+                                .font(.headline)
+                                .foregroundStyle(.secondary)
+                            
+                            if let awardLink = storeViewModel.awardLink {
+                                Link(destination: awardLink) {
+                                    awardImage
                                         .resizable()
                                         .aspectRatio(contentMode: .fit)
-                                        .frame(maxHeight: 36)
+                                        .frame(maxHeight: awardImageHeight)
                                 }
-                                .fixedSize()
-                                Spacer(minLength: 0)
+                            } else {
+                                awardImage
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(maxHeight: awardImageHeight)
                             }
-                        } else {
-                            testimonialImage
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(maxHeight: 36)
                         }
+                        .foregroundStyle(.primary)
+
+                        laurelImage(side: .right)
+                            .padding(.leading, 5)
                         Spacer(minLength: 0)
                     }
-                    .foregroundStyle(.primary)
                     .padding(.bottom, 8)
                 }
-                if let testimonialLink = storeViewModel.testimonialLink {
-                    Link(destination: testimonialLink) {
-                        Text("“\(testimonial)”") + Text("  \(Image(systemName: "chevron.right.circle"))")
+                if let awardLink = storeViewModel.awardLink {
+                    Link(destination: awardLink) {
+                        Text("“\(awardTestimonial)”") + Text("  \(Image(systemName: "chevron.right.circle"))")
                             .italic()
                     }
-                    //                                Link("“\(testimonial)”  ", destination: testimonialLink)
                     .font(.subheadline)
                     .foregroundStyle(.primary)
                 } else {
-                    Text("“\(testimonial)”")
+                    Text("“\(awardTestimonial)”")
                         .italic()
                         .font(.subheadline)
                 }
@@ -422,80 +448,6 @@ struct FreeTierDisclosureGroup<Content: View>: View {
     }
 }
 
-public struct StoreProduct: Identifiable {
-    public let id: String
-    
-    public let isSubscription: Bool
-    public let unitsRemaining: Int?
-    public let unitsPurchased: Int?
-    public let unitsName: String?
-    
-    public let iconSymbolName: String
-    public let buyButtonTitle: String?
-    public let badgeText: String?
-
-    public let filterPurchase: ((StoreProduct) -> Bool)
-    
-    public init(
-        id: String,
-        isSubscription: Bool,
-        unitsRemaining: Int? = nil,
-        unitsPurchased: Int? = nil,
-        unitsName: String? = nil,
-        iconSymbolName: String,
-        buyButtonTitle: String? = nil,
-        badgeText: String? = nil,
-        filterPurchase: @escaping ((StoreProduct) -> Bool) = { _ in return true }
-    ) {
-        self.id = id
-        self.isSubscription = isSubscription
-        self.unitsRemaining = unitsRemaining
-        self.unitsPurchased = unitsPurchased
-        self.unitsName = unitsName
-        self.iconSymbolName = iconSymbolName
-        self.buyButtonTitle = buyButtonTitle
-        self.badgeText = badgeText
-        self.filterPurchase = filterPurchase
-    }
-    
-    func product(storeHelper: StoreHelper) -> Product? {
-        return storeHelper.product(from: id)
-    }
-}
-
-public struct StoreProductVersions: Identifiable {
-    public let product: StoreProduct
-    public let referralProduct: StoreProduct
-
-    public var id: String {
-        return product.id
-    }
-    
-    public enum StoreProductVersion {
-        case product
-        case referralProduct
-    }
-    
-    public init(
-        product: StoreProduct,
-        referralProduct: StoreProduct
-    ) {
-        self.product = product
-        self.referralProduct = referralProduct
-    }
-    
-    func product(version: StoreProductVersion, storeHelper: StoreHelper) -> Product? {
-        let product: StoreProduct
-        switch version {
-        case .product:
-            product = self.product
-        case .referralProduct:
-            product = referralProduct
-        }
-        return storeHelper.product(from: product.id)
-    }
-}
-
 public struct StoreView: View {
     @Binding public var isPresented: Bool
     @ObservedObject public var storeViewModel: StoreViewModel
@@ -513,7 +465,7 @@ public struct StoreView: View {
     
     @State private var isPresentingTokenLimitError = false
     @State private var isStudentDiscountExpanded = false
- 
+    
     public var productGridColumns: [GridItem] {
 #if os(iOS)
         if horizontalSizeClass == .compact {
@@ -582,22 +534,20 @@ public struct StoreView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 
-                if storeViewModel.testimonial != nil {
+                if storeViewModel.awardTestimonial != nil {
                     ViewStudentDiscountButton(
                         isStudentDiscountExpanded: $isStudentDiscountExpanded,
                         scrollValue: scrollValue
                     )
                 }
-#if DEBUG
                 AddReferralCodeButton()
                     .padding(.top, 5)
-#endif
             }
             .padding(8)
         }
         .background {
 #if os(iOS)
-//            Color.systemGroupedBackground.opacity(0.8)
+            //            Color.systemGroupedBackground.opacity(0.8)
             Rectangle()
                 .modifier {
                     if #available(iOS 16, macOS 13, *) {
@@ -608,7 +558,7 @@ public struct StoreView: View {
                 }
 #elseif os(macOS)
                 .fill(Color.gray.opacity(0.15))
-//            Color.gray.opacity(0.15)
+            //            Color.gray.opacity(0.15)
 #endif
         }
     }
@@ -707,16 +657,14 @@ public struct StoreView: View {
                                                 storeProductVersions: storeViewModel.studentProducts,
                                                 maxWidth: storeOptionsMaxWidth(geometrySize: geometry.size)
                                             )
-                                        //                                    .fixedSize(horizontal: true, vertical: false)
+                                            //                                    .fixedSize(horizontal: true, vertical: false)
                                             .frame(maxWidth: storeOptionsMaxWidth(geometrySize: geometry.size))
-                                        
-#if DEBUG
-                                        AddReferralCodeButton()
-                                            .padding(.top, 16)
-#endif
-                                    }
-                                    .padding(.top, 5)
-                                })
+                                            
+                                            AddReferralCodeButton()
+                                                .padding(.top, 16)
+                                        }
+                                        .padding(.top, 5)
+                                    })
                             }
                             .id("education-discount")
                             

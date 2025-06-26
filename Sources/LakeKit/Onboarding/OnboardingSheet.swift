@@ -164,7 +164,7 @@ struct OnboardingPrimaryButtons: View {
     
     @ViewBuilder
     private func upgradeButton() -> some View {
-        PrimaryButton(title: "Unlock All Learning Upgrades", systemImage: nil) {
+        PrimaryButton(title: "View All Learning Upgrades", systemImage: nil) {
 #if os(iOS)
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
 #endif
@@ -207,12 +207,12 @@ struct OnboardingPrimaryButtons: View {
 #if os(iOS)
         if verticalSizeClass == .compact {
             HStack {
-                subscriptionButton()
+//                subscriptionButton()
                 upgradeButton()
             }
         } else {
             VStack {
-                subscriptionButton()
+//                subscriptionButton()
                 upgradeButton()
             }
         }
