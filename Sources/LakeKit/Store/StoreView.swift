@@ -179,8 +179,10 @@ fileprivate struct ViewStudentDiscountButton: View {
     
     var body: some View {
         Button {
-            scrollValue.scrollTo("education-discount", anchor: .top)
             isStudentDiscountExpanded = true
+            withAnimation {
+                scrollValue.scrollTo("education-discount", anchor: .top)
+            }
         } label: {
             (Text("Student & low-income discounts") + Text("  \(Image(systemName: "chevron.right.circle.fill"))"))
             //                .font(.callout)
@@ -209,6 +211,7 @@ fileprivate struct AddReferralCodeButton: View {
     @State private var referralCodeInput: String = ""
     @State private var showingReferralAlert: Bool = false
     @State private var referralStatusMessage: String?
+    @State private var referralStatusErrorMessage: String?
     @State private var referralCodeToValidate: String?
     
     var body: some View {
@@ -233,20 +236,16 @@ fileprivate struct AddReferralCodeButton: View {
             }
             .onChange(of: referralCodeToValidate) { newValue in
                 guard let code = newValue?.lowercased(), !code.isEmpty else {
-                    referralStatusMessage = nil
-                    pendingReferralCode = nil
+                    referralStatusErrorMessage = nil
                     return
                 }
                 Task { @MainActor in
                     do {
-                        let isValid = try await storeViewModel.validateReferralCode(code)
-                        if isValid {
-                            pendingReferralCode = code
-                        } else {
-                            pendingReferralCode = nil
-                        }
+                        try await storeViewModel.reserveReferralCodeForPurchase(code, StoreViewModel.getOrCreateAppAccountToken())
+                        pendingReferralCode = code
+                        referralStatusErrorMessage = nil
                     } catch {
-                        referralStatusMessage = "Failed to validate referral code: \(error.localizedDescription)"
+                        referralStatusErrorMessage = "Cannot use referral code \"\(code.uppercased())\"."
                     }
                 }
             }
@@ -254,28 +253,35 @@ fileprivate struct AddReferralCodeButton: View {
                 refreshMessage()
             }
             
-            if let message = referralStatusMessage {
-                Text(message)
-                    .font(.footnote)
-                    .foregroundColor(!(pendingReferralCode?.isEmpty ?? true) ? .primary : .red)
-                    .fontWeight(.semibold)
-                    .multilineTextAlignment(.center)
-                //                    .padding(.top, 4)
+            Group {
+                if let message = referralStatusMessage {
+                    Text(message)
+                        .foregroundColor(.primary)
+                    //                    .padding(.top, 4)
+                }
+                if let errorMessage = referralStatusErrorMessage {
+                    Text(errorMessage)
+                        .foregroundColor(.red)
+                    //                    .padding(.top, 4)
+                }
             }
+            .font(.footnote)
+            .modifier {
+                if #available(iOS 16, macOS 14, *) {
+                    $0.fontWeight(.semibold)
+                } else { $0 }
+            }
+            .multilineTextAlignment(.center)
         }
     }
     
     @MainActor
     private func refreshMessage() {
-        guard let code = pendingReferralCode, !code.isEmpty else {
-            guard let referralCodeToValidate, !referralCodeToValidate.isEmpty else {
-                referralStatusMessage = nil
-                return
-            }
-            referralStatusMessage = "Referral code \"\(referralCodeToValidate.uppercased())\" invalid or expired."
-            return
+        if let code = pendingReferralCode, !code.isEmpty {
+            referralStatusMessage = "✔️ Referral code \"\(code.uppercased())\" is active!"
+        } else {
+            referralStatusMessage = nil
         }
-        referralStatusMessage = "✔️ Referral code \"\(code.uppercased())\" is active!"
     }
 }
 
