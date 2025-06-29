@@ -225,7 +225,9 @@ fileprivate struct AddReferralCodeButton: View {
             .controlSize(.small)
             .alert("Enter Referral Code", isPresented: $showingReferralAlert) {
                 TextField("Referral Code", text: $referralCodeInput)
+#if os(iOS)
                     .textInputAutocapitalization(.characters)
+#endif
                     .autocorrectionDisabled(true)
                 Button("OK") {
                     referralCodeToValidate = referralCodeInput.lowercased()
@@ -553,9 +555,9 @@ public struct StoreView: View {
             .padding(.vertical, 16)
         }
         .background {
-#if os(iOS)
             //            Color.systemGroupedBackground.opacity(0.8)
             Rectangle()
+#if os(iOS)
                 .modifier {
                     if #available(iOS 16, macOS 13, *) {
                         $0.fill(Color.systemGroupedBackground.opacity(0.65).gradient)
