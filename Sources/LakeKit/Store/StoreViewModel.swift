@@ -3,6 +3,7 @@ import Collections
 import StoreKit
 import StoreHelper
 
+@MainActor
 public class AdsViewModel: NSObject, ObservableObject {
     public static var shared = AdsViewModel()
     
@@ -10,6 +11,7 @@ public class AdsViewModel: NSObject, ObservableObject {
     @Published public var showAds = false
 }
 
+@MainActor
 public class StoreViewModel: NSObject, ObservableObject {
     /// Validates and reserves  a referral code asynchronously.
     let reserveReferralCodeForPurchase: (String, UUID) async throws -> Void

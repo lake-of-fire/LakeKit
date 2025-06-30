@@ -13,6 +13,7 @@ fileprivate let debugBuildID = UUID()
 
 /// Large objects get stored on disk in the cache directory that Apple manages, which doesn't need LRU management.
 open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
+//    @MainActor
     @Published public var cacheDirectory: URL
     private let cache: LRUCache<String, Any?>
     

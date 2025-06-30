@@ -1,6 +1,7 @@
 import SwiftUI
 import SplitView
 
+@MainActor
 public class SplitViewModel: NSObject, ObservableObject {
     public var userDefaultsPrefix: String? {
         didSet {

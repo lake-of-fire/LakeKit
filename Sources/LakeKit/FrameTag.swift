@@ -220,6 +220,7 @@ extension EnvironmentValues {
     }
 }
 
+@MainActor
 class WindowTagModel: ObservableObject {
     /// Store the frames of views (for excluding popover dismissal or source frames).
     @Published var frameTags: [AnyHashable: CGRect] = [:]

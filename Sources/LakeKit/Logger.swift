@@ -8,7 +8,7 @@ fileprivate func bundleIdentifier() -> String {
     return (Bundle(for: Logger.self).bundleIdentifier ?? "")
 }
 
-public class Logger: ObservableObject {
+public class Logger/*: ObservableObject*/ {
     public static let shared = Logger()
     public let logger: Logging.Logger
     
