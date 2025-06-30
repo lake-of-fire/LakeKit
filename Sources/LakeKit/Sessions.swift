@@ -14,6 +14,7 @@ extension Notification {
     }
 }
 
+@MainActor
 public class Session: ObservableObject {
     public var keychain: KeychainSwift
     
