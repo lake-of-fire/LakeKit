@@ -6,6 +6,7 @@ import UIKit
 import AppKit
 #endif
 
+@MainActor
 public class LocationController: ObservableObject {
     @Published public var isPresentingLocationOpening = false
     
@@ -29,7 +30,7 @@ fileprivate struct LocationBarIntrospection: ViewModifier {
                     }
                 }
             }
-#else
+#elseif os(iOS)
             .introspect(.textField, on: .iOS(.v15...)) { textField in
                 // See: https://developer.apple.com/forums/thread/74372
                 if locationController.isPresentingLocationOpening {

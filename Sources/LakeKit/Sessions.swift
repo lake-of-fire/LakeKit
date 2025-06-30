@@ -17,7 +17,7 @@ extension Notification {
 public class Session: ObservableObject {
     public var keychain: KeychainSwift
     
-    @MainActor @Published public var isPresentingWebAuthentication = false
+    @Published public var isPresentingWebAuthentication = false
     
     /// -1 means logged out.
     @Published public var userID: Int = -1
