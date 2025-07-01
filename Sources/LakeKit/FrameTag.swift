@@ -119,6 +119,7 @@ class WindowTagModels {
      - parameter window: The `UIWindow` whose `WindowTagModel` is being requested, e.g. to present a popover.
      - Returns: The `WindowTagModel` used to model the visible popovers for the given window.
      */
+    @MainActor
     func windowTagModel(for window: NSWindow) -> WindowTagModel? {
         /**
          Continually remove entries that refer to `UIWindow`s that are no longer about.
@@ -145,6 +146,7 @@ class WindowTagModels {
         return windowModels.first(where: { holder, _ in holder.pointee === window })?.value
     }
 
+    @MainActor
     private func prepareAndRetainModel(for window: NSWindow?) -> WindowTagModel? {
         let newModel = WindowTagModel()
         if let window = window {
