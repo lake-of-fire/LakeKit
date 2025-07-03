@@ -961,7 +961,8 @@ public struct OnboardingSheet<CardContent: View>: ViewModifier {
 #endif
                     .modifier {
                         if #available(iOS 18, macOS 15, *) {
-                            $0.presentationSizing(.page)
+                            $0
+                                .presentationSizing(.page)
                         } else { $0 }
                     }
                     .storeSheet(isPresented: $isPresentingStoreSheet)

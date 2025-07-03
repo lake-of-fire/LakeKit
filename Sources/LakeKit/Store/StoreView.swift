@@ -219,7 +219,7 @@ fileprivate struct AddReferralCodeButton: View {
             Button {
                 showingReferralAlert = true
             } label: {
-                (Text("Have a referral code?") + Text("  \(Image(systemName: "chevron.right.circle"))"))
+                (Text("Have a referral code?") + Text("  \(Image(systemName: "chevron.right"))"))
             }
             .buttonStyle(.borderless)
             .controlSize(.small)
@@ -353,7 +353,7 @@ fileprivate struct PrimaryTestimonialView: View {
                 }
                 if let awardLink = storeViewModel.awardLink {
                     Link(destination: awardLink) {
-                        Text("“\(awardTestimonial)”") + Text("  \(Image(systemName: "chevron.right.circle"))")
+                        Text("“\(awardTestimonial)”") + Text("  \(Image(systemName: "chevron.right"))")
                             .italic()
                     }
                     .font(.subheadline)
