@@ -27,26 +27,37 @@ public struct ClearBorderedButtonStyle: ButtonStyle {
     @ScaledMetric private var extraLargeMinWidth: CGFloat = 60
     @ScaledMetric private var extraLargeMinHeight: CGFloat = 60
     
+#if os(macOS)
+    private let sizeFactor: CGFloat = 0.666
+#else
+    private let sizeFactor: CGFloat = 1
+#endif
     private var minWidth: CGFloat {
-        switch controlSize {
-        case .mini: return miniMinWidth
-        case .small: return smallMinWidth
-        case .regular: return regularMinWidth
-        case .large: return largeMinWidth
-        case .extraLarge: return extraLargeMinWidth
-        default: return regularMinWidth
-        }
+        let width = {
+            switch controlSize {
+            case .mini: return miniMinWidth
+            case .small: return smallMinWidth
+            case .regular: return regularMinWidth
+            case .large: return largeMinWidth
+            case .extraLarge: return extraLargeMinWidth
+            default: return regularMinWidth
+            }
+        }()
+        return width * sizeFactor
     }
     
     private var minHeight: CGFloat {
-        switch controlSize {
-        case .mini: return miniMinHeight
-        case .small: return smallMinHeight
-        case .regular: return regularMinHeight
-        case .large: return largeMinHeight
-        case .extraLarge: return extraLargeMinHeight
-        default: return regularMinHeight
-        }
+        let height = {
+            switch controlSize {
+            case .mini: return miniMinHeight
+            case .small: return smallMinHeight
+            case .regular: return regularMinHeight
+            case .large: return largeMinHeight
+            case .extraLarge: return extraLargeMinHeight
+            default: return regularMinHeight
+            }
+        }()
+        return height * sizeFactor
     }
     
     public func makeBody(configuration: Configuration) -> some View {
@@ -60,6 +71,8 @@ public struct ClearBorderedButtonStyle: ButtonStyle {
         }
         .background(.white.opacity(0.0000000001))
         .frame(minWidth: minWidth, minHeight: minHeight)
+        .contentShape(RoundedRectangle(cornerRadius: minHeight / 7))
+//        .clipShape(RoundedRectangle(cornerRadius: minHeight / 7))
     }
 }
 

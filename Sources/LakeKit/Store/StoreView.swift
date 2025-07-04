@@ -23,16 +23,9 @@ fileprivate struct StoreViewForSheet: View {
         StoreView(isPresented: $isPresented, storeViewModel: storeViewModel)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Restore Purchases") {
-                        isRestoringPurchases = true
-                        Task.init { @MainActor in
-                            defer { isRestoringPurchases = false }
-                            try? await AppStore.sync()
-                        }
-                    }
-                    .foregroundStyle(.secondary)
-                    .disabled(isRestoringPurchases)
-                    .fixedSize()
+                    RestorePurchasesButton()
+                        .foregroundStyle(.secondary)
+                        .fixedSize()
                 }
                 ToolbarItem(placement: .cancellationAction) {
                     DismissButton {
@@ -61,15 +54,8 @@ fileprivate struct StoreViewForSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     HStack {
-                        Button("Restore Purchases") {
-                            isRestoringPurchases = true
-                            Task.init { @MainActor in
-                                defer { isRestoringPurchases = false }
-                                try? await AppStore.sync()
-                            }
-                        }
-                        .disabled(isRestoringPurchases)
-                        .fixedSize()
+                        RestorePurchasesButton()
+                            .fixedSize()
                         Spacer()
                         Button("Cancel", role: .cancel) {
                             dismiss()
