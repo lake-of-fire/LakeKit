@@ -18,7 +18,7 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
     private let cache: LRUCache<String, Any?>
     
     /// Maximum size (in bytes) for items kept in-memory. Larger items are disk-only.
-    private let memoryThreshold = 1_048_576 // 1 MB
+    private let memoryThreshold: Int
     
     /// Keys stored on disk but not loaded into the in-memory cache.
     private var diskOnlyKeys: Set<String> = []
@@ -29,8 +29,16 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
         return encoder
     }
     
-    public init(namespace: String, version: Int? = nil, totalBytesLimit: Int = .max, countLimit: Int = .max) {
+    public init(
+        namespace: String,
+        version: Int? = nil,
+        totalBytesLimit: Int = .max,
+        countLimit: Int = .max,
+        memoryThreshold: Int = 1_048_576 // 1 MB
+    ) {
         assert(!namespace.isEmpty, "LRUFileCache namespace must not be empty")
+        
+        self.memoryThreshold = memoryThreshold
         
         let fileManager = FileManager.default
         let cacheRoot = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first!
