@@ -4,6 +4,32 @@ import StoreKit
 //import Collections
 import Pow
 
+// MARK: - Equalizing purchase option heights
+private struct PurchaseOptionsHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
+private struct UniformHeightHStack<Content: View>: View {
+    @Binding var maxHeight: CGFloat
+    let content: () -> Content
+    
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            content()
+        }
+        .background(GeometryReader { proxy in
+            Color.clear.preference(key: PurchaseOptionsHeightKey.self, value: proxy.size.height)
+        })
+        .onPreferenceChange(PurchaseOptionsHeightKey.self) { height in
+            if height > maxHeight { maxHeight = height }
+        }
+        .frame(height: maxHeight)
+    }
+}
+
 
 public extension View {
     func storeSheet(isPresented: Binding<Bool>) -> some View {
@@ -296,7 +322,7 @@ fileprivate struct PrimaryTestimonialView: View {
             .renderingMode(.template)
             .resizable()
             .aspectRatio(contentMode: .fit)
-//            .frame(height: height)
+        //            .frame(height: height)
             .foregroundStyle(.secondary)
             .frame(height: laurelHeight)
     }
@@ -330,7 +356,7 @@ fileprivate struct PrimaryTestimonialView: View {
                             }
                         }
                         .foregroundStyle(.primary)
-
+                        
                         laurelImage(side: .right)
                             .padding(.leading, 5)
                         Spacer(minLength: 0)
@@ -459,6 +485,7 @@ public struct StoreView: View {
     
     @State private var isPresentingTokenLimitError = false
     @State private var isStudentDiscountExpanded = false
+    @State private var purchaseOptionsMaxHeight: CGFloat = 0
     
     public var productGridColumns: [GridItem] {
 #if os(iOS)
@@ -564,17 +591,45 @@ public struct StoreView: View {
     ) -> some View {
         if #available(iOS 16, macOS 13, *) {
             ViewThatFits {
-                HStack(alignment: .top, spacing: 0) {
-                    Spacer(minLength: 0)
-                    HStack(alignment: .top, spacing: 20) {
+                UniformHeightHStack(maxHeight: $purchaseOptionsMaxHeight) {
+                    HStack(alignment: .top, spacing: 0) {
+                        Spacer(minLength: 0)
+                        HStack(alignment: .top, spacing: 20) {
+                            purchaseOptions(
+                                storeProductVersions: storeProductVersions,
+                                maxWidth: maxWidth
+                            )
+                        }
+                        .fixedSize()
+                        Spacer(minLength: 0)
+                    }
+                }
+                UniformHeightHStack(maxHeight: $purchaseOptionsMaxHeight) {
+                    HStack(alignment: .top, spacing: 0) {
+                        Spacer(minLength: 0)
+                        HStack(alignment: .top, spacing: 10) {
+                            purchaseOptions(
+                                storeProductVersions: storeProductVersions,
+                                maxWidth: maxWidth
+                            )
+                        }
+                        .fixedSize()
+                        Spacer(minLength: 0)
+                    }
+                }
+                UniformHeightHStack(maxHeight: $purchaseOptionsMaxHeight) {
+                    VStack(alignment: .center) {
                         purchaseOptions(
                             storeProductVersions: storeProductVersions,
                             maxWidth: maxWidth
                         )
                     }
                     .fixedSize()
-                    Spacer(minLength: 0)
                 }
+            }
+            .frame(maxWidth: maxWidth)
+        } else {
+            UniformHeightHStack(maxHeight: $purchaseOptionsMaxHeight) {
                 HStack(alignment: .top, spacing: 0) {
                     Spacer(minLength: 0)
                     HStack(alignment: .top, spacing: 10) {
@@ -583,28 +638,8 @@ public struct StoreView: View {
                             maxWidth: maxWidth
                         )
                     }
-                    .fixedSize()
                     Spacer(minLength: 0)
                 }
-                VStack(alignment: .center) {
-                    purchaseOptions(
-                        storeProductVersions: storeProductVersions,
-                        maxWidth: maxWidth
-                    )
-                }
-                .fixedSize()
-            }
-            .frame(maxWidth: maxWidth)
-        } else {
-            HStack(alignment: .top, spacing: 0) {
-                Spacer(minLength: 0)
-                HStack(alignment: .top, spacing: 10) {
-                    purchaseOptions(
-                        storeProductVersions: storeProductVersions,
-                        maxWidth: maxWidth
-                    )
-                }
-                Spacer(minLength: 0)
             }
         }
     }
