@@ -114,6 +114,7 @@ let package = Package(
                 .product(name: "LRUCache", package: "LRUCache"),
             ],
             resources: [
+                .process("Resources"),
 //                .copy("Resources/CSS/Reader.css"),
 //                .process("Resources/CSS/"),
 //                .process("Resources/JS/"),

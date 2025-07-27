@@ -318,7 +318,7 @@ fileprivate struct PrimaryTestimonialView: View {
     
     @ViewBuilder
     func laurelImage(side: LaurelSide) -> some View {
-        Image("Laurel \(side.imageSuffix)")
+        Image("Laurel \(side.imageSuffix)", bundle: Bundle.module)
             .renderingMode(.template)
             .resizable()
             .aspectRatio(contentMode: .fit)
