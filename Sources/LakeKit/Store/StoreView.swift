@@ -160,7 +160,7 @@ struct StudentDiscountDisclosureGroup<Content: View>: View {
                     .padding(.trailing, 5)
                 
                 VStack(alignment: .leading, spacing: 5) {
-                    Text("Subsidized pricing for affordability")
+                    Text("Subsidized pricing for equal access")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                     Text("Student & Low-Income Discounts") // \(Image(systemName: "chevron.right"))")
@@ -676,7 +676,7 @@ public struct StoreView: View {
                                     isExpanded: $isStudentDiscountExpanded,
                                     discountView: {
                                         VStack {
-                                            Text("Students and those who cannot afford the full-price rates are welcome to a special discount. The low-income discount requires that you cannot afford the regular price.\n\nThis discount is subsidized by customers who pay the full price.")
+                                            Text("Students and those who cannot afford the full-price rates are welcome to a special discount. The low-income discount requires that you cannot afford the regular price.\n\nThis discount is subsidized by customers who pay the regular price. It is thanks to our regular customers that this discount is possible.")
                                                 .font(.subheadline)
                                                 .padding()
                                                 .multilineTextAlignment(.leading)

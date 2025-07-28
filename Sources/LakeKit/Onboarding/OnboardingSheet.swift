@@ -1,7 +1,6 @@
 import SwiftUI
 import StoreHelper
 import NavigationBackport
-import MarkdownWebView
 import Pow
 #if os(iOS)
 import UIKit
@@ -25,7 +24,7 @@ public struct OnboardingCard: Identifiable, Hashable {
     }
 }
 
-fileprivate struct PrimaryButton: View {
+internal struct OnboardingPrimaryButton: View {
     let title: String
     let systemImage: String?
     let controlSize: ControlSize?
@@ -164,7 +163,7 @@ struct OnboardingPrimaryButtons: View {
     
     @ViewBuilder
     private func upgradeButton() -> some View {
-        PrimaryButton(title: "View All Learning Upgrades", systemImage: nil) {
+        OnboardingPrimaryButton(title: "View All Learning Upgrades", systemImage: nil) {
 #if os(iOS)
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
 #endif
@@ -183,7 +182,7 @@ struct OnboardingPrimaryButtons: View {
     
     @ViewBuilder
     private func subsidizedOptionsButton() -> some View {
-        PrimaryButton(
+        OnboardingPrimaryButton(
             title: "Skip Upgrades",
             systemImage: nil,
             controlSize: .regular
@@ -226,7 +225,7 @@ struct OnboardingPrimaryButtons: View {
     
     var body: some View {
         if !adsViewModel.showAds {
-            PrimaryButton(title: isFinishedOnboarding ? "Continue" : "Skip Onboarding", systemImage: nil) {
+            OnboardingPrimaryButton(title: isFinishedOnboarding ? "Continue" : "Skip Onboarding", systemImage: nil) {
                 hasSeenOnboarding = true
                 isPresentingSheet = false
             }
@@ -483,133 +482,6 @@ struct OnboardingCardsView<CardContent: View>: View {
     }
 }
 
-fileprivate struct FreeModeView: View {
-    @Binding var isPresentingSheet: Bool
-    @Binding var isPresentingStoreSheet: Bool
-    
-    @AppStorage("hasViewedFreeModeUpsell") private var hasViewedFreeModeUpsell = false
-    @AppStorage("hasSeenOnboarding") var hasSeenOnboarding = false
-    @AppStorage("hasRespondedToOnboarding") var hasRespondedToOnboarding = false
-
-    @State private var shouldAnimate = false
-    
-    @State private var highlightedProduct: PrePurchaseSubscriptionInfo?
-    
-    @EnvironmentObject private var storeViewModel: StoreViewModel
-    @EnvironmentObject private var storeHelper: StoreHelper
-    
-    private var purchasePrice: String {
-        if let highlightedProduct {
-            let renewalPeriod = highlightedProduct.subscriptionPeriod
-            var renewalString = "per "
-            if renewalPeriod.value > 1 {
-                renewalString += renewalPeriod.value.formatted() + " "
-            }
-            if #available(iOS 16, macOS 13, *) {
-                renewalString += renewalPeriod.unit.formatted(highlightedProduct.product.subscriptionPeriodUnitFormatStyle).lowercased()
-            } else {
-                switch renewalPeriod.unit {
-                case .day: renewalString += "day"
-                case .week: renewalString += "week"
-                case .month: renewalString += "month"
-                case .year: renewalString += "year"
-                }
-                if renewalPeriod.value > 1 {
-                    renewalString += "s"
-                }
-            }
-            return highlightedProduct.purchasePrice + " " + renewalString
-        } else {
-            return "[see link for current price]"
-        }
-    }
-    
-    func infoText(purchasePrice: String) -> String {
-        return """
-            *See below for information on Manabi Reader's **Free Mode** and subsidized pricing options.*
-            
-            **Manabi Reader helps you stay motivated while learning faster, for free.**
-            
-            Read from a library of curated blogs, news feeds, stories and ebooks. Tap words to look them up. Listen to spoken audio as you read.
-            
-            Immersion is key. Manabi Reader caters to diverse taste and skill levels. Import your own files or browse the web as you like. Reader Mode works on most anything.
-            
-            Immersion can be a grind too. It's brutal to spend hours reading above your level without being able to feel the progress that you're making. That's why Manabi shows you personalized stats on how familiar you already are with the vocab and kanji you encounter. Collect example sentences automatically. Chart your progress as you read in real-time.
-            
-            All the above is free.
-            
-            ## Why upgrade?
-            
-            The subscription personalizes your stats more to help you see what words and kanji you need to learn. Your dictionary syncs with your reading activity to filter by learning status. You get support for saving words to Manabi Flashcards or Anki.
-            
-            You'll also support onngoing development: Manabi is independently-made and has no external investors. Thousands of paying customers have enabled Manabi development to continue part-time since 2018 and full-time since 2022.
-            
-            ## Can't afford it?
-            
-            Equal access in education is a valuable principle that Manabi aspires toward. If you're a student or if you just can't afford the full price, please consider the discounted plan. It's available for as low as \(purchasePrice) for full access.
-            
-            ***Editor's Note:*** *Thank you for using Manabi Reader. Whether or not you pay to support its full-time developmnent, rest assured there is more to come for Free Mode. As the subscription tier features improve, more paid features will become free too. Manabi values accessibility for all.*
-            ##
-            """
-    }
-    
-    var body: some View {
-        ScrollView {
-            VStack {
-                Image("Onboarding - Free Mode Landscape")
-                    .resizable()
-                    .scaledToFit()
-                Group {
-                    if #available(iOS 16, macOS 14, *) {
-                        MarkdownWebView(infoText(purchasePrice: purchasePrice))
-                            .modifier {
-                                if #available(iOS 17, macOS 14, *) {
-                                    $0.selectionDisabled()
-                                } else { $0 }
-                            }
-                    } else {
-                        Text(infoText(purchasePrice: purchasePrice).replacingOccurrences(of: "#", with: "").replacingOccurrences(of: "*", with: ""))
-                    }
-                }
-                .frame(maxWidth: 850)
-                .padding(.horizontal)
-                .task { @MainActor in
-                    highlightedProduct = await storeViewModel.productSubscriptionInfo(productID: storeViewModel.highlightedProductID, storeHelper: storeHelper)
-                }
-            }
-        }
-        .navigationTitle("Subsidized Pricing")
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            VStack {
-                PrimaryButton(title: hasViewedFreeModeUpsell ? "Continue Without Trying Discounts" : "Skip Discounts", systemImage: nil, controlSize: .regular) {
-                    hasSeenOnboarding = true
-                    hasRespondedToOnboarding = true
-                    isPresentingSheet = false
-                }
-                .buttonStyle(.bordered)
-                .tint(.secondary)
-                .modifier {
-                    if hasViewedFreeModeUpsell {
-                        $0.buttonStyle(.bordered)
-                    } else {
-                        $0.buttonStyle(.borderless)
-                    }
-                }
-                
-                PrimaryButton(title: "Check Discount Qualification", systemImage: nil, controlSize: .regular) {
-#if os(iOS)
-                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-#endif
-                    isPresentingStoreSheet.toggle()
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.accentColor)
-            }
-            .padding()
-            .background(.regularMaterial)
-        }
-    }
-}
 
 struct OnboardingView<CardContent: View>: View {
     let cards: [OnboardingCard]
@@ -618,8 +490,12 @@ struct OnboardingView<CardContent: View>: View {
     @Binding var isPresentingStoreSheet: Bool
     @ViewBuilder let cardContent: (OnboardingCard, Binding<Bool>, Bool) -> CardContent
     
+    @EnvironmentObject private var storeViewModel: StoreViewModel
+    @EnvironmentObject private var storeHelper: StoreHelper
+
     @State private var navigationPath = [String]()
-    
+    @State private var highlightedProduct: PrePurchaseSubscriptionInfo?
+
     @ViewBuilder private var onboardingCardsView: some View {
         OnboardingCardsView(
             cards: cards,
@@ -631,18 +507,30 @@ struct OnboardingView<CardContent: View>: View {
         )
         .modifier {
             if #available(iOS 16, macOS 13, *) {
-                $0.navigationDestination(for: String.self, destination: { dest in
-                    switch dest {
-                    case "free-mode":
-                        FreeModeView(isPresentingSheet: $isPresentingSheet, isPresentingStoreSheet: $isPresentingStoreSheet)
+                $0.navigationDestination(
+                    for: String.self,
+                    destination: { dest in
+                        switch dest {
+                        case "free-mode":
+                            OnboardingFreeModeView(
+                                highlightedProduct: highlightedProduct,
+                                isPresentingSheet: $isPresentingSheet,
+                                isPresentingStoreSheet: $isPresentingStoreSheet
+                            )
                     default: EmptyView()
                     }
                 })
             } else {
-                $0.nbNavigationDestination(for: String.self, destination: { dest in
-                    switch dest {
-                    case "free-mode":
-                        FreeModeView(isPresentingSheet: $isPresentingSheet, isPresentingStoreSheet: $isPresentingStoreSheet)
+                $0.nbNavigationDestination(
+                    for: String.self,
+                    destination: { dest in
+                        switch dest {
+                        case "free-mode":
+                            OnboardingFreeModeView(
+                                highlightedProduct: highlightedProduct,
+                                isPresentingSheet: $isPresentingSheet,
+                                isPresentingStoreSheet: $isPresentingStoreSheet
+                            )
                     default: EmptyView()
                     }
                 })
@@ -652,6 +540,9 @@ struct OnboardingView<CardContent: View>: View {
         .navigationBarHidden(true)
         .navigationBarTitleDisplayMode(.inline)
 #endif
+        .task { @MainActor in
+            highlightedProduct = await storeViewModel.productSubscriptionInfo(productID: storeViewModel.highlightedProductID, storeHelper: storeHelper)
+        }
     }
     
     var body: some View {
