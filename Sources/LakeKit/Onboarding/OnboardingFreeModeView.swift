@@ -1,6 +1,5 @@
 import SwiftUI
 import StoreHelper
-import MarkdownView
 
 internal struct OnboardingFreeModeView: View {
     let highlightedProduct: PrePurchaseSubscriptionInfo?
@@ -40,57 +39,57 @@ internal struct OnboardingFreeModeView: View {
         }
     }
     
-    func infoText(purchasePrice: String) -> String {
-        return """
-            *See below for information on Manabi Reader's **Free Mode** and subsidized pricing options.*
-            
-            **Manabi Reader helps you stay motivated while learning faster, for free.**
-            
-            Read from a library of curated blogs, news feeds, stories and ebooks. Tap words to look them up. Listen to spoken audio as you read.
-            
-            Immersion is key. Manabi Reader caters to diverse taste and skill levels. Import your own files or browse the web as you like. Reader Mode works on most anything.
-            
-            Immersion can be a grind too. It's brutal to spend hours reading above your level without being able to feel the progress that you're making. That's why Manabi shows you personalized stats on how familiar you already are with the vocab and kanji you encounter. Collect example sentences automatically. Chart your progress as you read in real-time.
-            
-            All the above is free.
-            
-            ## Why upgrade?
-            
-            The subscription personalizes your stats more to help you see what words and kanji you need to learn. Your dictionary syncs with your reading activity to filter by learning status. You get support for saving words to Manabi Flashcards or Anki.
-            
-            You'll also support onngoing development: Manabi is independently-made and has no external investors. Thousands of paying customers have enabled Manabi development to continue part-time since 2018 and full-time since 2022.
-            
-            ## Can't afford it?
-            
-            Equal access in education is a valuable principle that Manabi aspires toward. If you're a student or if you just can't afford the full price, please consider the discounted plan. It's available for as low as \(purchasePrice) for full access.
-            
-            ***Editor's Note:*** *Thank you for using Manabi Reader. Whether or not you pay to support its full-time developmnent, rest assured there is more to come for Free Mode. As the subscription tier features improve, more paid features will become free too. Manabi values accessibility for all.*
-            ##
-            """
-    }
-    
     var body: some View {
         ScrollView {
             VStack {
                 Image("Onboarding - Free Mode Landscape")
                     .resizable()
                     .scaledToFit()
-                MarkdownView(infoText(purchasePrice: purchasePrice))
-//                Text(infoText(purchasePrice: purchasePrice))
-                //                Group {
-//                    if #available(iOS 16, macOS 14, *) {
-//                        MarkdownWebView(infoText(purchasePrice: purchasePrice))
-                            .modifier {
-                                if #available(iOS 17, macOS 14, *) {
-                                    $0.selectionDisabled()
-                                } else { $0 }
-                            }
-//                    } else {
-//                        Text(infoText(purchasePrice: purchasePrice).replacingOccurrences(of: "#", with: "").replacingOccurrences(of: "*", with: ""))
-//                    }
-//                }
+                VStack(alignment: .leading, spacing: 16) {
+                    // Intro paragraph with italics
+                    (Text("See below for information on Manabi Reader's ")
+                     + Text("Free Mode").italic()
+                     + Text(" and subsidized pricing options."))
+                    
+                    // Bold headline
+                    Text("Manabi Reader helps you stay motivated while learning faster, for free.")
+                        .font(.headline)
+                        .bold()
+                    
+                    // Body paragraphs
+                    Text("Read from a library of curated blogs, news feeds, stories and ebooks. Tap words to look them up. Listen to spoken audio as you read.")
+                    Text("Immersion is key. Manabi Reader caters to diverse taste and skill levels. Import your own files or browse the web as you like. Reader Mode works on most anything.")
+                    Text("Immersion can be a grind too. It's brutal to spend hours reading above your level without being able to feel the progress that you're making. That's why Manabi shows you personalized stats on how familiar you already are with the vocab and kanji you encounter. Collect example sentences automatically. Chart your progress as you read in real-time.")
+                    Text("All the above is free.")
+                    
+                    // Why upgrade section
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Why upgrade?")
+                            .font(.title2)
+                            .bold()
+                        Text("The subscription personalizes your stats more to help you see what words and kanji you need to learn. Your dictionary syncs with your reading activity to filter by learning status. You get support for saving words to Manabi Flashcards or Anki.")
+                        Text("You'll also support ongoing development: Manabi is independently-made and has no external investors. Thousands of paying customers have enabled Manabi development to continue part-time since 2018 and full-time since 2022.")
+                    }
+                    
+                    // Can't afford it section
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Can't afford it?")
+                            .font(.title2)
+                            .bold()
+                        Text("Equal access in education is a valuable principle that Manabi aspires toward. If you're a student or if you just can't afford the full price, please consider the discounted plan. It's available for as low as \(purchasePrice) for full access.")
+                    }
+                    
+                    // Editor's Note
+                    Text("Editor's Note: Thank you for using Manabi Reader. Whether or not you pay to support its full-time development, rest assured there is more to come for Free Mode. As the subscription tier features improve, more paid features will become free too. Manabi values accessibility for all.")
+                        .italic()
+                }
                 .frame(maxWidth: 850)
                 .padding(.horizontal)
+                .modifier {
+                    if #available(iOS 17, macOS 14, *) {
+                        $0.selectionDisabled()
+                    } else { $0 }
+                }
             }
         }
         .navigationTitle("Subsidized Pricing")
