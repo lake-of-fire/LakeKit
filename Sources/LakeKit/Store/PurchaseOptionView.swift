@@ -355,7 +355,7 @@ fileprivate struct PurchaseOptionVersionView: View {
                             .fontWeight(.heavy)
                             .textCase(.uppercase)
                             .foregroundColor(.white)
-                            .shadow(radius: 2)
+                            .shadow(radius: 3)
                             .padding(.horizontal, 10)
                             .frame(minHeight: popularBadgeHeight)
                     }

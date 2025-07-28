@@ -155,12 +155,8 @@ struct StudentDiscountDisclosureGroup<Content: View>: View {
             discountView
         } label: {
             HStack(alignment: .center, spacing: 10) {
-                Text(Image(systemName: "info.circle"))
-                    .font(.title)
-                    .padding(.trailing, 5)
-                
                 VStack(alignment: .leading, spacing: 5) {
-                    Text("Subsidized pricing for equal access")
+                    Label("Subsidized pricing for equal access", systemImage: "info.circle.fill")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                     Text("Student & Low-Income Discounts") // \(Image(systemName: "chevron.right"))")
@@ -231,9 +227,10 @@ fileprivate struct AddReferralCodeButton: View {
             Button {
                 showingReferralAlert = true
             } label: {
-                (Text("Have a referral code?") + Text("  \(Image(systemName: "chevron.right"))"))
+                (Text("Have a referral code?") + Text("  \(Image(systemName: "chevron.right.circle.fill"))"))
             }
             .buttonStyle(.borderless)
+            .foregroundStyle(.secondary)
             .controlSize(.small)
             .alert("Enter Referral Code", isPresented: $showingReferralAlert) {
                 TextField("Referral Code", text: $referralCodeInput)
@@ -334,7 +331,7 @@ fileprivate struct PrimaryTestimonialView: View {
                     HStack(alignment: .center, spacing: 0) {
                         Spacer(minLength: 0)
                         laurelImage(side: .left)
-                            .padding(.trailing, 5)
+                            .padding(.trailing, 2)
                         
                         VStack(alignment: .center) {
                             Text(awardTitle)
@@ -358,7 +355,7 @@ fileprivate struct PrimaryTestimonialView: View {
                         .foregroundStyle(.primary)
                         
                         laurelImage(side: .right)
-                            .padding(.leading, 5)
+                            .padding(.leading, 2)
                         Spacer(minLength: 0)
                     }
                     .padding(.bottom, 8)
@@ -366,9 +363,13 @@ fileprivate struct PrimaryTestimonialView: View {
                 if let awardLink = storeViewModel.awardLink {
                     Link(destination: awardLink) {
                         Text("“\(awardTestimonial)”") + Text("  \(Image(systemName: "chevron.right"))")
-                            .italic()
                     }
-                    .font(.subheadline)
+                    .modifier {
+                        if #available(iOS 16, macOS 13, *) {
+                            $0.italic()
+                        } else { $0 }
+                    }
+                    .font(.footnote)
                     .foregroundStyle(.primary)
                 } else {
                     Text("“\(awardTestimonial)”")
@@ -439,12 +440,8 @@ struct FreeTierDisclosureGroup<Content: View>: View {
             content
         } label: {
             HStack(alignment: .center, spacing: 10) {
-                Text(Image(systemName: "info.circle"))
-                    .font(.title)
-                    .padding(.trailing, 5)
-                
                 VStack(alignment: .leading, spacing: 5) {
-                    Text("Use without payment")
+                    Label("Use without payment", systemImage: "info.circle.fill")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                     Text("Free Tier") // \(Image(systemName: "chevron.right"))")
@@ -534,9 +531,10 @@ public struct StoreView: View {
         VStack {
             VStack {
                 Text(storeViewModel.productGroupHeading)
+                    .font(.callout)
                     .foregroundColor(.primary)
                     .multilineTextAlignment(.leading)
-                    .lineSpacing(2)
+                    .lineSpacing(3)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.bottom, 4)
                 
@@ -671,6 +669,8 @@ public struct StoreView: View {
                             PrimaryTestimonialView(storeViewModel: storeViewModel)
                                 .padding(.horizontal, secondaryHorizontalPadding)
                             
+                            Divider()
+
                             GroupBox {
                                 StudentDiscountDisclosureGroup(
                                     isExpanded: $isStudentDiscountExpanded,
