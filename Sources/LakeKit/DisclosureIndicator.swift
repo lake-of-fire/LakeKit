@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftUtilities
 
 public struct DisclosureIndicator: View {
     public init() { }

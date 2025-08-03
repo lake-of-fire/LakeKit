@@ -1,5 +1,6 @@
 import SwiftUI
 import StoreHelper
+import SwiftUtilities
 
 internal struct OnboardingFreeModeView: View {
     let highlightedProduct: PrePurchaseSubscriptionInfo?
