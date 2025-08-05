@@ -49,10 +49,14 @@ fileprivate struct LocationBarIntrospection: ViewModifier {
 }
 
 public struct LocationBar: View, Equatable {
+    let prompt: String
     @Binding var locationText: String
-    @Binding var selectAll: Bool
+    @Binding var selection: Any? // TextSelection
     private let onSubmit: ((URL?, String) async throws -> Void)
+    
     @Environment(\.colorScheme) private var colorScheme
+    
+    @FocusState private var isFocused: Bool
     
     var url: URL? {
         get {
@@ -65,13 +69,36 @@ public struct LocationBar: View, Equatable {
         }
     }
     
-    @MainActor
+    @ViewBuilder
+    private var textFieldPrompt: Text {
+        Text(prompt)
+    }
+    
     @ViewBuilder private var textField: some View {
-        RoundedTextField(
-            text: $locationText,
-            placeholder: "Search or enter website address",
-            selectAll: $selectAll
-        )
+        Group {
+            if #available(iOS 18, macOS 15, *) {
+                TextField(
+                    "",
+                    text: $locationText,
+                    selection: Binding<TextSelection?>(
+                        get: { selection as! TextSelection? },
+                        set: { selection = $0 }
+                    ),
+                    prompt: textFieldPrompt
+                )
+            } else {
+                TextField(
+                    "",
+                    text: $locationText,
+                    prompt: textFieldPrompt
+                )
+            }
+        }
+        .focused($isFocused)
+        .autocorrectionDisabled()
+#if os(iOS)
+        .textInputAutocapitalization(.never)
+#endif
         .onSubmit {
             Task { @MainActor in
                 do {
@@ -81,32 +108,45 @@ public struct LocationBar: View, Equatable {
                 }
             }
         }
+#if os(macOS)
         .modifier(LocationBarIntrospection())
-#if os(iOS)
-        // See: https://stackoverflow.com/a/67502495/89373
-        .onReceive(NotificationCenter.default.publisher(for: UITextField.textDidBeginEditingNotification)) { obj in
-            Task { @MainActor in
-                if let textField = obj.object as? UITextField {
-                    textField.selectedTextRange = textField.textRange(from: textField.beginningOfDocument, to: textField.endOfDocument)
+#endif
+        .onChange(of: isFocused) { isFocused in
+            if #available(iOS 18, macOS 15, *) {
+                if isFocused {
+                    selection = TextSelection(range: locationText.startIndex..<locationText.endIndex)
                 }
             }
         }
-#endif
+//#if os(iOS)
+//        // See: https://stackoverflow.com/a/67502495/89373
+//        .onReceive(NotificationCenter.default.publisher(for: UITextField.textDidBeginEditingNotification)) { obj in
+//            Task { @MainActor in
+//                if let textField = obj.object as? UITextField {
+//                    textField.selectedTextRange = textField.textRange(from: textField.beginningOfDocument, to: textField.endOfDocument)
+//                }
+//            }
+//        }
+//#endif
     }
     
     public var body: some View {
-        HStack{
-            textField
-        }
+        textField
     }
     
-    public init(locationText: Binding<String>, selectAll: Binding<Bool>, onSubmit: @escaping ((URL?, String) async throws -> Void)) {
+    public init(
+        locationText: Binding<String>,
+        prompt: String,
+        selection: Binding<Any?>,
+        onSubmit: @escaping ((URL?, String) async throws -> Void)
+    ) {
         _locationText = locationText
-        _selectAll = selectAll
+        self.prompt = prompt
+        _selection = selection
         self.onSubmit = onSubmit
     }
     
     public static func == (lhs: LocationBar, rhs: LocationBar) -> Bool {
-        return lhs.locationText == rhs.locationText
+        return lhs.locationText == rhs.locationText && lhs.prompt == rhs.prompt
     }
 }
