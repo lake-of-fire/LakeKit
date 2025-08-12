@@ -1,5 +1,5 @@
 import SwiftUI
-import Collections
+import OrderedCollections
 import StoreKit
 import StoreHelper
 
