@@ -65,7 +65,7 @@ fileprivate struct PurchaseOptionVersionView: View {
     //    @ScaledMetric(relativeTo: .caption) private var subtitleWidth = 50
     //    @ScaledMetric(relativeTo: .caption) private var subtitleHeight = 40
     @ScaledMetric(relativeTo: .body) private var buttonIdealWidth = 145
-    @ScaledMetric(relativeTo: .body) private var buttonHorizontalPadding = 24
+    @ScaledMetric(relativeTo: .body) private var buttonHorizontalPadding = 28
     #if os(iOS)
     @ScaledMetric(relativeTo: .caption2) private var popularBadgeHeight: CGFloat = 20
     #elseif os(macOS)
@@ -223,7 +223,8 @@ fileprivate struct PurchaseOptionVersionView: View {
                             .clipShape(Circle())
                             .fixedSize()
                         Spacer()
-                            .frame(minWidth: 5, idealWidth: 15)
+                            .frame(minWidth: 4, idealWidth: 10)
+                        
                         VStack(spacing: 0) {
                             // Original price with strikethrough when a discounted offer exists
                             if hasDiscountedPrice {
@@ -291,18 +292,18 @@ fileprivate struct PurchaseOptionVersionView: View {
                                 .padding()
                         }
                     } else {
-                        VStack {
+                        VStack(spacing: 5) {
                             Group {
 #if os(iOS)
                                 //                            Text(buyTitle ?? product.displayName)
                                 Text("Unlock")
-                                //                                .font(.callout)
-                                    .fontWeight(.semibold)
+                                    .font(.headline)
                                     .multilineTextAlignment(.center)
                                     .foregroundColor(.white)
-                                    .padding(.horizontal, buttonHorizontalPadding)
-                                    .padding(.vertical, 5)
+//                                    .padding(.horizontal, buttonHorizontalPadding)
+                                    .padding(.vertical, 12)
                                     .fixedSize(horizontal: false, vertical: true)
+                                    .frame(maxWidth: .infinity)
                                     .background(
                                         Capsule()
                                             .foregroundColor(Color.accentColor)
@@ -337,6 +338,10 @@ fileprivate struct PurchaseOptionVersionView: View {
                                     .foregroundColor(.secondary)
                                     .frame(minHeight: 24)
                                     .padding(.bottom, unitsLabel.isEmpty ? 4 : 6)
+                            } else {
+                                Text("Unlocks all features")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
                             }
                         }
                     }
