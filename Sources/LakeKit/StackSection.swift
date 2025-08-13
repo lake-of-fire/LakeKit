@@ -148,7 +148,13 @@ public struct StackSection<Header: View, Content: View>: View {
         case .toggleable(let isExpanded):
             DisclosureGroup(isExpanded: isExpanded) {
                 content()
-                    .transition(.opacity)
+                    .transition(
+                        .asymmetric(
+                            insertion: .scale(scale: 1, anchor: .top).combined(with: .opacity),
+                            removal: .scale(scale: 1, anchor: .top).combined(with: .opacity)
+                        )
+                    )
+                    .clipped()
             } label: {
                 wrappedHeader()
                     .modifier(SectionHeaderModifier())
@@ -226,7 +232,13 @@ fileprivate struct StackSectionDisclosureGroupStyle: DisclosureGroupStyle {
             
             if configuration.isExpanded {
                 configuration.content
-                    .transition(.opacity)
+                    .transition(
+                        .asymmetric(
+                            insertion: .scale(scale: 1, anchor: .top).combined(with: .opacity),
+                            removal: .scale(scale: 1, anchor: .top).combined(with: .opacity)
+                        )
+                    )
+                    .clipped()
             }
         }
     }

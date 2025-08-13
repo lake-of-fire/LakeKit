@@ -71,7 +71,8 @@ public struct ClearBorderedButtonStyle: ButtonStyle {
 #endif
         }
         .background(.white.opacity(0.0000000001))
-        .frame(minWidth: minWidth, minHeight: minHeight)
+//        .frame(minWidth: minWidth, minHeight: minHeight)
+        .frame(width: minWidth, height: minHeight)
         .contentShape(RoundedRectangle(cornerRadius: minHeight / 7))
 //        .clipShape(RoundedRectangle(cornerRadius: minHeight / 7))
     }
