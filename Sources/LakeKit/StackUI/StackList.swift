@@ -11,13 +11,5 @@ public struct StackList<Content: View>: View {
         VStack(alignment: .leading, spacing: 0) {
             content()
         }
-        .modifier {
-            if #available(iOS 17, macOS 14, *) {
-                $0.contentMargins(15, for: .scrollContent)
-                $0.contentMargins(0, for: .scrollIndicators)
-            } else {
-                $0.padding()
-            }
-        }
     }
 }

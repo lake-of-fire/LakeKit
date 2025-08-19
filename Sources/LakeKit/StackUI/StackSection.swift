@@ -1,9 +1,10 @@
+import SwiftUI
+import NavigationBackport
+
 fileprivate enum StackSectionMetrics {
     static let headerRowSpacing: CGFloat = 10
     static let contentTopSpacing: CGFloat = 8
 }
-import SwiftUI
-import NavigationBackport
 
 public struct StackSection<Header: View, Content: View>: View {
     private enum Expansion { case toggleable(Binding<Bool>), alwaysExpanded }
@@ -356,7 +357,9 @@ struct StackSection_Previews: PreviewProvider {
             Showcase()
                 .previewDisplayName("StackSection Showcase")
         }
+        #if os(iOS)
         .background(Color(UIColor.systemBackground))
+        #endif
     }
 }
 #endif
