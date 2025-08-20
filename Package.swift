@@ -10,7 +10,7 @@ let package = Package(
         // Products define the executables and libraries a package produces, and make them visible to other packages.
         .library(
             name: "LakeKit",
-            type: .dynamic,
+//            type: .dynamic,
             targets: ["LakeKit"]),
     ],
     dependencies: [
@@ -49,11 +49,13 @@ let package = Package(
         .package(url: "https://github.com/lake-of-fire/FilePicker.git", branch: "main"),
         .package(url: "https://github.com/weichsel/ZIPFoundation.git", branch: "development"),
         .package(url: "https://github.com/lake-of-fire/LRUCache.git", branch: "main"),
+        .package(url: "https://github.com/johnno1962/HotSwiftUI.git", branch: "main"),
 //        .package(url: "https://github.com/kean/Pulse.git", branch: "main"),
         .package(url: "https://github.com/stevengharris/SplitView.git", branch: "main"),
         .package(url: "https://github.com/lake-of-fire/VisionLiveText_SwiftUICompatible.git", branch: "main"),
         .package(url: "https://github.com/EmergeTools/Pow.git", branch: "main"),
         .package(url: "https://github.com/apple/swift-log.git", branch: "main"),
+        .package(url: "https://github.com/groue/GRDB.swift.git", from: "7.6.1"),
         .package(url: "https://github.com/Tunous/DebouncedOnChange.git", branch: "main"),
         .package(url: "https://github.com/lake-of-fire/Puppy.git", branch: "main"),
         .package(url: "https://github.com/lake-of-fire/CloudKitSyncMonitor.git", branch: "main"),
@@ -71,6 +73,7 @@ let package = Package(
 //                .product(name: "RealmSwift", package: "RealmBinary"),
                 .product(name: "RealmSwift", package: "realm-swift"),
                 .product(name: "RealmSwiftGaps", package: "RealmSwiftGaps"),
+                .product(name: "GRDB", package: "GRDB.swift"),
                 .product(name: "SwiftUIDrag", package: "SwiftUIDrag"),
                 .product(name: "Popovers", package: "Popovers"),
                 .product(name: "OrderedCollections", package: "swift-collections"),
@@ -108,6 +111,7 @@ let package = Package(
                 .product(name: "NavigationBackport", package: "NavigationBackport"),
                 .product(name: "Boutique", package: "Boutique"),
                 .product(name: "LRUCache", package: "LRUCache"),
+                .product(name: "HotSwiftUI", package: "HotSwiftUI"),
             ],
             resources: [
                 .process("Resources"),
@@ -122,6 +126,11 @@ let package = Package(
 //                .copy("Resources/JS/popper.min.js"),
 //                .copy("Resources/JS/tippy_css_loader.js"),
 //                .copy("Resources/JS/tippy.umd.min.js"),
+            ],
+            linkerSettings: [
+                .unsafeFlags(
+                    ["-Xlinker", "-interposable"],
+                    .when(configuration: .debug))
             ]
         ),
         .testTarget(

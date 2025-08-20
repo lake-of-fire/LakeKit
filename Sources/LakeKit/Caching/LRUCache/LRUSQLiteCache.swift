@@ -1,24 +1,87 @@
 import Foundation
 import LRUCache
 import SwiftUtilities
-// TODO: Move to levi/Boutique for moving off MainActor
-import Boutique
+import GRDB
 
 #if DEBUG
 fileprivate let debugBuildID = UUID()
 #endif
 
-/// A Boutique-powered LRU cache that persists values in SQLite.
+fileprivate struct CacheEntry: Codable, Equatable {
+    let id: String
+    let data: Data?
+    let encoding: String // "raw", "lz4", "json", "json.lz4", or "nil"
+}
+
+extension CacheEntry: FetchableRecord, PersistableRecord, TableRecord {
+    static let databaseTableName = "cache"
+    static var persistenceConflictPolicy: PersistenceConflictPolicy { .init(insert: .replace, update: .replace) }
+}
+
+fileprivate struct GRDBLRUStore {
+    private let pool: DatabasePool
+    
+    init(fileURL: URL) throws {
+        let fm = FileManager.default
+        try fm.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        var config = Configuration()
+        config.readonly = false
+        config.maximumReaderCount = 8
+        config.prepareDatabase { db in
+            try db.execute(sql: "PRAGMA journal_mode=WAL")
+            try db.execute(sql: "PRAGMA synchronous=NORMAL")
+            try db.execute(sql: "PRAGMA foreign_keys=OFF")
+        }
+        self.pool = try DatabasePool(path: fileURL.path, configuration: config)
+        try migrator.migrate(pool)
+    }
+    
+    private var migrator: DatabaseMigrator {
+        var m = DatabaseMigrator()
+        m.registerMigration("v1_create_cache") { db in
+            try db.create(table: CacheEntry.databaseTableName, ifNotExists: true) { t in
+                t.column("id", .text).primaryKey()
+                t.column("data", .blob)
+                t.column("encoding", .text).notNull()
+            }
+        }
+        return m
+    }
+    
+    var items: [CacheEntry] {
+        (try? pool.read { db in try CacheEntry.fetchAll(db) }) ?? []
+    }
+    
+    func insert(_ entry: CacheEntry) throws {
+        try pool.write { db in try entry.insert(db) }
+    }
+    
+    func removeByID(_ id: String) throws {
+        try pool.write { db in _ = try CacheEntry.deleteOne(db, key: id) }
+    }
+    
+    func remove(_ entry: CacheEntry) throws {
+        try removeByID(entry.id)
+    }
+    
+    func removeAll() throws {
+        try pool.write { db in try db.execute(sql: "DELETE FROM \(CacheEntry.databaseTableName)") }
+    }
+    
+    func exists(id: String) -> Bool {
+        (try? pool.read { db in
+            try Bool.fetchOne(db, sql: "SELECT EXISTS(SELECT 1 FROM \(CacheEntry.databaseTableName) WHERE id = ?)", arguments: [id])
+        }) ?? false
+    }
+}
+
+/// A GRDB-backed LRU cache that persists values in SQLite.
 open class LRUSQLiteCache<I: Encodable, O: Codable>: ObservableObject {
     @Published public var cacheDirectory: URL
     private let cache: LRUCache<String, Any?>
+    private let ioQueue = DispatchQueue(label: "LRUSQLiteCache.IO")
     
-    /// Use Store2 from the new Boutique fork; it will be initialized asynchronously.
-    private var coreStore: CoreStore<CacheEntry>?
-    
-    @MainActor
-    private var deleteOrphansTimer: DispatchSourceTimer?
-    private let debounceInterval: TimeInterval = 16
+    private var store: GRDBLRUStore?
     
     private var jsonEncoder: JSONEncoder {
         let encoder = JSONEncoder()
@@ -26,15 +89,8 @@ open class LRUSQLiteCache<I: Encodable, O: Codable>: ObservableObject {
         return encoder
     }
     
-    /// Represents an entry in the cache, storing the value's data and encoding type.
-    private struct CacheEntry: Codable, Equatable {
-        let id: String       // The key hash
-        let data: Data?      // Stored data (compressed or raw)
-        let encoding: String // "raw", "lz4", "json", "json.lz4", or "nil"
-    }
-    
     public init(namespace: String, version: Int? = nil, totalBytesLimit: Int = .max, countLimit: Int = .max) {
-        assert(!namespace.isEmpty, "LRUFileCache namespace must not be empty")
+        assert(!namespace.isEmpty, "LRUSQLiteCache namespace must not be empty")
         
         let fileManager = FileManager.default
         let cacheRoot = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first!
@@ -49,23 +105,19 @@ open class LRUSQLiteCache<I: Encodable, O: Codable>: ObservableObject {
         versionString += debugBuildID.uuidString
 #endif
         
-        // Asynchronously initialize CoreStore without blocking init.
-        Task {
-            guard let coreStore = try? await CoreStore<CacheEntry>(
-                storage: SQLiteStorageEngine(directory: .init(url: cacheDirectory)) ?? SQLiteStorageEngine.default(appendingPath: "LRUFileCache/\(namespace)"),
-                cacheIdentifier: \.id
-            ) else { return }
-            
-            // Compare version, clear store if needed.
+        let dbURL = cacheDirectory.appendingPathComponent("cache.sqlite")
+        
+        do {
+            let store = try GRDBLRUStore(fileURL: dbURL)
             if let versionData = try? Data(contentsOf: versionFileURL),
                String(data: versionData, encoding: .utf8) != versionString {
-                try await coreStore.removeAll()
+                try store.removeAll()
             }
             try? versionString.data(using: .utf8)?.write(to: versionFileURL)
-            
-            self.coreStore = coreStore
-            
-            await self.rebuild()
+            self.store = store
+            self.rebuild()
+        } catch {
+            print("Failed to initialize GRDBLRUStore: \(error)")
         }
     }
     
@@ -85,14 +137,14 @@ open class LRUSQLiteCache<I: Encodable, O: Codable>: ObservableObject {
     public func removeValue(forKey key: I) {
         guard let keyHash = cacheKeyHash(key) else { return }
         cache.removeValue(forKey: keyHash)
-        Task {
-            try? await coreStore?.removeByID(keyHash)
+        ioQueue.async { [weak self] in
+            try? self?.store?.removeByID(keyHash)
         }
     }
     public func removeAll() {
         cache.removeAllValues()
-        Task {
-            try? await coreStore?.removeAll()
+        ioQueue.async { [store] in
+            try? store?.removeAll()
         }
     }
     
@@ -104,9 +156,15 @@ open class LRUSQLiteCache<I: Encodable, O: Codable>: ObservableObject {
         return nil
     }
     
+    public func containsKey(_ key: I) -> Bool {
+        guard let keyHash = cacheKeyHash(key) else { return false }
+        if cache.hasKey(keyHash) { return true }
+        return store?.exists(id: keyHash) ?? false
+    }
+    
     public func setValue(_ value: O?, forKey key: I) {
-//        debugPrint("# setval ", key, value.debugDescription.prefix(300))
         guard let keyHash = cacheKeyHash(key) else { return }
+        let beforeKeys = Set(cache.allKeys)
         
         var dataToStore: Data?
         var encoding = ""
@@ -123,26 +181,29 @@ open class LRUSQLiteCache<I: Encodable, O: Codable>: ObservableObject {
                         encoding = "raw"
                     }
                 } else if let stringValue = value as? String {
-                    if stringValue.utf16.count > 200_000 {
-                        dataToStore = try (stringValue.data(using: .utf8)! as NSData)
-                            .compressed(using: .lz4) as Data
+                    let rawData = Data(stringValue.utf8)
+                    if rawData.count > 200_000 {
+                        dataToStore = try (rawData as NSData).compressed(using: .lz4) as Data
                         encoding = "lz4"
                     } else {
-                        dataToStore = stringValue.data(using: .utf8)
+                        dataToStore = rawData
                         encoding = "raw"
                     }
                 } else if let dataValue = value as? Data {
-                    if dataValue.count ?? 0 > 200_000 {
+                    if dataValue.count > 200_000 {
+                        dataToStore = try (dataValue as NSData).compressed(using: .lz4) as Data
                         encoding = "lz4"
                     } else {
+                        dataToStore = dataValue
                         encoding = "raw"
                     }
                 } else {
-                    dataToStore = try jsonEncoder.encode(value)
-                    if let rawData = dataToStore, rawData.count ?? 0 > 200_000 {
+                    let rawData = try jsonEncoder.encode(value)
+                    if rawData.count > 200_000 {
                         dataToStore = try (rawData as NSData).compressed(using: .lz4) as Data
                         encoding = "json.lz4"
                     } else {
+                        dataToStore = rawData
                         encoding = "json"
                     }
                 }
@@ -153,25 +214,31 @@ open class LRUSQLiteCache<I: Encodable, O: Codable>: ObservableObject {
             encoding = "nil"
         }
         
-        DispatchQueue.main.async {
-            self.cache.setValue(value, forKey: keyHash, cost: dataToStore?.count ?? 1)
-        }
+        self.cache.setValue(value, forKey: keyHash, cost: dataToStore?.count ?? 1)
         
         let entry = CacheEntry(id: keyHash, data: dataToStore, encoding: encoding)
         
-        Task {
-            try? await coreStore?.insert(entry)
-            await self.debouncedDeleteOrphans()
+        ioQueue.async { [weak self, store] in
+            try? store?.insert(entry)
         }
+        
+        mirrorLRUEvictions(previousKeys: beforeKeys)
     }
     
-    private func rebuild() async {
-        let entries = await coreStore?.items ?? []
+    private func mirrorLRUEvictions(previousKeys: Set<String>) {
+        let after = Set(cache.allKeys)
+        let evicted = previousKeys.subtracting(after)
+        guard let store = store, !evicted.isEmpty else { return }
+        for id in evicted { try? store.removeByID(id) }
+    }
+    
+    private func rebuild() {
+        let entries = store?.items ?? []
         for entry in entries {
-            debugPrint("# REBUILD", entry.id)
             let keyHash = entry.id
             let decodedValue: O? = decodeValue(from: entry)
-            DispatchQueue.main.async {
+            // Only populate in-memory cache when there is a value
+            if let decodedValue {
                 let cost = entry.data?.count ?? 1
                 self.cache.setValue(decodedValue, forKey: keyHash, cost: cost)
             }
@@ -213,37 +280,6 @@ open class LRUSQLiteCache<I: Encodable, O: Codable>: ObservableObject {
             return nil
         default:
             return nil
-        }
-    }
-    
-    @MainActor
-    private func debouncedDeleteOrphans() {
-        deleteOrphansTimer?.cancel()
-        
-        let timer = DispatchSource.makeTimerSource(queue: DispatchQueue.global(qos: .background))
-        timer.schedule(deadline: .now() + debounceInterval)
-        
-        timer.setEventHandler {
-            Task {
-                do {
-                    try await self.deleteOrphans()
-                } catch {
-                    print("Error deleting orphans: \(error)")
-                }
-            }
-        }
-        
-        deleteOrphansTimer = timer
-        timer.resume()
-    }
-    
-    private func deleteOrphans() async throws {
-        let contents = await coreStore?.items.map { $0.id } ?? []
-        let existing = Set(contents)
-        let storedEntries = await coreStore?.items ?? []
-        
-        for entry in storedEntries where !existing.contains(entry.id) {
-            try await coreStore?.remove(entry)
         }
     }
 }
