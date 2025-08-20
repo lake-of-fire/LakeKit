@@ -151,8 +151,8 @@ public struct StackSection<Header: View, Content: View>: View {
                 content()
                     .transition(
                         .asymmetric(
-                            insertion: .scale(scale: 1, anchor: .top).combined(with: .opacity),
-                            removal: .scale(scale: 1, anchor: .top).combined(with: .opacity)
+                            insertion: .move(edge: .top).combined(with: .opacity),
+                            removal: .move(edge: .top).combined(with: .opacity)
                         )
                     )
                     .clipped()
@@ -167,6 +167,7 @@ public struct StackSection<Header: View, Content: View>: View {
                     ))
                 } else { $0 }
             }
+            .animation(.easeInOut(duration: 0.25), value: isExpanded.wrappedValue)
         }
     }
 }
@@ -208,40 +209,59 @@ fileprivate struct StackSectionDisclosureGroupStyle: DisclosureGroupStyle {
                 
                 // Trailing header controls
                 trailingHeader()
-                    .controlSize(.small)
+                    .controlSize(.mini)
+                    .modifier {
+                        if #available(iOS 16, macOS 13, *) {
+                            $0.fontWeight(.semibold)
+                        } else { $0 }
+                    }
                 
                 // Trailing circular toggle button (only control that changes expansion)
                 Button {
-                    withAnimation(.easeInOut(duration: 0.2)) { configuration.isExpanded.toggle() }
+//                    withAnimation(.easeInOut(duration: 0.2)) { configuration.isExpanded.toggle() }
+                    withAnimation {
+                        configuration.isExpanded.toggle()
+                    }
                 } label: {
                     Image(systemName: "chevron.right")
+                        .imageScale(.small)
                         .rotationEffect(configuration.isExpanded ? .degrees(90) : .zero)
-                        .animation(.easeInOut(duration: 0.2), value: configuration.isExpanded)
+#if os(iOS)
+                        .modifier {
+                            if #available(iOS 16, macOS 13, *) {
+                                $0.fontWeight(.semibold)
+                            } else { $0 }
+                        }
+#endif
                 }
 #if os(iOS)
                 .buttonStyle(.bordered)
 #endif
-                .controlSize(.small)
+//                .controlSize(.mini)
                 .modifier {
                     if #available(iOS 17, macOS 14, *) {
-                        $0.buttonBorderShape(.circle)
+                        $0
+                            .buttonBorderShape(.circle)
+                            .backgroundStyle(Color.stackListGroupedBackground)
                     } else {
                         $0
                     }
                 }
             }
             
-            if configuration.isExpanded {
-                configuration.content
-                    .transition(
-                        .asymmetric(
-                            insertion: .scale(scale: 1, anchor: .top).combined(with: .opacity),
-                            removal: .scale(scale: 1, anchor: .top).combined(with: .opacity)
-                        )
-                    )
-                    .clipped()
+            VStack {
+                if configuration.isExpanded {
+                    configuration.content
+                        .padding(.bottom)
+                } else {
+                    Divider()
+                        .padding(.vertical, 6)
+                }
             }
+            .transition(.slide.combined(with: .opacity))
         }
+        .clipped()
+        .animation(.easeInOut(duration: 0.25), value: configuration.isExpanded)
     }
 }
 
@@ -357,9 +377,9 @@ struct StackSection_Previews: PreviewProvider {
             Showcase()
                 .previewDisplayName("StackSection Showcase")
         }
-        #if os(iOS)
+#if os(iOS)
         .background(Color(UIColor.systemBackground))
-        #endif
+#endif
     }
 }
 #endif

@@ -8,7 +8,7 @@ public struct StackList<Content: View>: View {
     }
     
     public var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading) {
             content()
         }
     }

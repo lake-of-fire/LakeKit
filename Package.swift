@@ -108,7 +108,6 @@ let package = Package(
 //                .product(name: "Inferno", package: "Inferno"),
                 .product(name: "CloudKitSyncMonitor", package: "CloudKitSyncMonitor"),
                 .product(name: "NavigationBackport", package: "NavigationBackport"),
-                .product(name: "LRUCache", package: "LRUCache"),
                 .product(name: "HotSwiftUI", package: "HotSwiftUI"),
             ],
             resources: [
