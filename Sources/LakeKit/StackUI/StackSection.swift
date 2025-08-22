@@ -14,6 +14,16 @@ public struct StackSection<Header: View, Content: View>: View {
     @ViewBuilder private let content: () -> Content
     @ViewBuilder private let trailingHeader: () -> AnyView
     
+    // Default per-row separator policy for StackList builder
+    public func stackListDefaultSeparatorVisibility() -> Visibility {
+        switch expansion {
+        case .alwaysExpanded:
+            return .hidden
+        case .toggleable(let isExpanded):
+            return isExpanded.wrappedValue ? .hidden : .automatic
+        }
+    }
+    
     public init(
         navigationValue: AnyHashable? = nil,
         isExpanded: Binding<Bool>,
@@ -142,7 +152,7 @@ public struct StackSection<Header: View, Content: View>: View {
                         .modifier(SectionHeaderModifier())
                         .frame(maxWidth: .infinity, alignment: .leading)
                     trailingHeader()
-                        .controlSize(.small)
+                        .modifier(StackSectionTrailingHeaderModifier())
                 }
                 content()
             }
@@ -193,6 +203,21 @@ fileprivate struct SectionHeaderModifier: ViewModifier {
     }
 }
 
+fileprivate struct StackSectionTrailingHeaderModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+#if os(iOS)
+            .buttonStyle(.bordered)
+#endif
+            .controlSize(.mini)
+            .modifier {
+                if #available(iOS 16, macOS 13, *) {
+                    $0.fontWeight(.semibold)
+                } else { $0 }
+            }
+    }
+}
+
 @available(iOS 16, macOS 13, *)
 fileprivate struct StackSectionDisclosureGroupStyle: DisclosureGroupStyle {
     let trailingHeader: () -> AnyView
@@ -209,16 +234,11 @@ fileprivate struct StackSectionDisclosureGroupStyle: DisclosureGroupStyle {
                 
                 // Trailing header controls
                 trailingHeader()
-                    .controlSize(.mini)
-                    .modifier {
-                        if #available(iOS 16, macOS 13, *) {
-                            $0.fontWeight(.semibold)
-                        } else { $0 }
-                    }
+                    .modifier(StackSectionTrailingHeaderModifier())
                 
                 // Trailing circular toggle button (only control that changes expansion)
                 Button {
-//                    withAnimation(.easeInOut(duration: 0.2)) { configuration.isExpanded.toggle() }
+                    //                    withAnimation(.easeInOut(duration: 0.2)) { configuration.isExpanded.toggle() }
                     withAnimation {
                         configuration.isExpanded.toggle()
                     }
@@ -237,7 +257,7 @@ fileprivate struct StackSectionDisclosureGroupStyle: DisclosureGroupStyle {
 #if os(iOS)
                 .buttonStyle(.bordered)
 #endif
-//                .controlSize(.mini)
+                //                .controlSize(.mini)
                 .modifier {
                     if #available(iOS 17, macOS 14, *) {
                         $0
@@ -252,13 +272,10 @@ fileprivate struct StackSectionDisclosureGroupStyle: DisclosureGroupStyle {
             VStack {
                 if configuration.isExpanded {
                     configuration.content
-                        .padding(.bottom)
                 } else {
-                    Divider()
-                        .padding(.vertical, 6)
+                    EmptyView()
                 }
             }
-            .transition(.slide.combined(with: .opacity))
         }
         .clipped()
         .animation(.easeInOut(duration: 0.25), value: configuration.isExpanded)
