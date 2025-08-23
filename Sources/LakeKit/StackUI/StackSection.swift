@@ -13,6 +13,8 @@ public struct StackSection<Header: View, Content: View>: View {
     @ViewBuilder private let header: () -> Header
     @ViewBuilder private let content: () -> Content
     @ViewBuilder private let trailingHeader: () -> AnyView
+    @Environment(\.stackListStyle) private var stackListStyle
+    @Environment(\.stackListRowID) private var stackListRowID
     
     // Default per-row separator policy for StackList builder
     public func stackListDefaultSeparatorVisibility() -> Visibility {
@@ -156,6 +158,11 @@ public struct StackSection<Header: View, Content: View>: View {
                 }
                 content()
             }
+            .padding(.bottom, stackListStyle.expandedBottomPadding)
+            .preference(
+                key: StackListRowSeparatorPreferenceKey.self,
+                value: stackListRowID.map { [$0: .hidden] } ?? [:]
+            )
         case .toggleable(let isExpanded):
             DisclosureGroup(isExpanded: isExpanded) {
                 content()
@@ -170,6 +177,12 @@ public struct StackSection<Header: View, Content: View>: View {
                 wrappedHeader()
                     .modifier(SectionHeaderModifier())
             }
+            .animation(.easeInOut(duration: 0.25), value: isExpanded.wrappedValue)
+            .padding(.bottom, isExpanded.wrappedValue ? stackListStyle.expandedBottomPadding : 0)
+            .preference(
+                key: StackListRowSeparatorPreferenceKey.self,
+                value: stackListRowID.map { [$0: (isExpanded.wrappedValue ? .hidden : .automatic)] } ?? [:]
+            )
             .modifier {
                 if #available(iOS 16, macOS 13, *) {
                     $0.disclosureGroupStyle(StackSectionDisclosureGroupStyle(
@@ -177,7 +190,6 @@ public struct StackSection<Header: View, Content: View>: View {
                     ))
                 } else { $0 }
             }
-            .animation(.easeInOut(duration: 0.25), value: isExpanded.wrappedValue)
         }
     }
 }
@@ -209,10 +221,11 @@ fileprivate struct StackSectionTrailingHeaderModifier: ViewModifier {
 #if os(iOS)
             .buttonStyle(.bordered)
 #endif
-            .controlSize(.mini)
+            .controlSize(.small)
+            .font(.footnote)
             .modifier {
                 if #available(iOS 16, macOS 13, *) {
-                    $0.fontWeight(.semibold)
+                    $0.fontWeight(.bold)
                 } else { $0 }
             }
     }
@@ -249,7 +262,7 @@ fileprivate struct StackSectionDisclosureGroupStyle: DisclosureGroupStyle {
 #if os(iOS)
                         .modifier {
                             if #available(iOS 16, macOS 13, *) {
-                                $0.fontWeight(.semibold)
+                                $0.fontWeight(.bold)
                             } else { $0 }
                         }
 #endif
@@ -281,6 +294,7 @@ fileprivate struct StackSectionDisclosureGroupStyle: DisclosureGroupStyle {
         .animation(.easeInOut(duration: 0.25), value: configuration.isExpanded)
     }
 }
+
 
 #if DEBUG
 @available(iOS 16, macOS 14, *)
