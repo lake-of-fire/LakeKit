@@ -61,18 +61,24 @@ struct StackListRowEmptyPreferenceKey: PreferenceKey {
     }
 }
 
+// Publish measured height per row (animates any content-driven height change)
+struct StackListRowHeightPreferenceKey: PreferenceKey {
+    static var defaultValue: [UUID: CGFloat] = [:]
+    static func reduce(value: inout [UUID: CGFloat], nextValue: () -> [UUID: CGFloat]) {
+        value.merge(nextValue(), uniquingKeysWith: { _, new in new })
+    }
+}
+
 // MARK: - Row item & result builder
 
 public struct StackListRowItem: Identifiable {
     public let id = UUID()
     public let view: AnyView
     public var separatorVisibility: Visibility
-    public var isHidden: Bool
     
-    public init<V: View>(view: V, separatorVisibility: Visibility = .automatic, isHidden: Bool = false) {
+    public init<V: View>(view: V, separatorVisibility: Visibility = .automatic) {
         self.view = AnyView(view)
         self.separatorVisibility = separatorVisibility
-        self.isHidden = isHidden
     }
 }
 
@@ -85,14 +91,14 @@ public enum StackListBuilder {
         [expression]
     }
     public static func buildExpression<H: View, C: View>(_ expression: StackSection<H, C>) -> [StackListRowItem] {
-        [StackListRowItem(view: expression, separatorVisibility: expression.stackListDefaultSeparatorVisibility(), isHidden: false)]
+        [StackListRowItem(view: expression, separatorVisibility: expression.stackListDefaultSeparatorVisibility())]
     }
     public static func buildExpression(_ expression: EmptyView) -> [StackListRowItem] {
         []
     }
     public static func buildExpression<V: View>(_ expression: V) -> [StackListRowItem] {
         // Non-StackSection rows default to no divider unless explicitly requested via .stackListRowSeparator(.automatic)
-        [StackListRowItem(view: expression, separatorVisibility: .automatic, isHidden: false)]
+        [StackListRowItem(view: expression, separatorVisibility: .automatic)]
     }
     public static func buildEither(first component: [StackListRowItem]) -> [StackListRowItem] { component }
     public static func buildEither(second component: [StackListRowItem]) -> [StackListRowItem] { component }
@@ -111,11 +117,11 @@ public extension View {
     }
 }
 
-public extension View {
-    func stackListRowHidden(_ hidden: Bool) -> StackListRowItem {
-        StackListRowItem(view: self, separatorVisibility: .automatic, isHidden: hidden)
-    }
-}
+//public extension View {
+//    func stackListRowHidden(_ hidden: Bool) -> StackListRowItem {
+//        StackListRowItem(view: self, separatorVisibility: .automatic, isHidden: hidden)
+//    }
+//}
 
 // A wrapper that guarantees preferences/geometry emit even if the row's view tree renders nothing.
 private struct StackListRowHost: View {
@@ -133,6 +139,11 @@ private struct StackListRowHost: View {
                         key: StackListRowEmptyPreferenceKey.self,
                         value: [rowID: (proxy.size.height <= 0.5 || proxy.size.width <= 0.5)]
                     )
+                    .preferredColorScheme(nil) // no-op to chain modifiers safely
+                    .preference(
+                        key: StackListRowHeightPreferenceKey.self,
+                        value: [rowID: proxy.size.height]
+                    )
             }
         )
     }
@@ -145,6 +156,7 @@ public struct StackList: View {
     @State private var rowSeparatorDefaults: [UUID: Visibility] = [:]
     @State private var rowSeparatorOverrides: [UUID: Visibility] = [:]
     @State private var rowIsEmpty: [UUID: Bool] = [:]
+    @State private var rowHeights: [UUID: CGFloat] = [:]
     
     public init(@StackListBuilder rows: () -> [StackListRowItem]) {
         self.style = StackListStyle()
@@ -163,30 +175,50 @@ public struct StackList: View {
                 let rowID = row.id
                 
                 let isLastRow = index == rows.count - 1
-                let hasSeparator = style.managesSeparators && !isLastRow && !(rowIsEmpty[rowID] ?? false) && !row.isHidden && (rowSeparatorOverrides[rowID] ?? rowSeparatorDefaults[rowID] ?? row.separatorVisibility) != .hidden
+                let isRowEmpty = rowIsEmpty[rowID] ?? false
+                let hasSeparator = style.managesSeparators && !isLastRow && !isRowEmpty && (rowSeparatorOverrides[rowID] ?? rowSeparatorDefaults[rowID] ?? row.separatorVisibility) != .hidden
                 
                 StackListRowHost(rowID: rowID, content: row.view)
                     .environment(\.stackListRowID, rowID)
                     .preference(key: StackListRowSeparatorDefaultPreferenceKey.self,
                                 value: [rowID: row.separatorVisibility])
-                    .padding(.bottom, hasSeparator ? 0 : (isLastRow ? 0 : style.interItemSpacing))
+                    .padding(.bottom, (isRowEmpty || hasSeparator || isLastRow) ? 0 : style.interItemSpacing)
+                //                    .frame(height: rowHeights[rowID])
+                //                    .clipped()
                 
                 if hasSeparator {
                     Divider()
                         .padding(.vertical, style.interItemSpacing / 2)
+                        .transition(.move(edge: .top).combined(with: .opacity))
                 }
             }
         }
         .onPreferenceChange(StackListRowSeparatorDefaultPreferenceKey.self) { newValue in
-            if rowSeparatorDefaults != newValue { rowSeparatorDefaults = newValue }
+            if rowSeparatorDefaults != newValue {
+                rowSeparatorDefaults = newValue
+            }
         }
         .onPreferenceChange(StackListRowSeparatorOverridePreferenceKey.self) { newValue in
-            if rowSeparatorOverrides != newValue { rowSeparatorOverrides = newValue }
+            if rowSeparatorOverrides != newValue {
+                rowSeparatorOverrides = newValue
+            }
         }
         .onPreferenceChange(StackListRowEmptyPreferenceKey.self) { newValue in
-            if rowIsEmpty != newValue { rowIsEmpty = newValue }
+            if rowIsEmpty != newValue {
+                rowIsEmpty = newValue
+            }
+        }
+        .onPreferenceChange(StackListRowHeightPreferenceKey.self) { newValue in
+            if rowHeights != newValue {
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    rowHeights = newValue
+                }
+            }
         }
         .environment(\.stackListStyle, style)
+        .animation(nil, value: rowSeparatorOverrides)
+        .animation(nil, value: rowIsEmpty)
+        .animation(nil, value: rowSeparatorDefaults)
         .frame(maxWidth: 850)
     }
 }

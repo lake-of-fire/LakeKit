@@ -11,7 +11,7 @@ public struct EmptyStateBoxView<Trailing: View>: View {
     @ViewBuilder public var trailingView: Trailing
     
     // Keep roughly in line with card/list cell heights so sections don't collapse too small.
-    @ScaledMetric(relativeTo: .footnote) private var minHeight: CGFloat = 130
+    @ScaledMetric(relativeTo: .footnote) private var minHeight: CGFloat = 160
     
     public init(
         title: Text,
@@ -29,7 +29,7 @@ public struct EmptyStateBoxView<Trailing: View>: View {
         GroupBox {
             HStack(alignment: .top, spacing: 12) {
                 VStack(spacing: 0) {
-                    Spacer(minLength: 0)
+                    Spacer(minLength: 20)
                     
                     VStack(alignment: .leading, spacing: 6) {
                         title

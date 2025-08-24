@@ -155,8 +155,7 @@ public struct StackSection<Header: View, Content: View>: View {
         if let navigationDestination {
             if #available(iOS 16, macOS 13, *) {
                 NavigationLink(destination: { navigationDestination() }) {
-                    header()
-                    headerChevron()
+                    headerWithChevron()
                 }
             } else {
                 header()
@@ -164,17 +163,23 @@ public struct StackSection<Header: View, Content: View>: View {
         } else if let navigationValue {
             if #available(iOS 16, macOS 13, *) {
                 NavigationLink(value: navigationValue) {
-                    header()
-                    headerChevron()
+                    headerWithChevron()
                 }
             } else {
                 NBNavigationLink(value: navigationValue) {
-                    header()
-                    headerChevron()
+                    headerWithChevron()
                 }
             }
         } else {
             header()
+        }
+    }
+    
+    @ViewBuilder
+    private func headerWithChevron() -> some View {
+        HStack(spacing: 3) {
+            header()
+            headerChevron()
         }
     }
     
@@ -215,13 +220,6 @@ public struct StackSection<Header: View, Content: View>: View {
         case .toggleable(let isExpanded):
             DisclosureGroup(isExpanded: isExpanded) {
                 content()
-                    .transition(
-                        .asymmetric(
-                            insertion: .move(edge: .top).combined(with: .opacity),
-                            removal: .move(edge: .top).combined(with: .opacity)
-                        )
-                    )
-                    .clipped()
             } label: {
                 wrappedHeader()
                     .modifier(SectionHeaderModifier())
@@ -286,7 +284,9 @@ fileprivate struct StackSectionDisclosureGroupStyle: DisclosureGroupStyle {
                 
                 // Trailing circular toggle button (only control that changes expansion)
                 Button {
-                    configuration.isExpanded.toggle()
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        configuration.isExpanded.toggle()
+                    }
                 } label: {
                     Image(systemName: "chevron.right")
                         .imageScale(.small)
@@ -314,17 +314,17 @@ fileprivate struct StackSectionDisclosureGroupStyle: DisclosureGroupStyle {
                 }
             }
             
-            VStack {
-                if configuration.isExpanded {
-                    configuration.content
-                        .padding(.top, StackSectionMetrics.contentTopSpacing)
-                } else {
-                    EmptyView()
-                }
+            VStack(spacing: 0) {
+                configuration.content
+                    .padding(.top, StackSectionMetrics.contentTopSpacing)
+                    .opacity(configuration.isExpanded ? 1 : 0)
+                    .frame(height: configuration.isExpanded ? nil : 0, alignment: .top)
+                    .clipped()
+                    .allowsHitTesting(configuration.isExpanded)
+                    .accessibilityHidden(!configuration.isExpanded)
             }
         }
         .clipped()
-        .animation(.easeInOut(duration: 0.25), value: configuration.isExpanded)
     }
 }
 
