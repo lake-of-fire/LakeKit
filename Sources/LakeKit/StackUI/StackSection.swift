@@ -2,7 +2,7 @@ import SwiftUI
 import NavigationBackport
 
 fileprivate enum StackSectionMetrics {
-    static let headerRowSpacing: CGFloat = 10
+    static let headerRowSpacing: CGFloat = 8
     static let contentTopSpacing: CGFloat = 8
 }
 
@@ -10,10 +10,10 @@ public struct StackSection<Header: View, Content: View>: View {
     private enum Expansion { case toggleable(Binding<Bool>), alwaysExpanded }
     private let expansion: Expansion
     private let navigationValue: AnyHashable?
+    @ViewBuilder private let navigationDestination: (() -> AnyView)?
     @ViewBuilder private let header: () -> Header
     @ViewBuilder private let content: () -> Content
     @ViewBuilder private let trailingHeader: () -> AnyView
-    @Environment(\.stackListStyle) private var stackListStyle
     @Environment(\.stackListRowID) private var stackListRowID
     
     // Default per-row separator policy for StackList builder
@@ -38,6 +38,7 @@ public struct StackSection<Header: View, Content: View>: View {
         self.header = header
         self.content = content
         self.trailingHeader = { AnyView(trailingHeader()) }
+        self.navigationDestination = nil
     }
     
     public init(
@@ -52,21 +53,6 @@ public struct StackSection<Header: View, Content: View>: View {
             isExpanded: isExpanded,
             trailingHeader: trailingHeader,
             header: { Text(titleKey) },
-            content: content)
-    }
-    
-    public init<S: StringProtocol>(
-        _ title: S,
-        navigationValue: AnyHashable? = nil,
-        isExpanded: Binding<Bool>,
-        trailingHeader: @escaping () -> some View = { EmptyView() },
-        @ViewBuilder content: @escaping () -> Content
-    ) where Header == Text {
-        self.init(
-            navigationValue: navigationValue,
-            isExpanded: isExpanded,
-            trailingHeader: trailingHeader,
-            header: { Text(title) },
             content: content)
     }
     
@@ -81,6 +67,7 @@ public struct StackSection<Header: View, Content: View>: View {
         self.header = header
         self.trailingHeader = { AnyView(trailingHeader()) }
         self.content = content
+        self.navigationDestination = nil
     }
     
     public init(
@@ -96,22 +83,85 @@ public struct StackSection<Header: View, Content: View>: View {
             content: content)
     }
     
-    public init<S: StringProtocol>(
-        _ title: S,
-        navigationValue: AnyHashable? = nil,
+    // MARK: - Destination-based initializers
+    
+    /// Toggleable, custom header
+    public init(
+        isExpanded: Binding<Bool>,
         trailingHeader: @escaping () -> some View = { EmptyView() },
-        @ViewBuilder content: @escaping () -> Content
+        @ViewBuilder header: @escaping () -> Header,
+        @ViewBuilder content: @escaping () -> Content,
+        navigationDestination: @escaping () -> some View
+    ) {
+        self.expansion = .toggleable(isExpanded)
+        self.navigationValue = nil
+        self.header = header
+        self.content = content
+        self.trailingHeader = { AnyView(trailingHeader()) }
+        self.navigationDestination = { AnyView(navigationDestination()) }
+    }
+    
+    /// Toggleable, LocalizedStringKey title (Header == Text)
+    public init(
+        _ titleKey: LocalizedStringKey,
+        isExpanded: Binding<Bool>,
+        trailingHeader: @escaping () -> some View = { EmptyView() },
+        @ViewBuilder content: @escaping () -> Content,
+        navigationDestination: @escaping () -> some View
     ) where Header == Text {
         self.init(
-            navigationValue: navigationValue,
-            header: { Text(title) },
+            isExpanded: isExpanded,
             trailingHeader: trailingHeader,
-            content: content)
+            header: { Text(titleKey) },
+            content: content,
+            navigationDestination: navigationDestination,
+        )
     }
+    
+    
+    /// Always-expanded, custom header
+    public init(
+        @ViewBuilder header: @escaping () -> Header,
+        trailingHeader: @escaping () -> some View = { EmptyView() },
+        @ViewBuilder content: @escaping () -> Content,
+        navigationDestination: @escaping () -> some View
+    ) {
+        self.expansion = .alwaysExpanded
+        self.navigationValue = nil
+        self.header = header
+        self.trailingHeader = { AnyView(trailingHeader()) }
+        self.content = content
+        self.navigationDestination = { AnyView(navigationDestination()) }
+    }
+    
+    /// Always-expanded, LocalizedStringKey title (Header == Text)
+    public init(
+        _ titleKey: LocalizedStringKey,
+        trailingHeader: @escaping () -> some View = { EmptyView() },
+        @ViewBuilder content: @escaping () -> Content,
+        navigationDestination: @escaping () -> some View
+    ) where Header == Text {
+        self.init(
+            header: { Text(titleKey) },
+            trailingHeader: trailingHeader,
+            content: content,
+            navigationDestination: navigationDestination
+        )
+    }
+    
     
     @ViewBuilder
     private func wrappedHeader() -> some View {
-        if let navigationValue {
+        if let navigationDestination {
+            if #available(iOS 16, macOS 13, *) {
+                NavigationLink(destination: { navigationDestination() }) {
+                    header()
+                    headerChevron()
+                }
+            } else {
+                header()
+            }
+        } else if let navigationValue {
             if #available(iOS 16, macOS 13, *) {
                 NavigationLink(value: navigationValue) {
                     header()
@@ -132,7 +182,7 @@ public struct StackSection<Header: View, Content: View>: View {
     private func headerChevron() -> some View {
         switch expansion {
         case .toggleable(let isExpanded):
-            if navigationValue != nil,
+            if (navigationValue != nil || navigationDestination != nil),
                (Header.self == Text.self),
                isExpanded.wrappedValue {
                 Image(systemName: "chevron.right")
@@ -158,9 +208,8 @@ public struct StackSection<Header: View, Content: View>: View {
                 }
                 content()
             }
-            .padding(.bottom, stackListStyle.expandedBottomPadding)
             .preference(
-                key: StackListRowSeparatorPreferenceKey.self,
+                key: StackListRowSeparatorOverridePreferenceKey.self,
                 value: stackListRowID.map { [$0: .hidden] } ?? [:]
             )
         case .toggleable(let isExpanded):
@@ -177,10 +226,8 @@ public struct StackSection<Header: View, Content: View>: View {
                 wrappedHeader()
                     .modifier(SectionHeaderModifier())
             }
-            .animation(.easeInOut(duration: 0.25), value: isExpanded.wrappedValue)
-            .padding(.bottom, isExpanded.wrappedValue ? stackListStyle.expandedBottomPadding : 0)
             .preference(
-                key: StackListRowSeparatorPreferenceKey.self,
+                key: StackListRowSeparatorOverridePreferenceKey.self,
                 value: stackListRowID.map { [$0: (isExpanded.wrappedValue ? .hidden : .automatic)] } ?? [:]
             )
             .modifier {
@@ -191,19 +238,6 @@ public struct StackSection<Header: View, Content: View>: View {
                 } else { $0 }
             }
         }
-    }
-}
-
-fileprivate struct StackSectionTitleView: View {
-    let title: String
-    
-    @ScaledMetric(relativeTo: .headline) private var sectionTitleVerticalPadding: CGFloat = 7
-    
-    var body: some View {
-        Text(title)
-            .font(.headline)
-            .padding(.vertical, sectionTitleVerticalPadding)
-            .padding(.trailing, 4)
     }
 }
 
@@ -233,10 +267,10 @@ fileprivate struct StackSectionTrailingHeaderModifier: ViewModifier {
 
 @available(iOS 16, macOS 13, *)
 fileprivate struct StackSectionDisclosureGroupStyle: DisclosureGroupStyle {
-    let trailingHeader: () -> AnyView
+    @ViewBuilder let trailingHeader: () -> AnyView
     
     func makeBody(configuration: Configuration) -> some View {
-        VStack(alignment: .leading, spacing: StackSectionMetrics.contentTopSpacing) {
+        VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: StackSectionMetrics.headerRowSpacing) {
                 // Title + optional inline chevron placed immediately after the title
                 HStack(spacing: 5) {
@@ -245,16 +279,14 @@ fileprivate struct StackSectionDisclosureGroupStyle: DisclosureGroupStyle {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 
-                // Trailing header controls
-                trailingHeader()
-                    .modifier(StackSectionTrailingHeaderModifier())
+                if configuration.isExpanded {
+                    trailingHeader()
+                        .modifier(StackSectionTrailingHeaderModifier())
+                }
                 
                 // Trailing circular toggle button (only control that changes expansion)
                 Button {
-                    //                    withAnimation(.easeInOut(duration: 0.2)) { configuration.isExpanded.toggle() }
-                    withAnimation {
-                        configuration.isExpanded.toggle()
-                    }
+                    configuration.isExpanded.toggle()
                 } label: {
                     Image(systemName: "chevron.right")
                         .imageScale(.small)
@@ -262,7 +294,7 @@ fileprivate struct StackSectionDisclosureGroupStyle: DisclosureGroupStyle {
 #if os(iOS)
                         .modifier {
                             if #available(iOS 16, macOS 13, *) {
-                                $0.fontWeight(.bold)
+                                $0.fontWeight(.semibold)
                             } else { $0 }
                         }
 #endif
@@ -285,6 +317,7 @@ fileprivate struct StackSectionDisclosureGroupStyle: DisclosureGroupStyle {
             VStack {
                 if configuration.isExpanded {
                     configuration.content
+                        .padding(.top, StackSectionMetrics.contentTopSpacing)
                 } else {
                     EmptyView()
                 }
