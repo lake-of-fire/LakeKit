@@ -10,7 +10,7 @@ public struct StackListStyle: Equatable {
     public init(
         interItemSpacing: CGFloat = 26,
         managesSeparators: Bool = true,
-        expandedBottomPadding: CGFloat = 8
+        expandedBottomPadding: CGFloat = 0
     ) {
         self.interItemSpacing = interItemSpacing
         self.managesSeparators = managesSeparators
@@ -65,6 +65,14 @@ struct StackListRowEmptyPreferenceKey: PreferenceKey {
 struct StackListRowHeightPreferenceKey: PreferenceKey {
     static var defaultValue: [UUID: CGFloat] = [:]
     static func reduce(value: inout [UUID: CGFloat], nextValue: () -> [UUID: CGFloat]) {
+        value.merge(nextValue(), uniquingKeysWith: { _, new in new })
+    }
+}
+
+// Publish expansion state per row (used only to gate animations)
+struct StackListRowExpansionPreferenceKey: PreferenceKey {
+    static var defaultValue: [UUID: Bool] = [:]
+    static func reduce(value: inout [UUID: Bool], nextValue: () -> [UUID: Bool]) {
         value.merge(nextValue(), uniquingKeysWith: { _, new in new })
     }
 }
@@ -139,7 +147,6 @@ private struct StackListRowHost: View {
                         key: StackListRowEmptyPreferenceKey.self,
                         value: [rowID: (proxy.size.height <= 0.5 || proxy.size.width <= 0.5)]
                     )
-                    .preferredColorScheme(nil) // no-op to chain modifiers safely
                     .preference(
                         key: StackListRowHeightPreferenceKey.self,
                         value: [rowID: proxy.size.height]
@@ -157,6 +164,8 @@ public struct StackList: View {
     @State private var rowSeparatorOverrides: [UUID: Visibility] = [:]
     @State private var rowIsEmpty: [UUID: Bool] = [:]
     @State private var rowHeights: [UUID: CGFloat] = [:]
+    @State private var rowExpanded: [UUID: Bool] = [:]
+    @State private var animateRows: Set<UUID> = []
     
     public init(@StackListBuilder rows: () -> [StackListRowItem]) {
         self.style = StackListStyle()
@@ -171,30 +180,31 @@ public struct StackList: View {
     public var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             let rowCount = rows.count
+            
             ForEach(Array(rows.enumerated()), id: \.0) { index, row in
                 let rowID = row.id
-                
-                let isLastRow = index == rows.count - 1
+                let isLastRow = index == rowCount - 1
                 let isRowEmpty = rowIsEmpty[rowID] ?? false
-                 let hasSeparator = style.managesSeparators && !isLastRow && !isRowEmpty && (rowSeparatorOverrides[rowID] ?? rowSeparatorDefaults[rowID] ?? row.separatorVisibility) != .hidden
+                let hasSeparator = style.managesSeparators && !isLastRow && !isRowEmpty && (rowSeparatorOverrides[rowID] ?? rowSeparatorDefaults[rowID] ?? row.separatorVisibility) != .hidden
                 
                 StackListRowHost(rowID: rowID, content: row.view)
                     .environment(\.stackListRowID, rowID)
                     .preference(key: StackListRowSeparatorDefaultPreferenceKey.self,
                                 value: [rowID: row.separatorVisibility])
-                    .padding(.bottom, hasSeparator ? 0 : style.interItemSpacing)
-                    .frame(
-                        height: (rowHeights[rowID] ?? 0)
-                        + ((isRowEmpty || hasSeparator || isLastRow) ? 0 : style.interItemSpacing),
-                        alignment: .top
-                    )
-                    .overlay(alignment: .bottom) {
+                    .frame(height: rowHeights[rowID] ?? 0, alignment: .top)
+                
+                // Fixed-height separator slot after each non-last, non-empty row
+                if !isLastRow && !isRowEmpty {
+                    ZStack(alignment: .center) {
+                        // Reserve vertical space equal to interItemSpacing regardless of divider visibility
+                        Color.clear.frame(height: style.interItemSpacing)
                         if hasSeparator {
                             Divider()
-                                .padding(.bottom, style.interItemSpacing / 2)
+                                .padding(.vertical, style.interItemSpacing / 2)
                                 .transition(.opacity)
                         }
                     }
+                }
             }
         }
         .onPreferenceChange(StackListRowSeparatorDefaultPreferenceKey.self) { newValue in
@@ -212,18 +222,32 @@ public struct StackList: View {
                 rowIsEmpty = newValue
             }
         }
+        .onPreferenceChange(StackListRowExpansionPreferenceKey.self) { newValue in
+            // Detect which rows actually toggled expansion; only those will animate
+            var toggled: Set<UUID> = []
+            let allKeys = Set(rowExpanded.keys).union(newValue.keys)
+            for id in allKeys {
+                if rowExpanded[id] != newValue[id] { toggled.insert(id) }
+            }
+            rowExpanded = newValue
+            animateRows = toggled
+        }
         .onPreferenceChange(StackListRowHeightPreferenceKey.self) { newValue in
-            if rowHeights != newValue {
-                withAnimation(.easeInOut(duration: 0.25)) {
-                    rowHeights = newValue
+            // Update heights per-row; animate only rows that just toggled expansion
+            for (id, h) in newValue {
+                guard rowHeights[id] != h else { continue }
+                if animateRows.contains(id) {
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        rowHeights[id] = h
+                    }
+                } else {
+                    rowHeights[id] = h
                 }
             }
+            // Clear the animation set so subsequent non-toggle height changes (e.g. loading) do not animate
+            animateRows.removeAll()
         }
         .environment(\.stackListStyle, style)
-        .animation(.easeInOut(duration: 0.25), value: rowSeparatorOverrides)
-        .animation(nil, value: rowIsEmpty)
-        .animation(nil, value: rowSeparatorDefaults)
-        .animation(.easeInOut(duration: 0.25), value: rowHeights)
         .frame(maxWidth: 850)
     }
 }

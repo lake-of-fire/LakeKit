@@ -228,6 +228,10 @@ public struct StackSection<Header: View, Content: View>: View {
                 key: StackListRowSeparatorOverridePreferenceKey.self,
                 value: stackListRowID.map { [$0: (isExpanded.wrappedValue ? .hidden : .automatic)] } ?? [:]
             )
+            .preference(
+                key: StackListRowExpansionPreferenceKey.self,
+                value: stackListRowID.map { [$0: isExpanded.wrappedValue] } ?? [:]
+            )
             .modifier {
                 if #available(iOS 16, macOS 13, *) {
                     $0.disclosureGroupStyle(StackSectionDisclosureGroupStyle(
@@ -253,8 +257,8 @@ fileprivate struct StackSectionTrailingHeaderModifier: ViewModifier {
 #if os(iOS)
             .buttonStyle(.bordered)
 #endif
-            .controlSize(.small)
             .font(.footnote)
+            .buttonBorderShape(.capsule)
             .modifier {
                 if #available(iOS 16, macOS 13, *) {
                     $0.fontWeight(.bold)
