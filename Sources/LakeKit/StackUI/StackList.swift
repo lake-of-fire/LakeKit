@@ -176,21 +176,25 @@ public struct StackList: View {
                 
                 let isLastRow = index == rows.count - 1
                 let isRowEmpty = rowIsEmpty[rowID] ?? false
-                let hasSeparator = style.managesSeparators && !isLastRow && !isRowEmpty && (rowSeparatorOverrides[rowID] ?? rowSeparatorDefaults[rowID] ?? row.separatorVisibility) != .hidden
+                 let hasSeparator = style.managesSeparators && !isLastRow && !isRowEmpty && (rowSeparatorOverrides[rowID] ?? rowSeparatorDefaults[rowID] ?? row.separatorVisibility) != .hidden
                 
                 StackListRowHost(rowID: rowID, content: row.view)
                     .environment(\.stackListRowID, rowID)
                     .preference(key: StackListRowSeparatorDefaultPreferenceKey.self,
                                 value: [rowID: row.separatorVisibility])
-                    .padding(.bottom, (isRowEmpty || hasSeparator || isLastRow) ? 0 : style.interItemSpacing)
-                //                    .frame(height: rowHeights[rowID])
-                //                    .clipped()
-                
-                if hasSeparator {
-                    Divider()
-                        .padding(.vertical, style.interItemSpacing / 2)
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                }
+                    .padding(.bottom, hasSeparator ? 0 : style.interItemSpacing)
+                    .frame(
+                        height: (rowHeights[rowID] ?? 0)
+                        + ((isRowEmpty || hasSeparator || isLastRow) ? 0 : style.interItemSpacing),
+                        alignment: .top
+                    )
+                    .overlay(alignment: .bottom) {
+                        if hasSeparator {
+                            Divider()
+                                .padding(.bottom, style.interItemSpacing / 2)
+                                .transition(.opacity)
+                        }
+                    }
             }
         }
         .onPreferenceChange(StackListRowSeparatorDefaultPreferenceKey.self) { newValue in
@@ -216,9 +220,10 @@ public struct StackList: View {
             }
         }
         .environment(\.stackListStyle, style)
-        .animation(nil, value: rowSeparatorOverrides)
+        .animation(.easeInOut(duration: 0.25), value: rowSeparatorOverrides)
         .animation(nil, value: rowIsEmpty)
         .animation(nil, value: rowSeparatorDefaults)
+        .animation(.easeInOut(duration: 0.25), value: rowHeights)
         .frame(maxWidth: 850)
     }
 }

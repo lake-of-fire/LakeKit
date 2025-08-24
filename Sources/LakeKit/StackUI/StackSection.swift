@@ -266,6 +266,7 @@ fileprivate struct StackSectionTrailingHeaderModifier: ViewModifier {
 @available(iOS 16, macOS 13, *)
 fileprivate struct StackSectionDisclosureGroupStyle: DisclosureGroupStyle {
     @ViewBuilder let trailingHeader: () -> AnyView
+    @Environment(\.stackListStyle) private var style
     
     func makeBody(configuration: Configuration) -> some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -284,9 +285,7 @@ fileprivate struct StackSectionDisclosureGroupStyle: DisclosureGroupStyle {
                 
                 // Trailing circular toggle button (only control that changes expansion)
                 Button {
-                    withAnimation(.easeInOut(duration: 0.25)) {
-                        configuration.isExpanded.toggle()
-                    }
+                    configuration.isExpanded.toggle()
                 } label: {
                     Image(systemName: "chevron.right")
                         .imageScale(.small)
@@ -317,6 +316,7 @@ fileprivate struct StackSectionDisclosureGroupStyle: DisclosureGroupStyle {
             VStack(spacing: 0) {
                 configuration.content
                     .padding(.top, StackSectionMetrics.contentTopSpacing)
+                    .padding(.bottom, configuration.isExpanded ? style.expandedBottomPadding : 0)
                     .opacity(configuration.isExpanded ? 1 : 0)
                     .frame(height: configuration.isExpanded ? nil : 0, alignment: .top)
                     .clipped()
@@ -325,6 +325,7 @@ fileprivate struct StackSectionDisclosureGroupStyle: DisclosureGroupStyle {
             }
         }
         .clipped()
+        .animation(.easeInOut(duration: 0.25), value: configuration.isExpanded)
     }
 }
 
