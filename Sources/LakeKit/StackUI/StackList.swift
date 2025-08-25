@@ -191,7 +191,7 @@ public struct StackList: View {
                     .environment(\.stackListRowID, rowID)
                     .preference(key: StackListRowSeparatorDefaultPreferenceKey.self,
                                 value: [rowID: row.separatorVisibility])
-                    .frame(height: rowHeights[rowID] ?? 0, alignment: .top)
+                    .frame(height: rowHeights[rowID], alignment: .top)
                 
                 // Fixed-height separator slot after each non-last, non-empty row
                 if !isLastRow && !isRowEmpty {
