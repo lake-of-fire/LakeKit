@@ -13,6 +13,8 @@ public struct DoneButton: View {
         } label: {
             if #available(iOS 26, macOS 26, *) {
                 Label("Done", systemImage: "checkmark")
+                    .buttonStyle(.glassProminent)
+                    .labelStyle(.iconOnly)
             } else {
                 Text("Done")
 #if os(iOS)

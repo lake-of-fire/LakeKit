@@ -152,6 +152,8 @@ private struct StackListRowHost: View {
                         value: [rowID: proxy.size.height]
                     )
             }
+            // Ensure measurement updates never animate even if a parent starts an animation transaction (e.g. sheet/safe-area changes).
+                .transaction { t in t.disablesAnimations = true }
         )
     }
 }
@@ -201,24 +203,28 @@ public struct StackList: View {
                         if hasSeparator {
                             Divider()
                                 .padding(.vertical, style.interItemSpacing / 2)
-                                .transition(.opacity)
                         }
                     }
+                    // Ensure toggling the presence of the divider never animates (avoids layout jitter)
+                    .transaction { t in t.disablesAnimations = true }
                 }
             }
         }
         .onPreferenceChange(StackListRowSeparatorDefaultPreferenceKey.self) { newValue in
-            if rowSeparatorDefaults != newValue {
+            guard rowSeparatorDefaults != newValue else { return }
+            withTransaction(Transaction(animation: nil)) {
                 rowSeparatorDefaults = newValue
             }
         }
         .onPreferenceChange(StackListRowSeparatorOverridePreferenceKey.self) { newValue in
-            if rowSeparatorOverrides != newValue {
+            guard rowSeparatorOverrides != newValue else { return }
+            withTransaction(Transaction(animation: nil)) {
                 rowSeparatorOverrides = newValue
             }
         }
         .onPreferenceChange(StackListRowEmptyPreferenceKey.self) { newValue in
-            if rowIsEmpty != newValue {
+            guard rowIsEmpty != newValue else { return }
+            withTransaction(Transaction(animation: nil)) {
                 rowIsEmpty = newValue
             }
         }
@@ -229,11 +235,15 @@ public struct StackList: View {
             for id in allKeys {
                 if rowExpanded[id] != newValue[id] { toggled.insert(id) }
             }
-            rowExpanded = newValue
-            animateRows = toggled
+            // Apply non-animated state updates so parent animations (e.g. safe-area) don't animate our bookkeeping.
+            withTransaction(Transaction(animation: nil)) {
+                rowExpanded = newValue
+                animateRows = toggled
+            }
         }
         .onPreferenceChange(StackListRowHeightPreferenceKey.self) { newValue in
-            // Update heights per-row; animate only rows that just toggled expansion
+            // Update heights per-row; animate only rows that just toggled expansion.
+            // Force a non-animated transaction for all other updates to avoid being captured by any parent animation (e.g. safe-area inset changes).
             for (id, h) in newValue {
                 guard rowHeights[id] != h else { continue }
                 if animateRows.contains(id) {
@@ -241,11 +251,14 @@ public struct StackList: View {
                         rowHeights[id] = h
                     }
                 } else {
-                    rowHeights[id] = h
+                    withTransaction(Transaction(animation: nil)) {
+                        rowHeights[id] = h
+                    }
                 }
             }
-            // Clear the animation set so subsequent non-toggle height changes (e.g. loading) do not animate
-            animateRows.removeAll()
+            withTransaction(Transaction(animation: nil)) {
+                animateRows.removeAll()
+            }
         }
         .environment(\.stackListStyle, style)
         .frame(maxWidth: 850)
