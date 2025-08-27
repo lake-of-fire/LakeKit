@@ -211,53 +211,63 @@ public struct StackList: View {
             }
         }
         .onPreferenceChange(StackListRowSeparatorDefaultPreferenceKey.self) { newValue in
-            guard rowSeparatorDefaults != newValue else { return }
-            withTransaction(Transaction(animation: nil)) {
-                rowSeparatorDefaults = newValue
+            DispatchQueue.main.async {
+                guard rowSeparatorDefaults != newValue else { return }
+                withTransaction(Transaction(animation: nil)) {
+                    rowSeparatorDefaults = newValue
+                }
             }
         }
         .onPreferenceChange(StackListRowSeparatorOverridePreferenceKey.self) { newValue in
-            guard rowSeparatorOverrides != newValue else { return }
-            withTransaction(Transaction(animation: nil)) {
-                rowSeparatorOverrides = newValue
+            DispatchQueue.main.async {
+                guard rowSeparatorOverrides != newValue else { return }
+                withTransaction(Transaction(animation: nil)) {
+                    rowSeparatorOverrides = newValue
+                }
             }
         }
         .onPreferenceChange(StackListRowEmptyPreferenceKey.self) { newValue in
-            guard rowIsEmpty != newValue else { return }
-            withTransaction(Transaction(animation: nil)) {
-                rowIsEmpty = newValue
+            DispatchQueue.main.async {
+                guard rowIsEmpty != newValue else { return }
+                withTransaction(Transaction(animation: nil)) {
+                    rowIsEmpty = newValue
+                }
             }
         }
         .onPreferenceChange(StackListRowExpansionPreferenceKey.self) { newValue in
-            // Detect which rows actually toggled expansion; only those will animate
-            var toggled: Set<UUID> = []
-            let allKeys = Set(rowExpanded.keys).union(newValue.keys)
-            for id in allKeys {
-                if rowExpanded[id] != newValue[id] { toggled.insert(id) }
-            }
-            // Apply non-animated state updates so parent animations (e.g. safe-area) don't animate our bookkeeping.
-            withTransaction(Transaction(animation: nil)) {
-                rowExpanded = newValue
-                animateRows = toggled
+            DispatchQueue.main.async {
+                // Detect which rows actually toggled expansion; only those will animate
+                var toggled: Set<UUID> = []
+                let allKeys = Set(rowExpanded.keys).union(newValue.keys)
+                for id in allKeys {
+                    if rowExpanded[id] != newValue[id] { toggled.insert(id) }
+                }
+                // Apply non-animated state updates so parent animations (e.g. safe-area) don't animate our bookkeeping.
+                withTransaction(Transaction(animation: nil)) {
+                    rowExpanded = newValue
+                    animateRows = toggled
+                }
             }
         }
         .onPreferenceChange(StackListRowHeightPreferenceKey.self) { newValue in
-            // Update heights per-row; animate only rows that just toggled expansion.
-            // Force a non-animated transaction for all other updates to avoid being captured by any parent animation (e.g. safe-area inset changes).
-            for (id, h) in newValue {
-                guard rowHeights[id] != h else { continue }
-                if animateRows.contains(id) {
-                    withAnimation(.easeInOut(duration: 0.25)) {
-                        rowHeights[id] = h
-                    }
-                } else {
-                    withTransaction(Transaction(animation: nil)) {
-                        rowHeights[id] = h
+            DispatchQueue.main.async {
+                // Update heights per-row; animate only rows that just toggled expansion.
+                // Force a non-animated transaction for all other updates to avoid being captured by any parent animation (e.g. safe-area inset changes).
+                for (id, h) in newValue {
+                    guard rowHeights[id] != h else { continue }
+                    if animateRows.contains(id) {
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            rowHeights[id] = h
+                        }
+                    } else {
+                        withTransaction(Transaction(animation: nil)) {
+                            rowHeights[id] = h
+                        }
                     }
                 }
-            }
-            withTransaction(Transaction(animation: nil)) {
-                animateRows.removeAll()
+                withTransaction(Transaction(animation: nil)) {
+                    animateRows.removeAll()
+                }
             }
         }
         .environment(\.stackListStyle, style)
