@@ -333,7 +333,6 @@ fileprivate struct StackSectionDisclosureGroupStyle: DisclosureGroupStyle {
     }
 }
 
-
 #if DEBUG
 @available(iOS 16, macOS 14, *)
 struct StackSection_Previews: PreviewProvider {
