@@ -214,8 +214,13 @@ public struct StackSection<Header: View, Content: View>: View {
                 content()
             }
             .preference(
-                key: StackListRowSeparatorOverridePreferenceKey.self,
-                value: stackListRowID.map { [$0: .hidden] } ?? [:]
+                key: StackListRowPrefsPreferenceKey.self,
+                value: stackListRowID.map { [$0: StackListRowPrefs(
+                    isEmpty: nil,
+                    height: nil,
+                    isExpanded: nil,
+                    separatorOverride: .hidden
+                )] } ?? [:]
             )
         case .toggleable(let isExpanded):
             DisclosureGroup(isExpanded: isExpanded) {
@@ -225,12 +230,13 @@ public struct StackSection<Header: View, Content: View>: View {
                     .modifier(SectionHeaderModifier())
             }
             .preference(
-                key: StackListRowSeparatorOverridePreferenceKey.self,
-                value: stackListRowID.map { [$0: (isExpanded.wrappedValue ? .hidden : .automatic)] } ?? [:]
-            )
-            .preference(
-                key: StackListRowExpansionPreferenceKey.self,
-                value: stackListRowID.map { [$0: isExpanded.wrappedValue] } ?? [:]
+                key: StackListRowPrefsPreferenceKey.self,
+                value: stackListRowID.map { [$0: StackListRowPrefs(
+                    isEmpty: nil,
+                    height: nil,
+                    isExpanded: isExpanded.wrappedValue,
+                    separatorOverride: isExpanded.wrappedValue ? .hidden : .automatic
+                )] } ?? [:]
             )
             .modifier {
                 if #available(iOS 16, macOS 13, *) {
@@ -318,14 +324,16 @@ fileprivate struct StackSectionDisclosureGroupStyle: DisclosureGroupStyle {
             }
             
             VStack(spacing: 0) {
-                configuration.content
-                    .padding(.top, StackSectionMetrics.contentTopSpacing)
-                    .padding(.bottom, configuration.isExpanded ? style.expandedBottomPadding : 0)
-                    .opacity(configuration.isExpanded ? 1 : 0)
-                    .frame(height: configuration.isExpanded ? nil : 0, alignment: .top)
-                    .clipped()
-                    .allowsHitTesting(configuration.isExpanded)
-                    .accessibilityHidden(!configuration.isExpanded)
+                if configuration.isExpanded {
+                    configuration.content
+                        .padding(.top, StackSectionMetrics.contentTopSpacing)
+                        .padding(.bottom, style.expandedBottomPadding)
+                        .transition(.opacity)
+                } else {
+                    // Keep layout stable without mounting heavy UIKitRepresentables
+                    EmptyView()
+                        .transition(.opacity)
+                }
             }
         }
         .clipped()

@@ -77,6 +77,28 @@ struct StackListRowExpansionPreferenceKey: PreferenceKey {
     }
 }
 
+// MARK: - Unified row preference payload (coalesce all row prefs into a single key)
+struct StackListRowPrefs: Equatable {
+    var isEmpty: Bool?
+    var height: CGFloat?
+    var isExpanded: Bool?
+    var separatorOverride: Visibility?
+}
+
+struct StackListRowPrefsPreferenceKey: PreferenceKey {
+    static var defaultValue: [UUID: StackListRowPrefs] = [:]
+    static func reduce(value: inout [UUID: StackListRowPrefs], nextValue: () -> [UUID: StackListRowPrefs]) {
+        for (k, v) in nextValue() {
+            var current = value[k] ?? StackListRowPrefs()
+            if let e = v.isEmpty { current.isEmpty = e }
+            if let h = v.height { current.height = h }
+            if let ex = v.isExpanded { current.isExpanded = ex }
+            if let s = v.separatorOverride { current.separatorOverride = s }
+            value[k] = current
+        }
+    }
+}
+
 // MARK: - Row item & result builder
 
 public struct StackListRowItem: Identifiable {
@@ -142,17 +164,29 @@ private struct StackListRowHost: View {
         }
         .background(
             GeometryReader { proxy in
+#if os(iOS)
+                let scale = UIScreen.main.scale
+#elseif os(macOS)
+                let scale = NSScreen.main?.backingScaleFactor ?? 2
+#else
+                let scale: CGFloat = 2
+#endif
+                let rawH = proxy.size.height
+                // Quantize to device pixels to avoid tiny float jitter causing feedback loops
+                let qH = (rawH * scale).rounded(.toNearestOrEven) / scale
+                let heightForPrefs = qH < (1 / scale) ? 0 : qH
+                
                 Color.clear
                     .preference(
-                        key: StackListRowEmptyPreferenceKey.self,
-                        value: [rowID: (proxy.size.height <= 0.5 || proxy.size.width <= 0.5)]
-                    )
-                    .preference(
-                        key: StackListRowHeightPreferenceKey.self,
-                        value: [rowID: proxy.size.height]
+                        key: StackListRowPrefsPreferenceKey.self,
+                        value: [rowID: StackListRowPrefs(
+                            isEmpty: (heightForPrefs <= 0.5 || proxy.size.width <= 0.5),
+                            height: heightForPrefs,
+                            isExpanded: nil,
+                            separatorOverride: nil
+                        )]
                     )
             }
-            // Ensure measurement updates never animate even if a parent starts an animation transaction (e.g. sheet/safe-area changes).
                 .transaction { t in t.disablesAnimations = true }
         )
     }
@@ -162,7 +196,6 @@ public struct StackList: View {
     private let style: StackListStyle
     private let rows: [StackListRowItem]
     
-    @State private var rowSeparatorDefaults: [UUID: Visibility] = [:]
     @State private var rowSeparatorOverrides: [UUID: Visibility] = [:]
     @State private var rowIsEmpty: [UUID: Bool] = [:]
     @State private var rowHeights: [UUID: CGFloat] = [:]
@@ -181,106 +214,110 @@ public struct StackList: View {
     
     public var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            let rowCount = rows.count
-            
-            ForEach(Array(rows.enumerated()), id: \.0) { index, row in
+            let lastRowID = rows.last?.id
+            ForEach(rows, id: \.id) { row in
                 let rowID = row.id
-                let isLastRow = index == rowCount - 1
+                let isLastRow = (rowID == lastRowID)
                 let isRowEmpty = rowIsEmpty[rowID] ?? false
-                let hasSeparator = style.managesSeparators && !isLastRow && !isRowEmpty && (rowSeparatorOverrides[rowID] ?? rowSeparatorDefaults[rowID] ?? row.separatorVisibility) != .hidden
+                let hasSeparator = style.managesSeparators && !isLastRow && !isRowEmpty && (rowSeparatorOverrides[rowID] ?? row.separatorVisibility) != .hidden
                 
                 StackListRowHost(rowID: rowID, content: row.view)
                     .environment(\.stackListRowID, rowID)
-                    .preference(key: StackListRowSeparatorDefaultPreferenceKey.self,
-                                value: [rowID: row.separatorVisibility])
                     .frame(height: rowHeights[rowID], alignment: .top)
                 
-                // Fixed-height separator slot after each non-last, non-empty row
                 if !isLastRow && !isRowEmpty {
                     ZStack(alignment: .center) {
-                        // Reserve vertical space equal to interItemSpacing regardless of divider visibility
                         Color.clear.frame(height: style.interItemSpacing)
                         if hasSeparator {
                             Divider()
                                 .padding(.vertical, style.interItemSpacing / 2)
                         }
                     }
-                    // Ensure toggling the presence of the divider never animates (avoids layout jitter)
                     .transaction { t in t.disablesAnimations = true }
                 }
             }
         }
-        .onPreferenceChange(StackListRowSeparatorDefaultPreferenceKey.self) { newValue in
+        .onPreferenceChange(StackListRowPrefsPreferenceKey.self) { newValue in
             DispatchQueue.main.async {
-                guard rowSeparatorDefaults != newValue else { return }
-                withTransaction(Transaction(animation: nil)) {
-                    rowSeparatorDefaults = newValue
+                // 1) Next snapshots for non-animated state
+                var nextEmpty = rowIsEmpty
+                var nextOverrides = rowSeparatorOverrides
+                var nextExpanded = rowExpanded
+                
+                for (id, prefs) in newValue {
+                    if let e = prefs.isEmpty { nextEmpty[id] = e }
+                    if let s = prefs.separatorOverride { nextOverrides[id] = s }
+                    if let ex = prefs.isExpanded { nextExpanded[id] = ex }
                 }
-            }
-        }
-        .onPreferenceChange(StackListRowSeparatorOverridePreferenceKey.self) { newValue in
-            DispatchQueue.main.async {
-                guard rowSeparatorOverrides != newValue else { return }
-                withTransaction(Transaction(animation: nil)) {
-                    rowSeparatorOverrides = newValue
-                }
-            }
-        }
-        .onPreferenceChange(StackListRowEmptyPreferenceKey.self) { newValue in
-            DispatchQueue.main.async {
-                guard rowIsEmpty != newValue else { return }
-                withTransaction(Transaction(animation: nil)) {
-                    rowIsEmpty = newValue
-                }
-            }
-        }
-        .onPreferenceChange(StackListRowExpansionPreferenceKey.self) { newValue in
-            DispatchQueue.main.async {
+                
+                // Detect which rows toggled expansion this pass
                 var toggled: Set<UUID> = []
-                let allKeys = Set(rowExpanded.keys).union(newValue.keys)
+                let allKeys = Set(rowExpanded.keys).union(nextExpanded.keys)
                 for id in allKeys {
-                    if rowExpanded[id] != newValue[id] { toggled.insert(id) }
+                    if rowExpanded[id] != nextExpanded[id] { toggled.insert(id) }
                 }
-                withTransaction(Transaction(animation: nil)) {
-                    rowExpanded = newValue
-                    animateRows = toggled
-                }
-            }
-        }
-        .onPreferenceChange(StackListRowHeightPreferenceKey.self) { newValue in
-            DispatchQueue.main.async {
-                // Build two snapshots so we can commit non-animated and animated changes separately,
-                // ensuring only one state write per phase (and avoiding per-row churn).
-                var nextNonAnimated = rowHeights
-                var nextAll = rowHeights
+                
+                // 2) Heights: split into non-animated vs animated commits
+                var nextNonAnimatedHeights = rowHeights
+                var nextAllHeights = rowHeights
                 var hasAnimatedChange = false
                 
-                for (id, h) in newValue {
-                    guard rowHeights[id] != h else { continue }
-                    if animateRows.contains(id) {
-                        nextAll[id] = h
-                        hasAnimatedChange = true
-                    } else {
-                        nextNonAnimated[id] = h
-                        nextAll[id] = h
+#if os(iOS)
+                let eps: CGFloat = 1 / UIScreen.main.scale
+#elseif os(macOS)
+                let eps: CGFloat = 1 / (NSScreen.main?.backingScaleFactor ?? 2)
+#else
+                let eps: CGFloat = 0.5
+#endif
+                for (id, prefs) in newValue {
+                    if let h = prefs.height {
+                        let old = rowHeights[id]
+                        // Only react if change exceeds 1 pixel to avoid oscillations
+                        if old == nil || abs((old ?? 0) - h) >= eps {
+                            if toggled.contains(id) {
+                                nextAllHeights[id] = h
+                                hasAnimatedChange = true
+                            } else {
+                                nextNonAnimatedHeights[id] = h
+                                nextAllHeights[id] = h
+                            }
+                        }
                     }
                 }
                 
-                // Commit non-animated changes in a single assignment.
-                if nextNonAnimated != rowHeights {
+                // 3) Commit: non-animated base state (only if changed)
+                let baseChanged = (nextEmpty != rowIsEmpty)
+                || (nextOverrides != rowSeparatorOverrides)
+                || (nextExpanded != rowExpanded)
+                || (animateRows != toggled)
+                if baseChanged {
                     withTransaction(Transaction(animation: nil)) {
-                        rowHeights = nextNonAnimated
+                        if nextEmpty != rowIsEmpty { rowIsEmpty = nextEmpty }
+                        if nextOverrides != rowSeparatorOverrides { rowSeparatorOverrides = nextOverrides }
+                        if nextExpanded != rowExpanded { rowExpanded = nextExpanded }
+                        if animateRows != toggled { animateRows = toggled }
                     }
                 }
-                // Commit animated changes (if any) in one animated assignment.
+                
+                // 4) Commit: heights (non-animated pass)
+                if nextNonAnimatedHeights != rowHeights {
+                    withTransaction(Transaction(animation: nil)) {
+                        rowHeights = nextNonAnimatedHeights
+                    }
+                }
+                
+                // 5) Commit: heights (animated pass if needed)
                 if hasAnimatedChange {
                     withAnimation(.easeInOut(duration: 0.25)) {
-                        rowHeights = nextAll
+                        rowHeights = nextAllHeights
                     }
                 }
-                // Clear the animation gating set without animation.
-                withTransaction(Transaction(animation: nil)) {
-                    animateRows.removeAll()
+                
+                // 6) Clear animation gating (only if non-empty)
+                if !animateRows.isEmpty {
+                    withTransaction(Transaction(animation: nil)) {
+                        animateRows.removeAll()
+                    }
                 }
             }
         }
