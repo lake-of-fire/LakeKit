@@ -236,13 +236,11 @@ public struct StackList: View {
         }
         .onPreferenceChange(StackListRowExpansionPreferenceKey.self) { newValue in
             DispatchQueue.main.async {
-                // Detect which rows actually toggled expansion; only those will animate
                 var toggled: Set<UUID> = []
                 let allKeys = Set(rowExpanded.keys).union(newValue.keys)
                 for id in allKeys {
                     if rowExpanded[id] != newValue[id] { toggled.insert(id) }
                 }
-                // Apply non-animated state updates so parent animations (e.g. safe-area) don't animate our bookkeeping.
                 withTransaction(Transaction(animation: nil)) {
                     rowExpanded = newValue
                     animateRows = toggled
@@ -251,20 +249,36 @@ public struct StackList: View {
         }
         .onPreferenceChange(StackListRowHeightPreferenceKey.self) { newValue in
             DispatchQueue.main.async {
-                // Update heights per-row; animate only rows that just toggled expansion.
-                // Force a non-animated transaction for all other updates to avoid being captured by any parent animation (e.g. safe-area inset changes).
+                // Build two snapshots so we can commit non-animated and animated changes separately,
+                // ensuring only one state write per phase (and avoiding per-row churn).
+                var nextNonAnimated = rowHeights
+                var nextAll = rowHeights
+                var hasAnimatedChange = false
+                
                 for (id, h) in newValue {
                     guard rowHeights[id] != h else { continue }
                     if animateRows.contains(id) {
-                        withAnimation(.easeInOut(duration: 0.25)) {
-                            rowHeights[id] = h
-                        }
+                        nextAll[id] = h
+                        hasAnimatedChange = true
                     } else {
-                        withTransaction(Transaction(animation: nil)) {
-                            rowHeights[id] = h
-                        }
+                        nextNonAnimated[id] = h
+                        nextAll[id] = h
                     }
                 }
+                
+                // Commit non-animated changes in a single assignment.
+                if nextNonAnimated != rowHeights {
+                    withTransaction(Transaction(animation: nil)) {
+                        rowHeights = nextNonAnimated
+                    }
+                }
+                // Commit animated changes (if any) in one animated assignment.
+                if hasAnimatedChange {
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        rowHeights = nextAll
+                    }
+                }
+                // Clear the animation gating set without animation.
                 withTransaction(Transaction(animation: nil)) {
                     animateRows.removeAll()
                 }
