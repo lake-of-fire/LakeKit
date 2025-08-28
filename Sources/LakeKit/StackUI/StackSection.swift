@@ -316,7 +316,7 @@ fileprivate struct StackSectionDisclosureGroupStyle: DisclosureGroupStyle {
                     if #available(iOS 17, macOS 14, *) {
                         $0
                             .buttonBorderShape(.circle)
-                            .backgroundStyle(Color.stackListGroupedBackground)
+//                            .backgroundStyle(Color.stackListGroupedBackground)
                     } else {
                         $0
                     }
