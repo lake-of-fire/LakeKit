@@ -194,7 +194,7 @@ private struct StackListRowHost: View {
 
 public struct StackList: View {
     private let style: StackListStyle
-    private let rows: [StackListRowItem]
+    @State private var rows: [StackListRowItem]
     
     @State private var rowSeparatorOverrides: [UUID: Visibility] = [:]
     @State private var rowIsEmpty: [UUID: Bool] = [:]
@@ -204,12 +204,12 @@ public struct StackList: View {
     
     public init(@StackListBuilder rows: () -> [StackListRowItem]) {
         self.style = StackListStyle()
-        self.rows = rows()
+        self._rows = State(initialValue: rows())
     }
     
     public init(style: StackListStyle, @StackListBuilder rows: () -> [StackListRowItem]) {
         self.style = style
-        self.rows = rows()
+        self._rows = State(initialValue: rows())
     }
     
     public var body: some View {
@@ -220,10 +220,11 @@ public struct StackList: View {
                 let isLastRow = (rowID == lastRowID)
                 let isRowEmpty = rowIsEmpty[rowID] ?? false
                 let hasSeparator = style.managesSeparators && !isLastRow && !isRowEmpty && (rowSeparatorOverrides[rowID] ?? row.separatorVisibility) != .hidden
+                let clampedHeight: CGFloat? = animateRows.contains(rowID) ? rowHeights[rowID] : nil
                 
                 StackListRowHost(rowID: rowID, content: row.view)
                     .environment(\.stackListRowID, rowID)
-                    .frame(height: rowHeights[rowID], alignment: .top)
+                    .frame(height: clampedHeight, alignment: .top)
                 
                 if !isLastRow && !isRowEmpty {
                     ZStack(alignment: .center) {
