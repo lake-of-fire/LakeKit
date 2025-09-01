@@ -264,7 +264,9 @@ fileprivate struct StackSectionTrailingHeaderModifier: ViewModifier {
             .buttonStyle(.bordered)
 #endif
             .font(.footnote)
+#if os(iOS)
             .buttonBorderShape(.capsule)
+#endif
             .modifier {
                 if #available(iOS 16, macOS 13, *) {
                     $0.fontWeight(.bold)

@@ -17,7 +17,7 @@ extension Color {
             }
         })
 #else
-        return UIColor(red: 242 / 255, green: 242 / 255, blue: 247 / 255, alpha: 1)
+        return Color(red: 242 / 255, green: 242 / 255, blue: 247 / 255)
 #endif
     }
 }
