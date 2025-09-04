@@ -98,10 +98,20 @@ public struct EnhancedSearchableModifier: ViewModifier {
             }
             
             content
-                .onChange(of: isPresented) { [oldValue = isPresented] isPresented in
-                    guard isPresented, oldValue != isPresented else { return }
-                    Task { @MainActor in
-                        focusedField = "search"
+                .onChange(of: isPresented) { [oldValue = isPresented] newValue in
+                    guard oldValue != newValue else { return }
+                    if newValue {
+                        Task { @MainActor in
+                            focusedField = "search"
+                        }
+                    } else {
+                        // Closing: end the search session
+                        searchText.removeAll()
+                        isEnhancedlySearching = false
+                        Task { @MainActor in
+                            focusedField = nil
+                        }
+                        searchTask?.cancel()
                     }
                 }
         }
