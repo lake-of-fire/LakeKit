@@ -125,9 +125,9 @@ let package = Package(
 //                .copy("Resources/JS/tippy.umd.min.js"),
             ],
             linkerSettings: [
-                .unsafeFlags(
-                    ["-Xlinker", "-interposable"],
-                    .when(configuration: .debug))
+//                .unsafeFlags(
+//                    ["-Xlinker", "-interposable"],
+//                    .when(configuration: .debug))
             ]
         ),
         .testTarget(

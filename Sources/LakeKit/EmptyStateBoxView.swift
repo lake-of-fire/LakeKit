@@ -67,7 +67,7 @@ public struct EmptyStateBoxView<Trailing: View>: View {
         .groupBoxStyle(.stackList)
         .frame(minHeight: minHeight)
         .fixedSize(horizontal: false, vertical: true)
-        .enableInjection()
+        //.enableInjection()
     }
 }
 
