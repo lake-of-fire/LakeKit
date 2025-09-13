@@ -49,11 +49,6 @@ fileprivate struct StoreViewForSheet: View {
 #if os(iOS)
         StoreView(isPresented: $isPresented, storeViewModel: storeViewModel)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    RestorePurchasesButton()
-                        .foregroundStyle(.secondary)
-                        .fixedSize()
-                }
                 ToolbarItem(placement: .cancellationAction) {
                     DismissButton {
                         dismiss()
@@ -81,8 +76,6 @@ fileprivate struct StoreViewForSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     HStack {
-                        RestorePurchasesButton()
-                            .fixedSize()
                         Spacer()
                         Button("Cancel", role: .cancel) {
                             dismiss()
@@ -417,6 +410,12 @@ fileprivate struct StoreFooterView: View {
             }
             .padding(.top, 8)
         }
+        
+        RestorePurchasesButton()
+            .buttonStyle(.clearBordered)
+            .foregroundStyle(.secondary)
+            .fixedSize()
+
         HStack(spacing: 20) {
             Link("Terms of Service", destination: storeViewModel.termsOfService)
             //                        .frame(maxWidth: .infinity)
