@@ -131,7 +131,7 @@ public struct BaseDismissButtonStyle: DismissButtonStyle {
     
     public func makeBody(configuration: Configuration) -> some View {
         if #available(iOS 26, macOS 26, *) {
-            Image(systemName: systemImageName + (fill ? ".fill" : ""))
+            Image(systemName: systemImageName + (fill ? ".circle.fill" : ""))
         } else {
             ZStack {
                 Circle()
