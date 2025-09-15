@@ -262,6 +262,7 @@ fileprivate struct StackSectionTrailingHeaderModifier: ViewModifier {
         content
 #if os(iOS)
             .buttonStyle(.bordered)
+            .controlSize(.small)
 #endif
             .font(.footnote)
 #if os(iOS)
@@ -269,7 +270,7 @@ fileprivate struct StackSectionTrailingHeaderModifier: ViewModifier {
 #endif
             .modifier {
                 if #available(iOS 16, macOS 13, *) {
-                    $0.fontWeight(.bold)
+                    $0.fontWeight(.semibold)
                 } else { $0 }
             }
     }
@@ -300,25 +301,22 @@ fileprivate struct StackSectionDisclosureGroupStyle: DisclosureGroupStyle {
                     configuration.isExpanded.toggle()
                 } label: {
                     Image(systemName: "chevron.right")
-                        .imageScale(.small)
-                        .rotationEffect(configuration.isExpanded ? .degrees(90) : .zero)
-#if os(iOS)
                         .modifier {
                             if #available(iOS 16, macOS 13, *) {
-                                $0.fontWeight(.semibold)
+                                $0.font(.footnote.weight(.semibold))
                             } else { $0 }
                         }
-#endif
+                        .rotationEffect(configuration.isExpanded ? .degrees(90) : .zero)
                 }
 #if os(iOS)
                 .buttonStyle(.bordered)
+                .controlSize(.small)
 #endif
-                //                .controlSize(.mini)
                 .modifier {
                     if #available(iOS 17, macOS 14, *) {
                         $0
                             .buttonBorderShape(.circle)
-//                            .backgroundStyle(Color.stackListGroupedBackground)
+                        //                            .backgroundStyle(Color.stackListGroupedBackground)
                     } else {
                         $0
                     }
