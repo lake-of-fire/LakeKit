@@ -11,12 +11,12 @@ public struct ClearBorderedButtonStyle: ButtonStyle {
         smallMinHeight
     }
 #elseif os(macOS)
-    @ScaledMetric private var miniMinWidth: CGFloat = 32
-    @ScaledMetric private var miniMinHeight: CGFloat = 32
+    @ScaledMetric private var miniMinWidth: CGFloat = 30
+    @ScaledMetric private var miniMinHeight: CGFloat = 30
 #endif
     
-    @ScaledMetric private var smallMinWidth: CGFloat = 38
-    @ScaledMetric private var smallMinHeight: CGFloat = 38
+    @ScaledMetric private var smallMinWidth: CGFloat = 32
+    @ScaledMetric private var smallMinHeight: CGFloat = 32
     
     @ScaledMetric private var regularMinWidth: CGFloat = 44
     @ScaledMetric private var regularMinHeight: CGFloat = 44
@@ -72,8 +72,10 @@ public struct ClearBorderedButtonStyle: ButtonStyle {
         }
         .background(.white.opacity(0.0000000001))
 //        .frame(minWidth: minWidth, minHeight: minHeight)
-        .frame(width: minWidth, height: minHeight)
-        .contentShape(RoundedRectangle(cornerRadius: minHeight / 7))
+        .frame(minWidth: minWidth, minHeight: minHeight)
+        .fixedSize()
+//                .contentShape(Rectangle())
+//        .contentShape(RoundedRectangle(cornerRadius: minHeight / 7))
 //        .clipShape(RoundedRectangle(cornerRadius: minHeight / 7))
     }
 }
