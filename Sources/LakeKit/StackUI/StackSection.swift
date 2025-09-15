@@ -279,7 +279,7 @@ fileprivate struct StackSectionTrailingHeaderModifier: ViewModifier {
 @available(iOS 16, macOS 13, *)
 fileprivate struct StackSectionDisclosureGroupStyle: DisclosureGroupStyle {
     @ViewBuilder let trailingHeader: () -> AnyView
-    @Environment(\.stackListStyle) private var style
+    @Environment(\.stackListConfig) private var config
     
     func makeBody(configuration: Configuration) -> some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -306,7 +306,7 @@ fileprivate struct StackSectionDisclosureGroupStyle: DisclosureGroupStyle {
                                 $0.font(.footnote.weight(.semibold))
                             } else { $0 }
                         }
-                        .rotationEffect(configuration.isExpanded ? .degrees(90) : .zero)
+                        .rotationEffect(configuration.isExpanded ? Angle.degrees(90) : Angle.zero)
                 }
 #if os(iOS)
                 .buttonStyle(.bordered)
@@ -327,7 +327,7 @@ fileprivate struct StackSectionDisclosureGroupStyle: DisclosureGroupStyle {
                 if configuration.isExpanded {
                     configuration.content
                         .padding(.top, StackSectionMetrics.contentTopSpacing)
-                        .padding(.bottom, style.expandedBottomPadding)
+                        .padding(.bottom, config.expandedBottomPadding)
                         .transition(.opacity)
                 } else {
                     // Keep layout stable without mounting heavy UIKitRepresentables

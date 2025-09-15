@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - StackList Style & Environment
 
-public struct StackListStyle: Equatable {
+public struct StackListConfig: Equatable {
     public var interItemSpacing: CGFloat
     public var managesSeparators: Bool
     public var expandedBottomPadding: CGFloat
@@ -18,14 +18,98 @@ public struct StackListStyle: Equatable {
     }
 }
 
-private struct StackListStyleKey: EnvironmentKey {
-    static let defaultValue = StackListStyle()
+private struct StackListConfigKey: EnvironmentKey {
+    static let defaultValue = StackListConfig()
 }
 
 extension EnvironmentValues {
-    var stackListStyle: StackListStyle {
-        get { self[StackListStyleKey.self] }
-        set { self[StackListStyleKey.self] = newValue }
+    var stackListConfig: StackListConfig {
+        get { self[StackListConfigKey.self] }
+        set { self[StackListConfigKey.self] = newValue }
+    }
+}
+
+// MARK: - Appearance Environment (separate from layout config)
+public enum StackListAppearance: Equatable {
+    case automatic
+    case plain
+    case grouped
+}
+
+private struct StackListAppearanceKey: EnvironmentKey {
+    static let defaultValue: StackListAppearance = .plain
+}
+
+extension EnvironmentValues {
+    var stackListStyle: StackListAppearance {
+        get { self[StackListAppearanceKey.self] }
+        set { self[StackListAppearanceKey.self] = newValue }
+    }
+}
+
+// MARK: - Style-type API (mimic SwiftUI's .listStyle)
+
+public protocol StackListAppearanceStyle { }
+
+public struct PlainStackListStyle: StackListAppearanceStyle {
+    public init() {}
+}
+
+public struct GroupedStackListStyle: StackListAppearanceStyle {
+    public init() {}
+}
+
+public extension StackListAppearanceStyle where Self == PlainStackListStyle {
+    static var plain: Self { .init() }
+}
+
+public extension StackListAppearanceStyle where Self == GroupedStackListStyle {
+    static var grouped: Self { .init() }
+}
+
+private struct StackListStyleTypeModifier<S: StackListAppearanceStyle>: ViewModifier {
+    let style: S
+    func body(content: Content) -> some View {
+        let appearance: StackListAppearance = (style is PlainStackListStyle) ? .plain : .grouped
+        return content.environment(\.stackListStyle, appearance)
+    }
+}
+
+public extension View {
+    /// Mirrors SwiftUI's `.listStyle(...)` generic API (e.g., `.stackListStyle(.plain)` / `.stackListStyle(.grouped)`).
+    func stackListStyle<S>(_ style: S) -> some View where S: StackListAppearanceStyle {
+        modifier(StackListStyleTypeModifier(style: style))
+    }
+    /// Convenience overload: Set the appearance directly via enum.
+    func stackListStyle(_ appearance: StackListAppearance) -> some View {
+        environment(\.stackListStyle, appearance)
+    }
+}
+
+private struct StackListStyleWriter: ViewModifier {
+    @Environment(\.stackListConfig) private var current
+    let interItemSpacing: CGFloat?
+    let managesSeparators: Bool?
+    let expandedBottomPadding: CGFloat?
+    
+    func body(content: Content) -> some View {
+        var next = current
+        if let s = interItemSpacing { next.interItemSpacing = s }
+        if let m = managesSeparators { next.managesSeparators = m }
+        if let p = expandedBottomPadding { next.expandedBottomPadding = p }
+        return content.environment(\.stackListConfig, next)
+    }
+}
+
+public extension View {
+    func stackListInterItemSpacing(_ value: CGFloat) -> some View {
+        modifier(StackListStyleWriter(interItemSpacing: value, managesSeparators: nil, expandedBottomPadding: nil))
+    }
+    func stackListManagesSeparators(_ value: Bool) -> some View {
+        modifier(StackListStyleWriter(interItemSpacing: nil, managesSeparators: value, expandedBottomPadding: nil))
+    }
+    func stackListExpandedBottomPadding(_ value: CGFloat) -> some View {
+        modifier(StackListStyleWriter(interItemSpacing: nil, managesSeparators: nil, expandedBottomPadding: value))
     }
 }
 
@@ -193,7 +277,8 @@ private struct StackListRowHost: View {
 }
 
 public struct StackList: View {
-    private let style: StackListStyle
+    @Environment(\.stackListConfig) private var config
+    @Environment(\.stackListStyle) private var appearance
     @State private var rows: [StackListRowItem]
     
     @State private var rowSeparatorOverrides: [UUID: Visibility] = [:]
@@ -203,126 +288,126 @@ public struct StackList: View {
     @State private var animateRows: Set<UUID> = []
     
     public init(@StackListBuilder rows: () -> [StackListRowItem]) {
-        self.style = StackListStyle()
-        self._rows = State(initialValue: rows())
-    }
-    
-    public init(style: StackListStyle, @StackListBuilder rows: () -> [StackListRowItem]) {
-        self.style = style
         self._rows = State(initialValue: rows())
     }
     
     public var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            let lastRowID = rows.last?.id
-            ForEach(rows, id: \.id) { row in
-                let rowID = row.id
-                let isLastRow = (rowID == lastRowID)
-                let isRowEmpty = rowIsEmpty[rowID] ?? false
-                let hasSeparator = style.managesSeparators && !isLastRow && !isRowEmpty && (rowSeparatorOverrides[rowID] ?? row.separatorVisibility) != .hidden
-                let clampedHeight: CGFloat? = animateRows.contains(rowID) ? rowHeights[rowID] : nil
-                
-                StackListRowHost(rowID: rowID, content: row.view)
-                    .environment(\.stackListRowID, rowID)
-                    .frame(height: clampedHeight, alignment: .top)
-                
-                if !isLastRow && !isRowEmpty {
-                    ZStack(alignment: .center) {
-                        Color.clear.frame(height: style.interItemSpacing)
-                        if hasSeparator {
-                            Divider()
-                                .padding(.vertical, style.interItemSpacing / 2)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                let firstRowID = rows.first?.id
+                let lastRowID = rows.last?.id
+                ForEach(rows, id: \.id) { row in
+                    let rowID = row.id
+                    let isFirstRow = (rowID == firstRowID)
+                    let isLastRow = (rowID == lastRowID)
+                    let isRowEmpty = rowIsEmpty[rowID] ?? false
+                    let hasSeparator = config.managesSeparators && !isLastRow && !isRowEmpty && (rowSeparatorOverrides[rowID] ?? row.separatorVisibility) != .hidden
+                    let clampedHeight: CGFloat? = animateRows.contains(rowID) ? rowHeights[rowID] : nil
+                    
+                    StackListRowHost(rowID: rowID, content: row.view)
+                        .environment(\.stackListRowID, rowID)
+                        .frame(height: clampedHeight, alignment: .top)
+                        .padding(.top, isFirstRow ? config.interItemSpacing / 2 : 0)
+                    
+                    if !isLastRow && !isRowEmpty {
+                        ZStack(alignment: .center) {
+                            Color.clear.frame(height: config.interItemSpacing)
+                            if hasSeparator {
+                                Divider()
+                                    .padding(.vertical, config.interItemSpacing / 2)
+                            }
                         }
+                        .transaction { t in t.disablesAnimations = true }
                     }
-                    .transaction { t in t.disablesAnimations = true }
                 }
             }
-        }
-        .onPreferenceChange(StackListRowPrefsPreferenceKey.self) { newValue in
-            DispatchQueue.main.async {
-                // 1) Next snapshots for non-animated state
-                var nextEmpty = rowIsEmpty
-                var nextOverrides = rowSeparatorOverrides
-                var nextExpanded = rowExpanded
-                
-                for (id, prefs) in newValue {
-                    if let e = prefs.isEmpty { nextEmpty[id] = e }
-                    if let s = prefs.separatorOverride { nextOverrides[id] = s }
-                    if let ex = prefs.isExpanded { nextExpanded[id] = ex }
-                }
-                
-                // Detect which rows toggled expansion this pass
-                var toggled: Set<UUID> = []
-                let allKeys = Set(rowExpanded.keys).union(nextExpanded.keys)
-                for id in allKeys {
-                    if rowExpanded[id] != nextExpanded[id] { toggled.insert(id) }
-                }
-                
-                // 2) Heights: split into non-animated vs animated commits
-                var nextNonAnimatedHeights = rowHeights
-                var nextAllHeights = rowHeights
-                var hasAnimatedChange = false
-                
+            .onPreferenceChange(StackListRowPrefsPreferenceKey.self) { newValue in
+                DispatchQueue.main.async {
+                    // 1) Next snapshots for non-animated state
+                    var nextEmpty = rowIsEmpty
+                    var nextOverrides = rowSeparatorOverrides
+                    var nextExpanded = rowExpanded
+                    
+                    for (id, prefs) in newValue {
+                        if let e = prefs.isEmpty { nextEmpty[id] = e }
+                        if let s = prefs.separatorOverride { nextOverrides[id] = s }
+                        if let ex = prefs.isExpanded { nextExpanded[id] = ex }
+                    }
+                    
+                    // Detect which rows toggled expansion this pass
+                    var toggled: Set<UUID> = []
+                    let allKeys = Set(rowExpanded.keys).union(nextExpanded.keys)
+                    for id in allKeys {
+                        if rowExpanded[id] != nextExpanded[id] { toggled.insert(id) }
+                    }
+                    
+                    // 2) Heights: split into non-animated vs animated commits
+                    var nextNonAnimatedHeights = rowHeights
+                    var nextAllHeights = rowHeights
+                    var hasAnimatedChange = false
+                    
 #if os(iOS)
-                let eps: CGFloat = 1 / UIScreen.main.scale
+                    let eps: CGFloat = 1 / UIScreen.main.scale
 #elseif os(macOS)
-                let eps: CGFloat = 1 / (NSScreen.main?.backingScaleFactor ?? 2)
+                    let eps: CGFloat = 1 / (NSScreen.main?.backingScaleFactor ?? 2)
 #else
-                let eps: CGFloat = 0.5
+                    let eps: CGFloat = 0.5
 #endif
-                for (id, prefs) in newValue {
-                    if let h = prefs.height {
-                        let old = rowHeights[id]
-                        // Only react if change exceeds 1 pixel to avoid oscillations
-                        if old == nil || abs((old ?? 0) - h) >= eps {
-                            if toggled.contains(id) {
-                                nextAllHeights[id] = h
-                                hasAnimatedChange = true
-                            } else {
-                                nextNonAnimatedHeights[id] = h
-                                nextAllHeights[id] = h
+                    for (id, prefs) in newValue {
+                        if let h = prefs.height {
+                            let old = rowHeights[id]
+                            // Only react if change exceeds 1 pixel to avoid oscillations
+                            if old == nil || abs((old ?? 0) - h) >= eps {
+                                if toggled.contains(id) {
+                                    nextAllHeights[id] = h
+                                    hasAnimatedChange = true
+                                } else {
+                                    nextNonAnimatedHeights[id] = h
+                                    nextAllHeights[id] = h
+                                }
                             }
                         }
                     }
-                }
-                
-                // 3) Commit: non-animated base state (only if changed)
-                let baseChanged = (nextEmpty != rowIsEmpty)
-                || (nextOverrides != rowSeparatorOverrides)
-                || (nextExpanded != rowExpanded)
-                || (animateRows != toggled)
-                if baseChanged {
-                    withTransaction(Transaction(animation: nil)) {
-                        if nextEmpty != rowIsEmpty { rowIsEmpty = nextEmpty }
-                        if nextOverrides != rowSeparatorOverrides { rowSeparatorOverrides = nextOverrides }
-                        if nextExpanded != rowExpanded { rowExpanded = nextExpanded }
-                        if animateRows != toggled { animateRows = toggled }
+                    
+                    // 3) Commit: non-animated base state (only if changed)
+                    let baseChanged = (nextEmpty != rowIsEmpty)
+                    || (nextOverrides != rowSeparatorOverrides)
+                    || (nextExpanded != rowExpanded)
+                    || (animateRows != toggled)
+                    if baseChanged {
+                        withTransaction(Transaction(animation: nil)) {
+                            if nextEmpty != rowIsEmpty { rowIsEmpty = nextEmpty }
+                            if nextOverrides != rowSeparatorOverrides { rowSeparatorOverrides = nextOverrides }
+                            if nextExpanded != rowExpanded { rowExpanded = nextExpanded }
+                            if animateRows != toggled { animateRows = toggled }
+                        }
                     }
-                }
-                
-                // 4) Commit: heights (non-animated pass)
-                if nextNonAnimatedHeights != rowHeights {
-                    withTransaction(Transaction(animation: nil)) {
-                        rowHeights = nextNonAnimatedHeights
+                    
+                    // 4) Commit: heights (non-animated pass)
+                    if nextNonAnimatedHeights != rowHeights {
+                        withTransaction(Transaction(animation: nil)) {
+                            rowHeights = nextNonAnimatedHeights
+                        }
                     }
-                }
-                
-                // 5) Commit: heights (animated pass if needed)
-                if hasAnimatedChange {
-                    withAnimation(.easeInOut(duration: 0.25)) {
-                        rowHeights = nextAllHeights
+                    
+                    // 5) Commit: heights (animated pass if needed)
+                    if hasAnimatedChange {
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            rowHeights = nextAllHeights
+                        }
                     }
-                }
-                
-                // 6) Clear animation gating (only if non-empty)
-                if !animateRows.isEmpty {
-                    withTransaction(Transaction(animation: nil)) {
-                        animateRows.removeAll()
+                    
+                    // 6) Clear animation gating (only if non-empty)
+                    if !animateRows.isEmpty {
+                        withTransaction(Transaction(animation: nil)) {
+                            animateRows.removeAll()
+                        }
                     }
                 }
             }
         }
-        .environment(\.stackListStyle, style)
+        .background(appearance == .grouped ? Color.systemGroupedBackground : Color.systemBackground)
+        .groupBoxStyle(.stackList)
         .frame(maxWidth: 850)
     }
 }
