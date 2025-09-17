@@ -1,13 +1,81 @@
 import SwiftUI
 
+struct StackSectionListBadgeValueKey: EnvironmentKey {
+    static let defaultValue: Int? = nil
+}
+
+extension EnvironmentValues {
+    var stackSectionListBadgeValue: Int? {
+        get { self[StackSectionListBadgeValueKey.self] }
+        set { self[StackSectionListBadgeValueKey.self] = newValue }
+    }
+}
+
 public struct StackSectionListRow: Identifiable {
     public let id = UUID()
     public let content: AnyView
     public var separatorVisibility: Visibility
+    public var badgeValue: Int?
+    public var dividerLeadingInset: CGFloat?
     
-    public init<V: View>(content: V, separatorVisibility: Visibility = .automatic) {
+    public init<V: View>(
+        content: V,
+        separatorVisibility: Visibility = .automatic,
+        badgeValue: Int? = nil,
+        dividerLeadingInset: CGFloat? = nil
+    ) {
         self.content = AnyView(content)
         self.separatorVisibility = separatorVisibility
+        self.badgeValue = badgeValue
+        self.dividerLeadingInset = dividerLeadingInset
+    }
+}
+
+public struct StackSectionListRowContent<Content: View> {
+    fileprivate var content: Content
+    fileprivate var separatorVisibility: Visibility
+    fileprivate var badgeValue: Int?
+    fileprivate var dividerLeadingInset: CGFloat?
+    
+    public init(
+        content: Content,
+        separatorVisibility: Visibility = .automatic,
+        badgeValue: Int? = nil,
+        dividerLeadingInset: CGFloat? = nil
+    ) {
+        self.content = content
+        self.separatorVisibility = separatorVisibility
+        self.badgeValue = badgeValue
+        self.dividerLeadingInset = dividerLeadingInset
+    }
+    
+    fileprivate func makeRow() -> StackSectionListRow {
+        StackSectionListRow(
+            content: content,
+            separatorVisibility: separatorVisibility,
+            badgeValue: badgeValue,
+            dividerLeadingInset: dividerLeadingInset
+        )
+    }
+}
+
+public extension StackSectionListRowContent {
+    func badge(_ value: Int?) -> StackSectionListRowContent {
+        var copy = self
+        copy.badgeValue = value
+        return copy
+    }
+    
+    func stackSectionListDividerLeadingInset(_ value: CGFloat?) -> StackSectionListRowContent {
+        var copy = self
+        copy.dividerLeadingInset = value
+        return copy
+    }
+    
+    func stackSectionListRowSeparator(_ visibility: Visibility) -> StackSectionListRowContent {
+        var copy = self
+        copy.separatorVisibility = visibility
+        return copy
     }
 }
 
@@ -18,6 +86,12 @@ public enum StackSectionListBuilder {
     }
     public static func buildExpression(_ expression: StackSectionListRow) -> [StackSectionListRow] {
         [expression]
+    }
+    public static func buildExpression(_ expression: [StackSectionListRow]) -> [StackSectionListRow] {
+        expression
+    }
+    public static func buildExpression<Content>(_ expression: StackSectionListRowContent<Content>) -> [StackSectionListRow] where Content: View {
+        [expression.makeRow()]
     }
     public static func buildExpression(_ expression: EmptyView) -> [StackSectionListRow] {
         []
@@ -34,8 +108,38 @@ public enum StackSectionListBuilder {
 }
 
 public extension View {
-    func stackSectionListRowSeparator(_ visibility: Visibility) -> StackSectionListRow {
-        StackSectionListRow(content: self, separatorVisibility: visibility)
+    func stackSectionListRow(separatorVisibility: Visibility = .automatic) -> StackSectionListRowContent<Self> {
+        StackSectionListRowContent(content: self, separatorVisibility: separatorVisibility)
+    }
+    @_disfavoredOverload
+    func badge(_ value: Int?) -> StackSectionListRowContent<Self> {
+        stackSectionListRow().badge(value)
+    }
+    func stackSectionListDividerLeadingInset(_ value: CGFloat?) -> StackSectionListRowContent<Self> {
+        stackSectionListRow().stackSectionListDividerLeadingInset(value)
+    }
+    func stackSectionListRowSeparator(_ visibility: Visibility) -> StackSectionListRowContent<Self> {
+        stackSectionListRow(separatorVisibility: visibility)
+    }
+}
+
+public extension StackSectionListRow {
+    func badge(_ value: Int?) -> StackSectionListRow {
+        StackSectionListRow(
+            content: content,
+            separatorVisibility: separatorVisibility,
+            badgeValue: value,
+            dividerLeadingInset: dividerLeadingInset
+        )
+    }
+    
+    func stackSectionListDividerLeadingInset(_ value: CGFloat?) -> StackSectionListRow {
+        StackSectionListRow(
+            content: content,
+            separatorVisibility: separatorVisibility,
+            badgeValue: badgeValue,
+            dividerLeadingInset: value
+        )
     }
 }
 
@@ -43,7 +147,6 @@ public struct StackSectionList: View {
     private let rows: [StackSectionListRow]
     private let rowSpacing: CGFloat
     private let dividerInsets: EdgeInsets
-    
     public init(
         rowSpacing: CGFloat = 0,
         dividerInsets: EdgeInsets = EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 0),
@@ -57,12 +160,17 @@ public struct StackSectionList: View {
     public var body: some View {
         VStack(spacing: rowSpacing) {
             ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
-                row.content
+                let rowView = row.content
+                    .environment(\.stackSectionListBadgeValue, row.badgeValue)
+                rowView
                     .frame(maxWidth: .infinity, alignment: .leading)
                 
                 if shouldShowDivider(after: index) {
                     Divider()
-                        .padding(dividerInsets)
+                        .padding(.top, dividerInsets.top)
+                        .padding(.bottom, dividerInsets.bottom)
+                        .padding(.leading, row.dividerLeadingInset ?? dividerInsets.leading)
+                        .padding(.trailing, dividerInsets.trailing)
                 }
             }
         }

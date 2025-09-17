@@ -321,6 +321,8 @@ public struct StackList: View {
                     }
                 }
             }
+            .frame(maxWidth: 850)
+            .frame(maxWidth: .infinity, alignment: .center)
             .onPreferenceChange(StackListRowPrefsPreferenceKey.self) { newValue in
                 DispatchQueue.main.async {
                     // 1) Next snapshots for non-animated state
@@ -408,6 +410,5 @@ public struct StackList: View {
         }
         .background(appearance == .grouped ? Color.systemGroupedBackground : Color.systemBackground)
         .groupBoxStyle(.stackList)
-        .frame(maxWidth: 850)
     }
 }

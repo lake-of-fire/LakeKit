@@ -74,6 +74,11 @@ public struct ClearBorderedButtonStyle: ButtonStyle {
 //        .frame(minWidth: minWidth, minHeight: minHeight)
         .frame(minWidth: minWidth, minHeight: minHeight)
         .fixedSize()
+        .background(
+            GeometryReader { proxy in
+                Color.clear.preference(key: ClearBorderedButtonHeightKey.self, value: proxy.size.height)
+            }
+        )
 //                .contentShape(Rectangle())
 //        .contentShape(RoundedRectangle(cornerRadius: minHeight / 7))
 //        .clipShape(RoundedRectangle(cornerRadius: minHeight / 7))
@@ -82,4 +87,11 @@ public struct ClearBorderedButtonStyle: ButtonStyle {
 
 public extension ButtonStyle where Self == ClearBorderedButtonStyle {
     static var clearBordered: Self { Self() }
+}
+
+public struct ClearBorderedButtonHeightKey: PreferenceKey {
+    public static var defaultValue: CGFloat = 0
+    public static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
 }
