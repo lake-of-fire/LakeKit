@@ -328,15 +328,14 @@ fileprivate struct StackSectionDisclosureGroupStyle: DisclosureGroupStyle {
                     configuration.content
                         .padding(.top, StackSectionMetrics.contentTopSpacing)
                         .padding(.bottom, config.expandedBottomPadding)
-                        .transition(.opacity)
+                        .transition(.move(edge: .top).combined(with: .opacity))
                 } else {
                     // Keep layout stable without mounting heavy UIKitRepresentables
                     EmptyView()
-                        .transition(.opacity)
+                        .transition(.move(edge: .top).combined(with: .opacity))
                 }
             }
         }
-        .clipped()
         .animation(.easeInOut(duration: 0.25), value: configuration.isExpanded)
     }
 }
@@ -459,3 +458,4 @@ struct StackSection_Previews: PreviewProvider {
     }
 }
 #endif
+
