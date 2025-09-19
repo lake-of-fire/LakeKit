@@ -10,6 +10,7 @@ public struct EmptyStateBoxView<Trailing: View>: View {
     public let systemImageName: String
     public let controlSize: ControlSize
     @ViewBuilder public var trailingView: Trailing
+    public let contentInsets: EdgeInsets
 
     @Environment(\.stackListStyle) private var stackListStyle
     @Environment(\.stackListIsGroupedContext) private var stackListGroupedContext
@@ -19,6 +20,7 @@ public struct EmptyStateBoxView<Trailing: View>: View {
         text: Text,
         systemImageName: String,
         controlSize: ControlSize = .mini,
+        contentInsets: EdgeInsets = EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0),
         @ViewBuilder trailingView: () -> Trailing
     ) {
         self.title = title
@@ -26,6 +28,7 @@ public struct EmptyStateBoxView<Trailing: View>: View {
         self.systemImageName = systemImageName
         self.controlSize = controlSize
         self.trailingView = trailingView()
+        self.contentInsets = contentInsets
     }
     
     public var body: some View {
@@ -40,7 +43,7 @@ public struct EmptyStateBoxView<Trailing: View>: View {
             .environment(\._lineHeightMultiple, 0.85)
             .imageScale(.small)
             .foregroundStyle(.secondary)
-            .padding(.vertical, 4)
+            .padding(contentInsets)
             .frame(maxWidth: .infinity, alignment: .leading)
             .modifier {
                 if #available(iOS 16, macOS 13, *) {
@@ -72,8 +75,8 @@ public struct EmptyStateBoxView<Trailing: View>: View {
 
 // Convenience initializer when no trailing view is supplied.
 public extension EmptyStateBoxView where Trailing == EmptyView {
-    init(title: Text, text: Text, systemImageName: String, controlSize: ControlSize = .mini) {
-        self.init(title: title, text: text, systemImageName: systemImageName, controlSize: controlSize) { EmptyView() }
+    init(title: Text, text: Text, systemImageName: String, controlSize: ControlSize = .mini, contentInsets: EdgeInsets = EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0)) {
+        self.init(title: title, text: text, systemImageName: systemImageName, controlSize: controlSize, contentInsets: contentInsets) { EmptyView() }
     }
 }
 
@@ -86,15 +89,4 @@ private extension EmptyStateBoxView {
         isGroupedAppearance ? Color.stackListCardBackgroundGrouped : Color.stackListCardBackgroundPlain
     }
 
-}
-
-private extension View {
-    @ViewBuilder
-    func applyStackListGroupBoxStyle(isGrouped: Bool) -> some View {
-        if isGrouped {
-            self.groupBoxStyle(.groupedStackList)
-        } else {
-            self.groupBoxStyle(.stackList)
-        }
-    }
 }

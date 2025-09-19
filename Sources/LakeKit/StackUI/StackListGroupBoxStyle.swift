@@ -80,3 +80,18 @@ public extension GroupBoxStyle where Self == PlainStackListGroupBoxStyle {
 public extension GroupBoxStyle where Self == GroupedStackListGroupBoxStyle {
     static var groupedStackList: Self { Self() }
 }
+
+public extension View {
+    @ViewBuilder
+    func applyStackListGroupBoxStyle(isGrouped: Bool) -> some View {
+        if isGrouped {
+            self
+                .groupBoxStyle(.groupedStackList)
+                .environment(\.stackListStyle, .grouped)
+        } else {
+            self
+                .groupBoxStyle(.stackList)
+                .environment(\.stackListStyle, .plain)
+        }
+    }
+}
