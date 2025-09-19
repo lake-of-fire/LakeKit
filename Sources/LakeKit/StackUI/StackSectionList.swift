@@ -1,4 +1,9 @@
 import SwiftUI
+#if os(iOS)
+import UIKit
+#elseif os(macOS)
+import AppKit
+#endif
 
 struct StackSectionListBadgeValueKey: EnvironmentKey {
     static let defaultValue: Int? = nil
@@ -8,6 +13,17 @@ extension EnvironmentValues {
     var stackSectionListBadgeValue: Int? {
         get { self[StackSectionListBadgeValueKey.self] }
         set { self[StackSectionListBadgeValueKey.self] = newValue }
+    }
+}
+
+private struct StackSectionListContainedInGroupBoxKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    var stackSectionListContainedInGroupBox: Bool {
+        get { self[StackSectionListContainedInGroupBoxKey.self] }
+        set { self[StackSectionListContainedInGroupBoxKey.self] = newValue }
     }
 }
 
@@ -147,6 +163,7 @@ public struct StackSectionList: View {
     private let rows: [StackSectionListRow]
     private let rowSpacing: CGFloat
     private let dividerInsets: EdgeInsets
+    @Environment(\.stackSectionListContainedInGroupBox) private var isContainedInGroupBox
     public init(
         rowSpacing: CGFloat = 0,
         dividerInsets: EdgeInsets = EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 0),
@@ -160,8 +177,17 @@ public struct StackSectionList: View {
     public var body: some View {
         VStack(spacing: rowSpacing) {
             ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
-                let rowView = row.content
-                    .environment(\.stackSectionListBadgeValue, row.badgeValue)
+                let baseRow = AnyView(
+                    row.content
+                        .environment(\.stackSectionListBadgeValue, row.badgeValue)
+                )
+                let rowView: AnyView = {
+                    if isContainedInGroupBox {
+                        return baseRow
+                    } else {
+                        return AnyView(baseRow.stackSectionListDefaultEmphasis())
+                    }
+                }()
                 rowView
                     .frame(maxWidth: .infinity, alignment: .leading)
                 
@@ -181,16 +207,39 @@ public struct StackSectionList: View {
         let currentVisibility = rows[index].separatorVisibility
         let nextVisibility = rows[index + 1].separatorVisibility
         return allowsDivider(currentVisibility) && allowsDivider(nextVisibility)
+}
+
+private func allowsDivider(_ visibility: Visibility) -> Bool {
+    switch visibility {
+    case .hidden:
+        return false
+    case .visible, .automatic:
+        return true
+    @unknown default:
+        return true
     }
-    
-    private func allowsDivider(_ visibility: Visibility) -> Bool {
-        switch visibility {
-        case .hidden:
-            return false
-        case .visible, .automatic:
-            return true
-        @unknown default:
-            return true
+}
+}
+
+private extension View {
+    @ViewBuilder
+    func stackSectionListDefaultEmphasis() -> some View {
+        if #available(iOS 16, macOS 13, *) {
+            self.fontWeight(.semibold)
+        } else {
+            self.font(.system(size: StackSectionListTypography.bodyPointSize, weight: .semibold))
         }
+    }
+}
+
+private enum StackSectionListTypography {
+    static var bodyPointSize: CGFloat {
+#if os(iOS)
+        UIFont.preferredFont(forTextStyle: .body).pointSize
+#elseif os(macOS)
+        NSFont.preferredFont(forTextStyle: .body).pointSize
+#else
+        17
+#endif
     }
 }

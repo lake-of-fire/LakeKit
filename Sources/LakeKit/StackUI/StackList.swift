@@ -41,7 +41,7 @@ private struct StackListAppearanceKey: EnvironmentKey {
 }
 
 extension EnvironmentValues {
-    var stackListStyle: StackListAppearance {
+    public var stackListStyle: StackListAppearance {
         get { self[StackListAppearanceKey.self] }
         set { self[StackListAppearanceKey.self] = newValue }
     }
@@ -292,6 +292,18 @@ public struct StackList: View {
     }
     
     public var body: some View {
+        if appearance == .grouped {
+            scrollContent
+                .background(Color.systemGroupedBackground)
+                .groupBoxStyle(.groupedStackList)
+        } else {
+            scrollContent
+                .background(Color.systemBackground)
+                .groupBoxStyle(.stackList)
+        }
+    }
+
+    private var scrollContent: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 let firstRowID = rows.first?.id
@@ -322,6 +334,8 @@ public struct StackList: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: 850)
+            .frame(maxWidth: .infinity, alignment: .center)
             .onPreferenceChange(StackListRowPrefsPreferenceKey.self) { newValue in
                 DispatchQueue.main.async {
                     // 1) Next snapshots for non-animated state
@@ -407,7 +421,5 @@ public struct StackList: View {
                 }
             }
         }
-        .background(appearance == .grouped ? Color.systemGroupedBackground : Color.systemBackground)
-        .groupBoxStyle(.stackList)
     }
 }
