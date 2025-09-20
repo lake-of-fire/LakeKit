@@ -22,6 +22,13 @@ extension EnvironmentValues {
     }
 }
 
+public enum StackListGroupBoxStyleOption {
+    case automatic
+    case plain
+    case grouped
+    case clear
+}
+
 private struct StackListGroupBoxContainer<Content: View>: View {
     @Environment(\.stackListBackgroundColorOverride) private var backgroundOverride
     let defaultColor: Color
@@ -73,6 +80,24 @@ public struct GroupedStackListGroupBoxStyle: GroupBoxStyle {
     }
 }
 
+public struct ClearStackListGroupBoxStyle: GroupBoxStyle {
+    public init() {}
+
+    public func makeBody(configuration: Configuration) -> some View {
+        configurationContent(configuration)
+            .environment(\.stackSectionListContainedInGroupBox, true)
+            .environment(\.stackListIsGroupedContext, false)
+    }
+
+    @ViewBuilder
+    private func configurationContent(_ configuration: Configuration) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            configuration.label
+            configuration.content
+        }
+    }
+}
+
 public extension GroupBoxStyle where Self == PlainStackListGroupBoxStyle {
     static var stackList: Self { Self() }
 }
@@ -81,16 +106,35 @@ public extension GroupBoxStyle where Self == GroupedStackListGroupBoxStyle {
     static var groupedStackList: Self { Self() }
 }
 
+public extension GroupBoxStyle where Self == ClearStackListGroupBoxStyle {
+    static var clearStackList: Self { Self() }
+}
+
 public extension View {
     @ViewBuilder
     func applyStackListGroupBoxStyle(isGrouped: Bool) -> some View {
-        if isGrouped {
-            self
-                .groupBoxStyle(.groupedStackList)
+        applyStackListGroupBoxStyle(.automatic, defaultIsGrouped: isGrouped)
+    }
+
+    @ViewBuilder
+    func applyStackListGroupBoxStyle(_ appearance: StackListGroupBoxStyleOption, defaultIsGrouped: Bool = false) -> some View {
+        switch appearance {
+        case .automatic:
+            if defaultIsGrouped {
+                self.groupBoxStyle(.groupedStackList)
+                    .environment(\.stackListStyle, .grouped)
+            } else {
+                self.groupBoxStyle(.stackList)
+                    .environment(\.stackListStyle, .plain)
+            }
+        case .plain:
+            self.groupBoxStyle(.stackList)
+                .environment(\.stackListStyle, .plain)
+        case .grouped:
+            self.groupBoxStyle(.groupedStackList)
                 .environment(\.stackListStyle, .grouped)
-        } else {
-            self
-                .groupBoxStyle(.stackList)
+        case .clear:
+            self.groupBoxStyle(.clearStackList)
                 .environment(\.stackListStyle, .plain)
         }
     }

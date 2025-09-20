@@ -13,6 +13,11 @@ public extension EnvironmentValues {
     }
 }
 
+public enum EnhancedSearchPlacement {
+    case contentTop
+    case native(SearchFieldPlacement)
+}
+
 public struct EnhancedSearchableModifier: ViewModifier {
     @Binding var isPresented: Bool
     @Binding var isEnhancedlySearching: Bool
@@ -20,10 +25,7 @@ public struct EnhancedSearchableModifier: ViewModifier {
     @Binding var searchText: String
     let autosaveName: String?
     let prompt: String?
-    let placement: SearchFieldPlacement
-    var prefersToolbarPlacement = true
-    var showSearchButtonIfNeeded = true
-    var canHideSearchBar = false
+    let placement: EnhancedSearchPlacement
     let searchAction: ((String) async throws -> Void)
     
 #if os(iOS)
@@ -42,7 +44,7 @@ public struct EnhancedSearchableModifier: ViewModifier {
     
     public func body(content: Content) -> some View {
         VStack {
-            if isPresented {
+            if case .contentTop = placement, isPresented {
                 HStack {
                     Group {
 #if os(macOS)
@@ -101,20 +103,35 @@ public struct EnhancedSearchableModifier: ViewModifier {
                 .onChange(of: isPresented) { [oldValue = isPresented] newValue in
                     guard oldValue != newValue else { return }
                     if newValue {
-                        Task { @MainActor in
-                            focusedField = "search"
+                        if case .contentTop = placement {
+                            Task { @MainActor in
+                                focusedField = "search"
+                            }
                         }
                     } else {
                         // Closing: end the search session
                         searchText.removeAll()
                         isEnhancedlySearching = false
-                        Task { @MainActor in
-                            focusedField = nil
+                        if case .contentTop = placement {
+                            Task { @MainActor in
+                                focusedField = nil
+                            }
                         }
                         searchTask?.cancel()
                     }
                 }
         }
+        .applyNativeSearchableIfNeeded(
+            placement: placement,
+            searchText: $searchText,
+            isPresented: $isPresented,
+            canHide: canHide,
+            prompt: promptText
+        )
+        .nativeSearchObserverIfNeeded(
+            placement: placement,
+            isEnhancedlySearching: $isEnhancedlySearching
+        )
         .onDisappear {
             Task { @MainActor in
                 focusedField = nil
@@ -128,20 +145,20 @@ public struct EnhancedSearchableModifier: ViewModifier {
         }
 #if os(iOS)
         .onChange(of: focusedField) { focusedField in
+            guard case .contentTop = placement else { return }
             if !isEnhancedlySearching, focusedField == "search" {
                 isEnhancedlySearching = true
             }
         }
         .onChange(of: isPresented) { [oldValue = isPresented] isPresented in
-            guard isPresented, oldValue != isPresented else {
-                searchText.removeAll()
-                return
-            }
+            guard case .contentTop = placement else { return }
+            guard isPresented, oldValue != isPresented else { return }
             Task { @MainActor in
                 focusedField = "search"
             }
         }
         .onChange(of: isEnhancedlySearching) { isEnhancedlySearching in
+            guard case .contentTop = placement else { return }
             if isEnhancedlySearching {
                 focusedField = "search"
             }
@@ -154,7 +171,12 @@ public struct EnhancedSearchableModifier: ViewModifier {
         Task { @MainActor in
             let isTextEmpty = searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
 #if os(iOS)
-            isEnhancedlySearching = focusedField == "search" || !isTextEmpty
+            switch placement {
+            case .contentTop:
+                isEnhancedlySearching = focusedField == "search" || !isTextEmpty
+            case .native:
+                isEnhancedlySearching = !isTextEmpty
+            }
 #else
             isEnhancedlySearching = !isTextEmpty
 #endif
@@ -168,6 +190,79 @@ public struct EnhancedSearchableModifier: ViewModifier {
                 try Task.checkCancellation()
                 try await searchAction(searchText)
             } catch { }
+        }
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func applyNativeSearchableIfNeeded(
+        placement: EnhancedSearchPlacement,
+        searchText: Binding<String>,
+        isPresented: Binding<Bool>,
+        canHide: Bool,
+        prompt: Text?
+    ) -> some View {
+        switch placement {
+        case .contentTop:
+            self
+        case .native(let searchPlacement):
+            if #available(iOS 17, macOS 14, *) {
+                if canHide {
+                    if let prompt {
+                        self.searchable(text: searchText, isPresented: isPresented, placement: searchPlacement, prompt: prompt)
+                    } else {
+                        self.searchable(text: searchText, isPresented: isPresented, placement: searchPlacement)
+                    }
+                } else {
+                    if let prompt {
+                        self.searchable(text: searchText, placement: searchPlacement, prompt: prompt)
+                    } else {
+                        self.searchable(text: searchText, placement: searchPlacement)
+                    }
+                }
+            } else {
+                if let prompt {
+                    self.searchable(text: searchText, placement: searchPlacement, prompt: prompt)
+                } else {
+                    self.searchable(text: searchText, placement: searchPlacement)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    func nativeSearchObserverIfNeeded(
+        placement: EnhancedSearchPlacement,
+        isEnhancedlySearching: Binding<Bool>
+    ) -> some View {
+        switch placement {
+        case .contentTop:
+            self
+        case .native:
+            self.background(NativeSearchStateObserver(isEnhancedlySearching: isEnhancedlySearching))
+        }
+    }
+}
+
+private struct NativeSearchStateObserver: View {
+    @Binding var isEnhancedlySearching: Bool
+    @Environment(\.isSearching) private var isSearching
+
+    var body: some View {
+        Color.clear
+            .frame(width: 0, height: 0)
+            .task { updateIfNeeded() }
+            .onChange(of: isSearching) { _ in
+                updateIfNeeded()
+            }
+    }
+
+    private func updateIfNeeded() {
+        Task { @MainActor in
+            if isEnhancedlySearching != isSearching {
+                isEnhancedlySearching = isSearching
+            }
         }
     }
 }
@@ -192,10 +287,7 @@ public extension View {
         searchText: Binding<String>,
         autosaveName: String? = nil,
         prompt: String? = nil,
-        placement: SearchFieldPlacement = .automatic,
-        prefersToolbarPlacement: Bool = true,
-        showSearchButtonIfNeeded: Bool = true,
-        canHideSearchBar: Bool = false,
+        placement: EnhancedSearchPlacement = .native(.automatic),
         searchAction: @escaping ((String) async throws -> Void)
     ) -> some View {
         self.modifier(
@@ -207,9 +299,6 @@ public extension View {
                 autosaveName: autosaveName,
                 prompt: prompt,
                 placement: placement,
-                prefersToolbarPlacement: prefersToolbarPlacement,
-                showSearchButtonIfNeeded: showSearchButtonIfNeeded,
-                canHideSearchBar: canHideSearchBar,
                 searchAction: searchAction
             )
         )

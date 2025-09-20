@@ -47,6 +47,17 @@ extension EnvironmentValues {
     }
 }
 
+private struct StackListContentBackgroundVisibilityKey: EnvironmentKey {
+    static let defaultValue: Visibility = .automatic
+}
+
+extension EnvironmentValues {
+    public var stackListContentBackgroundVisibility: Visibility {
+        get { self[StackListContentBackgroundVisibilityKey.self] }
+        set { self[StackListContentBackgroundVisibilityKey.self] = newValue }
+    }
+}
+
 // MARK: - Style-type API (mimic SwiftUI's .listStyle)
 
 public protocol StackListAppearanceStyle { }
@@ -83,6 +94,10 @@ public extension View {
     /// Convenience overload: Set the appearance directly via enum.
     func stackListStyle(_ appearance: StackListAppearance) -> some View {
         environment(\.stackListStyle, appearance)
+    }
+    /// Matches SwiftUI's `.scrollContentBackground(_:)`, allowing callers to show or hide StackList's background.
+    func stackListContentBackground(_ visibility: Visibility) -> some View {
+        environment(\.stackListContentBackgroundVisibility, visibility)
     }
 }
 
@@ -279,6 +294,7 @@ private struct StackListRowHost: View {
 public struct StackList: View {
     @Environment(\.stackListConfig) private var config
     @Environment(\.stackListStyle) private var appearance
+    @Environment(\.stackListContentBackgroundVisibility) private var contentBackgroundVisibility
     @State private var rows: [StackListRowItem]
     
     @State private var rowSeparatorOverrides: [UUID: Visibility] = [:]
@@ -293,13 +309,21 @@ public struct StackList: View {
     
     public var body: some View {
         if appearance == .grouped {
-            scrollContent
-                .background(Color.systemGroupedBackground)
+            contentWithBackground(defaultColor: Color.systemGroupedBackground)
                 .groupBoxStyle(.groupedStackList)
         } else {
-            scrollContent
-                .background(Color.systemBackground)
+            contentWithBackground(defaultColor: Color.systemBackground)
                 .groupBoxStyle(.stackList)
+        }
+    }
+
+    @ViewBuilder
+    private func contentWithBackground(defaultColor: Color) -> some View {
+        if let backgroundColor = resolvedContentBackgroundColor(defaultColor: defaultColor) {
+            scrollContent
+                .background(backgroundColor)
+        } else {
+            scrollContent
         }
     }
 
@@ -420,6 +444,17 @@ public struct StackList: View {
                     }
                 }
             }
+        }
+    }
+    
+    private func resolvedContentBackgroundColor(defaultColor: Color) -> Color? {
+        switch contentBackgroundVisibility {
+        case .hidden:
+            return nil
+        case .visible, .automatic:
+            return defaultColor
+        @unknown default:
+            return defaultColor
         }
     }
 }

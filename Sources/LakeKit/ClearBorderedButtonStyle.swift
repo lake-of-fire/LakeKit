@@ -61,27 +61,65 @@ public struct ClearBorderedButtonStyle: ButtonStyle {
     }
     
     public func makeBody(configuration: Configuration) -> some View {
+        ClearBorderedButtonBody(
+            configuration: configuration,
+            minWidth: minWidth,
+            minHeight: minHeight
+        )
+    }
+}
+
+private struct ClearBorderedButtonBody: View {
+    let configuration: ClearBorderedButtonStyle.Configuration
+    let minWidth: CGFloat
+    let minHeight: CGFloat
+
+    @State private var labelSize: CGSize = .zero
+
+    var body: some View {
         ZStack {
             configuration.label
-//                .foregroundColor(.accentColor)
                 .tint(nil)
                 .opacity(configuration.isPressed ? 0.4 : 1)
+                .background(
+                    GeometryReader { proxy in
+                        Color.clear
+                            .preference(key: ClearBorderedButtonLabelSizeKey.self, value: proxy.size)
+                    }
+                )
 #if os(iOS)
                 .animation(configuration.isPressed ? nil : .easeOut(duration: 0.18), value: configuration.isPressed)
 #endif
         }
         .background(.white.opacity(0.0000000001))
-//        .frame(minWidth: minWidth, minHeight: minHeight)
         .frame(minWidth: minWidth, minHeight: minHeight)
         .fixedSize()
         .background(
             GeometryReader { proxy in
-                Color.clear.preference(key: ClearBorderedButtonHeightKey.self, value: proxy.size.height)
+                let trailingPadding = resolvedTrailingPadding(totalWidth: proxy.size.width)
+                let resolvedHeight = resolvedLabelHeight(totalHeight: proxy.size.height)
+                Color.clear
+                    .preference(key: ClearBorderedButtonHeightKey.self, value: resolvedHeight)
+                    .preference(key: ClearBorderedButtonTrailingPaddingKey.self, value: trailingPadding)
             }
         )
-//                .contentShape(Rectangle())
-//        .contentShape(RoundedRectangle(cornerRadius: minHeight / 7))
-//        .clipShape(RoundedRectangle(cornerRadius: minHeight / 7))
+        .onPreferenceChange(ClearBorderedButtonLabelSizeKey.self) { newSize in
+            if abs(labelSize.height - newSize.height) > 0.5, newSize.height > 0 {
+                debugPrint("# ClearBorderedButtonStyle labelHeight=\(newSize.height) minHeight=\(minHeight)")
+            }
+            labelSize = newSize
+        }
+    }
+
+    private func resolvedTrailingPadding(totalWidth: CGFloat) -> CGFloat {
+        let width = max(totalWidth, minWidth)
+        let effectiveLabelWidth = labelSize.width > 0 ? labelSize.width : width
+        return max(0, (width - effectiveLabelWidth) / 2)
+    }
+
+    private func resolvedLabelHeight(totalHeight: CGFloat) -> CGFloat {
+        guard labelSize.height > 0 else { return totalHeight }
+        return labelSize.height
     }
 }
 
@@ -89,7 +127,27 @@ public extension ButtonStyle where Self == ClearBorderedButtonStyle {
     static var clearBordered: Self { Self() }
 }
 
+private struct ClearBorderedButtonLabelSizeKey: PreferenceKey {
+    static var defaultValue: CGSize = .zero
+    static func reduce(value: inout CGSize, nextValue: () -> CGSize) {
+        value = nextValue()
+    }
+}
+
 public struct ClearBorderedButtonHeightKey: PreferenceKey {
+    public static var defaultValue: CGFloat = 0
+    public static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        let next = nextValue()
+        guard next > 0 else { return }
+        if value == 0 {
+            value = next
+        } else {
+            value = min(value, next)
+        }
+    }
+}
+
+public struct ClearBorderedButtonTrailingPaddingKey: PreferenceKey {
     public static var defaultValue: CGFloat = 0
     public static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         value = nextValue()

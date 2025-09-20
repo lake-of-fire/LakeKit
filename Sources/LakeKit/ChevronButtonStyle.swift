@@ -23,11 +23,14 @@ public struct ChevronButtonStyle: ButtonStyle {
     
     private var verticalPadding: CGFloat {
         switch controlSize {
-        case .mini: return 6
-        case .small: return 7
-        case .large: return 10
-        case .extraLarge: return 12
-        default: return 8
+        case .mini, .small, .regular:
+            return 0
+        case .large:
+            return 4
+        case .extraLarge:
+            return 6
+        default:
+            return 0
         }
     }
     

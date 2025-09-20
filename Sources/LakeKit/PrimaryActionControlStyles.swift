@@ -2,29 +2,28 @@ import SwiftUI
 
 public struct PrimaryActionButtonStyle: ButtonStyle {
     public init() {}
-
+    
     public func makeBody(configuration: Configuration) -> some View {
         PrimaryActionButton(configuration: configuration)
     }
-
+    
     private struct PrimaryActionButton: View {
         @Environment(\.primaryActionButtonMaxHeight) private var maxHeight
+        @Environment(\.primaryActionButtonIconHeight) private var iconHeight
         let configuration: Configuration
-
+        
         private var cornerRadius: CGFloat { 16 }
-        private var baseBackgroundOpacity: Double { 0.12 }
-        private var pressedBackgroundOpacity: Double { 0.18 }
-        private var borderOpacity: Double { 0.25 }
-
+        private var baseBackgroundOpacity: Double { 0.18 }
+        private var pressedBackgroundOpacity: Double { 0.26 }
+        
         var body: some View {
             configuration.label
                 .labelStyle(PrimaryActionButtonLabelStyle())
-                .padding(.vertical, 12)
-                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .padding(.horizontal, 8)
                 .frame(maxWidth: .infinity, alignment: .top)
-                .frame(minHeight: maxHeight > 0 ? maxHeight : nil, alignment: .top)
+//                .frame(height: maxHeight > 0 ? maxHeight : nil, alignment: .top)
                 .background(backgroundShape.fill(backgroundColor))
-                .overlay(backgroundShape.strokeBorder(borderColor, lineWidth: 1))
                 .foregroundStyle(foregroundColor)
                 .contentShape(backgroundShape)
                 .background(
@@ -44,11 +43,7 @@ public struct PrimaryActionButtonStyle: ButtonStyle {
 
         private var backgroundColor: Color {
             let opacity = configuration.isPressed ? pressedBackgroundOpacity : baseBackgroundOpacity
-            return Color.accentColor.opacity(opacity)
-        }
-
-        private var borderColor: Color {
-            Color.accentColor.opacity(borderOpacity)
+            return Color.secondary.opacity(opacity)
         }
 
         private var foregroundColor: Color {
@@ -62,22 +57,36 @@ public extension ButtonStyle where Self == PrimaryActionButtonStyle {
 }
 
 public struct PrimaryActionButtonLabelStyle: LabelStyle {
-    public init(verticalSpacing: CGFloat = 8) {
-        self.verticalSpacing = verticalSpacing
+    public init() {
     }
 
-    private let verticalSpacing: CGFloat
+    @Environment(\.primaryActionButtonIconHeight) private var iconHeight
 
     public func makeBody(configuration: Configuration) -> some View {
-        VStack(spacing: verticalSpacing) {
+        VStack(spacing: 6) {
             configuration.icon
-                .font(.title3)
-
+                .imageScale(.small)
+//                .font(.system(size: 20, weight: .semibold))
+                .frame(height: iconHeight > 0 ? iconHeight : nil, alignment: .center)
+                .background(
+                    GeometryReader { proxy in
+                        Color.clear
+                            .preference(
+                                key: PrimaryActionButtonIconHeightPreferenceKey.self,
+                                value: proxy.size.height
+                            )
+                    }
+                )
+            
             configuration.title
-                .font(.headline)
-                .multilineTextAlignment(.center)
-                .lineLimit(3)
-                .minimumScaleFactor(0.85)
+                .font(.footnote)
+                .lineLimit(1)
+                .truncationMode(.tail)
+        }
+        .modifier {
+            if #available(iOS 16, macOS 14, *) {
+                $0.fontWeight(.semibold)
+            } else { $0 }
         }
         .frame(maxWidth: .infinity, alignment: .top)
     }
@@ -103,6 +112,7 @@ public struct PrimaryActionControlGroupStyle: ControlGroupStyle {
         let configuration: Configuration
 
         @State private var maxHeight: CGFloat = 0
+        @State private var iconHeight: CGFloat = 0
 
         var body: some View {
             HStack(alignment: .top, spacing: spacing) {
@@ -110,9 +120,14 @@ public struct PrimaryActionControlGroupStyle: ControlGroupStyle {
             }
             .frame(maxWidth: .infinity, alignment: .top)
             .environment(\.primaryActionButtonMaxHeight, maxHeight)
+            .environment(\.primaryActionButtonIconHeight, iconHeight)
             .onPreferenceChange(PrimaryActionButtonHeightPreferenceKey.self) { newValue in
                 guard newValue > 0 else { return }
                 maxHeight = newValue
+            }
+            .onPreferenceChange(PrimaryActionButtonIconHeightPreferenceKey.self) { newValue in
+                guard newValue > 0 else { return }
+                iconHeight = newValue
             }
         }
     }
@@ -132,7 +147,19 @@ private struct PrimaryActionButtonHeightPreferenceKey: PreferenceKey {
     }
 }
 
+private struct PrimaryActionButtonIconHeightPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
 private struct PrimaryActionButtonMaxHeightKey: EnvironmentKey {
+    static var defaultValue: CGFloat = 0
+}
+
+private struct PrimaryActionButtonIconHeightKey: EnvironmentKey {
     static var defaultValue: CGFloat = 0
 }
 
@@ -140,5 +167,10 @@ private extension EnvironmentValues {
     var primaryActionButtonMaxHeight: CGFloat {
         get { self[PrimaryActionButtonMaxHeightKey.self] }
         set { self[PrimaryActionButtonMaxHeightKey.self] = newValue }
+    }
+
+    var primaryActionButtonIconHeight: CGFloat {
+        get { self[PrimaryActionButtonIconHeightKey.self] }
+        set { self[PrimaryActionButtonIconHeightKey.self] = newValue }
     }
 }
