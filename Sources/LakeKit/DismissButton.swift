@@ -47,13 +47,20 @@ public struct DismissButton: View {
     private let action: (() -> Void)?
     private var style: DismissButtonStyleType
     private var fill: Bool
+    private let label: AnyView?
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.controlSize) private var controlSize
     @Environment(\.colorScheme) private var colorScheme
-    
+
     public var body: some View {
-        Button("Done", action: { action?() ?? dismiss() })
+        Button(action: { action?() ?? dismiss() }) {
+            if let label {
+                label
+            } else {
+                Text("Done")
+            }
+        }
             .dismissButtonStyle(
                 style,
                 fill: fill,
@@ -62,15 +69,32 @@ public struct DismissButton: View {
             )
         //            .accessibilityLabel(Text("Done"))
     }
-    
+
     public init(_ style: DismissButtonStyleType? = nil, fill: Bool = false, action: (() -> Void)? = nil) {
         self.action = action
         self.fill = fill
+        self.label = nil
         // Set the default style based on the platform
 #if os(iOS)
         self.style = style ?? .xMark  // Default to XMark style on iOS
 #else
         self.style = style ?? .defaultStyle  // Default to DefaultButtonStyle on macOS
+#endif
+    }
+
+    public init<Label: View>(
+        style: DismissButtonStyleType? = nil,
+        fill: Bool = false,
+        action: (() -> Void)? = nil,
+        @ViewBuilder label: () -> Label
+    ) {
+        self.action = action
+        self.fill = fill
+        self.label = AnyView(label())
+#if os(iOS)
+        self.style = style ?? .xMark
+#else
+        self.style = style ?? .defaultStyle
 #endif
     }
 }
