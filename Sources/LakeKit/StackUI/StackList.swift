@@ -294,7 +294,7 @@ private struct StackListRowHost: View {
 public struct StackList: View {
     @Environment(\.stackListConfig) private var config
     @Environment(\.stackListStyle) private var appearance
-    @Environment(\.stackListContentBackgroundVisibility) private var contentBackgroundVisibility
+    @Environment(\.stackListContentBackgroundVisibility) private var stackListContentBackgroundVisibility
     @State private var rows: [StackListRowItem]
     
     @State private var rowSeparatorOverrides: [UUID: Visibility] = [:]
@@ -343,7 +343,7 @@ public struct StackList: View {
                     StackListRowHost(rowID: rowID, content: row.view)
                         .environment(\.stackListRowID, rowID)
                         .frame(height: clampedHeight, alignment: .top)
-                        .padding(.top, isFirstRow ? config.interItemSpacing / 2 : 0)
+//                        .padding(.top, isFirstRow ? config.interItemSpacing / 2 : 0)
                     
                     if !isLastRow && !isRowEmpty {
                         ZStack(alignment: .center) {
@@ -448,7 +448,7 @@ public struct StackList: View {
     }
     
     private func resolvedContentBackgroundColor(defaultColor: Color) -> Color? {
-        switch contentBackgroundVisibility {
+        switch stackListContentBackgroundVisibility {
         case .hidden:
             return nil
         case .visible, .automatic:

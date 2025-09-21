@@ -14,7 +14,7 @@ public struct EmptyStateBoxView<Trailing: View>: View {
     @Environment(\.controlSize) private var controlSize
     @Environment(\.stackListStyle) private var stackListStyle
     @Environment(\.stackListIsGroupedContext) private var stackListGroupedContext
-    @ScaledMetric(relativeTo: .body) private var groupedMinHeight: CGFloat = 96
+    @ScaledMetric(relativeTo: .body) private var groupedMinHeight: CGFloat = 90
 
     private var hasTrailingContent: Bool {
         !(Trailing.self == EmptyView.self)
