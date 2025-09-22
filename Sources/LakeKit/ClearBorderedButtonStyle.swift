@@ -104,9 +104,6 @@ private struct ClearBorderedButtonBody: View {
             }
         )
         .onPreferenceChange(ClearBorderedButtonLabelSizeKey.self) { newSize in
-            if abs(labelSize.height - newSize.height) > 0.5, newSize.height > 0 {
-                debugPrint("# ClearBorderedButtonStyle labelHeight=\(newSize.height) minHeight=\(minHeight)")
-            }
             labelSize = newSize
         }
     }

@@ -108,10 +108,19 @@ public struct EnhancedSearchableModifier: ViewModifier {
                                 focusedField = "search"
                             }
                         }
+                        if case .native = placement {
+                            Task { @MainActor in
+                                if isEnhancedlySearching == false {
+                                    isEnhancedlySearching = true
+                                }
+                            }
+                        }
                     } else {
                         // Closing: end the search session
                         searchText.removeAll()
-                        isEnhancedlySearching = false
+                        if searchText.isEmpty {
+                            isEnhancedlySearching = false
+                        }
                         if case .contentTop = placement {
                             Task { @MainActor in
                                 focusedField = nil
@@ -175,7 +184,7 @@ public struct EnhancedSearchableModifier: ViewModifier {
             case .contentTop:
                 isEnhancedlySearching = focusedField == "search" || !isTextEmpty
             case .native:
-                isEnhancedlySearching = !isTextEmpty
+                isEnhancedlySearching = !isTextEmpty || isPresented
             }
 #else
             isEnhancedlySearching = !isTextEmpty
