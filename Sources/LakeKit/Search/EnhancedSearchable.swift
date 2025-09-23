@@ -177,19 +177,17 @@ public struct EnhancedSearchableModifier: ViewModifier {
     }
     
     private func updateSearchingStatus(forSearchText searchText: String) {
-        Task { @MainActor in
-            let isTextEmpty = searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let isTextEmpty = searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
 #if os(iOS)
-            switch placement {
-            case .contentTop:
-                isEnhancedlySearching = focusedField == "search" || !isTextEmpty
-            case .native:
-                isEnhancedlySearching = !isTextEmpty || isPresented
-            }
-#else
-            isEnhancedlySearching = !isTextEmpty
-#endif
+        switch placement {
+        case .contentTop:
+            isEnhancedlySearching = focusedField == "search" || !isTextEmpty
+        case .native:
+            isEnhancedlySearching = !isTextEmpty || isPresented
         }
+#else
+        isEnhancedlySearching = !isTextEmpty
+#endif
     }
     
     private func onSearchTextChange(searchText: String) {
