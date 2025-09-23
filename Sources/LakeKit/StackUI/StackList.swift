@@ -302,6 +302,9 @@ public struct StackList: View {
     @State private var rowHeights: [UUID: CGFloat] = [:]
     @State private var rowExpanded: [UUID: Bool] = [:]
     @State private var animateRows: Set<UUID> = []
+    @State private var pendingRowPrefs: [UUID: StackListRowPrefs]? = nil
+    @State private var isPreferenceUpdateScheduled = false
+    @State private var lastAppliedRowPrefs: [UUID: StackListRowPrefs] = [:]
     
     public init(@StackListBuilder rows: () -> [StackListRowItem]) {
         self._rows = State(initialValue: rows())
@@ -361,87 +364,13 @@ public struct StackList: View {
             .frame(maxWidth: 850)
             .frame(maxWidth: .infinity, alignment: .center)
             .onPreferenceChange(StackListRowPrefsPreferenceKey.self) { newValue in
-                DispatchQueue.main.async {
-                    // 1) Next snapshots for non-animated state
-                    var nextEmpty = rowIsEmpty
-                    var nextOverrides = rowSeparatorOverrides
-                    var nextExpanded = rowExpanded
-                    
-                    for (id, prefs) in newValue {
-                        if let e = prefs.isEmpty { nextEmpty[id] = e }
-                        if let s = prefs.separatorOverride { nextOverrides[id] = s }
-                        if let ex = prefs.isExpanded { nextExpanded[id] = ex }
-                    }
-                    
-                    // Detect which rows toggled expansion this pass
-                    var toggled: Set<UUID> = []
-                    let allKeys = Set(rowExpanded.keys).union(nextExpanded.keys)
-                    for id in allKeys {
-                        if rowExpanded[id] != nextExpanded[id] { toggled.insert(id) }
-                    }
-                    
-                    // 2) Heights: split into non-animated vs animated commits
-                    var nextNonAnimatedHeights = rowHeights
-                    var nextAllHeights = rowHeights
-                    var hasAnimatedChange = false
-                    
-#if os(iOS)
-                    let eps: CGFloat = 1 / UIScreen.main.scale
-#elseif os(macOS)
-                    let eps: CGFloat = 1 / (NSScreen.main?.backingScaleFactor ?? 2)
-#else
-                    let eps: CGFloat = 0.5
-#endif
-                    for (id, prefs) in newValue {
-                        if let h = prefs.height {
-                            let old = rowHeights[id]
-                            // Only react if change exceeds 1 pixel to avoid oscillations
-                            if old == nil || abs((old ?? 0) - h) >= eps {
-                                if toggled.contains(id) {
-                                    nextAllHeights[id] = h
-                                    hasAnimatedChange = true
-                                } else {
-                                    nextNonAnimatedHeights[id] = h
-                                    nextAllHeights[id] = h
-                                }
-                            }
-                        }
-                    }
-                    
-                    // 3) Commit: non-animated base state (only if changed)
-                    let baseChanged = (nextEmpty != rowIsEmpty)
-                    || (nextOverrides != rowSeparatorOverrides)
-                    || (nextExpanded != rowExpanded)
-                    || (animateRows != toggled)
-                    if baseChanged {
-                        withTransaction(Transaction(animation: nil)) {
-                            if nextEmpty != rowIsEmpty { rowIsEmpty = nextEmpty }
-                            if nextOverrides != rowSeparatorOverrides { rowSeparatorOverrides = nextOverrides }
-                            if nextExpanded != rowExpanded { rowExpanded = nextExpanded }
-                            if animateRows != toggled { animateRows = toggled }
-                        }
-                    }
-                    
-                    // 4) Commit: heights (non-animated pass)
-                    if nextNonAnimatedHeights != rowHeights {
-                        withTransaction(Transaction(animation: nil)) {
-                            rowHeights = nextNonAnimatedHeights
-                        }
-                    }
-                    
-                    // 5) Commit: heights (animated pass if needed)
-                    if hasAnimatedChange {
-                        withAnimation(.easeInOut(duration: 0.25)) {
-                            rowHeights = nextAllHeights
-                        }
-                    }
-                    
-                    // 6) Clear animation gating (only if non-empty)
-                    if !animateRows.isEmpty {
-                        withTransaction(Transaction(animation: nil)) {
-                            animateRows.removeAll()
-                        }
-                    }
+                let submit = {
+                    enqueuePreferenceSnapshot(newValue)
+                }
+                if Thread.isMainThread {
+                    submit()
+                } else {
+                    DispatchQueue.main.async(execute: submit)
                 }
             }
         }
@@ -455,6 +384,104 @@ public struct StackList: View {
             return defaultColor
         @unknown default:
             return defaultColor
+        }
+    }
+
+    private func enqueuePreferenceSnapshot(_ newValue: [UUID: StackListRowPrefs]) {
+        guard newValue != lastAppliedRowPrefs else { return }
+        pendingRowPrefs = newValue
+        guard !isPreferenceUpdateScheduled else { return }
+        isPreferenceUpdateScheduled = true
+        DispatchQueue.main.async {
+            let snapshot = pendingRowPrefs ?? [:]
+            pendingRowPrefs = nil
+            isPreferenceUpdateScheduled = false
+            guard snapshot != lastAppliedRowPrefs else { return }
+            lastAppliedRowPrefs = snapshot
+            applyPreferenceSnapshot(snapshot)
+        }
+    }
+
+    private func applyPreferenceSnapshot(_ newValue: [UUID: StackListRowPrefs]) {
+        // 1) Next snapshots for non-animated state
+        var nextEmpty = rowIsEmpty
+        var nextOverrides = rowSeparatorOverrides
+        var nextExpanded = rowExpanded
+
+        for (id, prefs) in newValue {
+            if let e = prefs.isEmpty { nextEmpty[id] = e }
+            if let s = prefs.separatorOverride { nextOverrides[id] = s }
+            if let ex = prefs.isExpanded { nextExpanded[id] = ex }
+        }
+
+        // Detect which rows toggled expansion this pass
+        var toggled: Set<UUID> = []
+        let allKeys = Set(rowExpanded.keys).union(nextExpanded.keys)
+        for id in allKeys {
+            if rowExpanded[id] != nextExpanded[id] { toggled.insert(id) }
+        }
+
+        // 2) Heights: split into non-animated vs animated commits
+        var nextNonAnimatedHeights = rowHeights
+        var nextAllHeights = rowHeights
+        var hasAnimatedChange = false
+
+#if os(iOS)
+        let eps: CGFloat = 1 / UIScreen.main.scale
+#elseif os(macOS)
+        let eps: CGFloat = 1 / (NSScreen.main?.backingScaleFactor ?? 2)
+#else
+        let eps: CGFloat = 0.5
+#endif
+        for (id, prefs) in newValue {
+            if let h = prefs.height {
+                let old = rowHeights[id]
+                // Only react if change exceeds 1 pixel to avoid oscillations
+                if old == nil || abs((old ?? 0) - h) >= eps {
+                    if toggled.contains(id) {
+                        nextAllHeights[id] = h
+                        hasAnimatedChange = true
+                    } else {
+                        nextNonAnimatedHeights[id] = h
+                        nextAllHeights[id] = h
+                    }
+                }
+            }
+        }
+
+        // 3) Commit: non-animated base state (only if changed)
+        let baseChanged = (nextEmpty != rowIsEmpty)
+        || (nextOverrides != rowSeparatorOverrides)
+        || (nextExpanded != rowExpanded)
+        || (animateRows != toggled)
+        if baseChanged {
+            withTransaction(Transaction(animation: nil)) {
+                if nextEmpty != rowIsEmpty { rowIsEmpty = nextEmpty }
+                if nextOverrides != rowSeparatorOverrides { rowSeparatorOverrides = nextOverrides }
+                if nextExpanded != rowExpanded { rowExpanded = nextExpanded }
+                if animateRows != toggled { animateRows = toggled }
+            }
+        }
+
+        // 4) Commit: heights (non-animated pass)
+        if nextNonAnimatedHeights != rowHeights {
+            withTransaction(Transaction(animation: nil)) {
+                rowHeights = nextNonAnimatedHeights
+            }
+        }
+
+        // 5) Commit: heights (animated pass if needed)
+        if hasAnimatedChange {
+            withAnimation(.easeInOut(duration: 0.25)) {
+                rowHeights = nextAllHeights
+            }
+        }
+
+        // 6) Clear animation gating (only if non-empty)
+        if !animateRows.isEmpty {
+            withTransaction(Transaction(animation: nil)) {
+                animateRows.removeAll()
+            }
         }
     }
 }
