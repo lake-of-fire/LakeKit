@@ -219,7 +219,7 @@ public enum StackListBuilder {
     public static func buildExpression(_ expression: StackListRowItem) -> [StackListRowItem] {
         [expression]
     }
-    public static func buildExpression<H: View, C: View>(_ expression: StackSection<H, C>) -> [StackListRowItem] {
+    public static func buildExpression<H: View, C: View, NavigationValue: Hashable>(_ expression: StackSection<H, C, NavigationValue>) -> [StackListRowItem] {
         [StackListRowItem(view: expression, separatorVisibility: expression.stackListDefaultSeparatorVisibility())]
     }
     public static func buildExpression(_ expression: EmptyView) -> [StackListRowItem] {
