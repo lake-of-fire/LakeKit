@@ -14,6 +14,10 @@ private struct StackListGroupBoxContentSpacingKey: EnvironmentKey {
     static let defaultValue: CGFloat = 12
 }
 
+private struct StackListGroupBoxContentInsetsKey: EnvironmentKey {
+    static let defaultValue = EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16)
+}
+
 extension EnvironmentValues {
     var stackListBackgroundColorOverride: Color? {
         get { self[StackListBackgroundColorOverrideKey.self] }
@@ -29,6 +33,11 @@ extension EnvironmentValues {
         get { self[StackListGroupBoxContentSpacingKey.self] }
         set { self[StackListGroupBoxContentSpacingKey.self] = newValue }
     }
+
+    var stackListGroupBoxContentInsets: EdgeInsets {
+        get { self[StackListGroupBoxContentInsetsKey.self] }
+        set { self[StackListGroupBoxContentInsetsKey.self] = newValue }
+    }
 }
 
 public enum StackListGroupBoxStyleOption {
@@ -40,6 +49,7 @@ public enum StackListGroupBoxStyleOption {
 
 private struct StackListGroupBoxContainer<Content: View>: View {
     @Environment(\.stackListBackgroundColorOverride) private var backgroundOverride
+    @Environment(\.stackListGroupBoxContentInsets) private var contentInsets
     let defaultColor: Color
     let isGroupedContext: Bool
     let content: Content
@@ -52,7 +62,7 @@ private struct StackListGroupBoxContainer<Content: View>: View {
 
     var body: some View {
         content
-            .padding(16)
+            .padding(contentInsets)
             .background(
                 RoundedRectangle(cornerRadius: stackListCornerRadius, style: .continuous)
                     .fill(backgroundOverride ?? defaultColor)
@@ -156,5 +166,9 @@ public extension View {
 
     func stackListGroupBoxContentSpacing(_ value: CGFloat) -> some View {
         environment(\.stackListGroupBoxContentSpacing, value)
+    }
+
+    func stackListGroupBoxContentInsets(_ value: EdgeInsets) -> some View {
+        environment(\.stackListGroupBoxContentInsets, value)
     }
 }
