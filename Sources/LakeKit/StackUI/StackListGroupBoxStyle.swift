@@ -10,6 +10,10 @@ private struct StackListIsGroupedContextKey: EnvironmentKey {
     static let defaultValue = false
 }
 
+private struct StackListGroupBoxContentSpacingKey: EnvironmentKey {
+    static let defaultValue: CGFloat = 12
+}
+
 extension EnvironmentValues {
     var stackListBackgroundColorOverride: Color? {
         get { self[StackListBackgroundColorOverrideKey.self] }
@@ -19,6 +23,11 @@ extension EnvironmentValues {
     var stackListIsGroupedContext: Bool {
         get { self[StackListIsGroupedContextKey.self] }
         set { self[StackListIsGroupedContextKey.self] = newValue }
+    }
+
+    var stackListGroupBoxContentSpacing: CGFloat {
+        get { self[StackListGroupBoxContentSpacingKey.self] }
+        set { self[StackListGroupBoxContentSpacingKey.self] = newValue }
     }
 }
 
@@ -55,11 +64,13 @@ private struct StackListGroupBoxContainer<Content: View>: View {
 }
 
 public struct PlainStackListGroupBoxStyle: GroupBoxStyle {
+    @Environment(\.stackListGroupBoxContentSpacing) private var contentSpacing
+
     public init() {}
 
     public func makeBody(configuration: Configuration) -> some View {
         StackListGroupBoxContainer(defaultColor: Color.stackListCardBackgroundPlain, isGroupedContext: false) {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: contentSpacing) {
                 configuration.label
                 configuration.content
             }
@@ -68,11 +79,13 @@ public struct PlainStackListGroupBoxStyle: GroupBoxStyle {
 }
 
 public struct GroupedStackListGroupBoxStyle: GroupBoxStyle {
+    @Environment(\.stackListGroupBoxContentSpacing) private var contentSpacing
+
     public init() {}
 
     public func makeBody(configuration: Configuration) -> some View {
         StackListGroupBoxContainer(defaultColor: Color.stackListCardBackgroundGrouped, isGroupedContext: true) {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: contentSpacing) {
                 configuration.label
                 configuration.content
             }
@@ -81,6 +94,8 @@ public struct GroupedStackListGroupBoxStyle: GroupBoxStyle {
 }
 
 public struct ClearStackListGroupBoxStyle: GroupBoxStyle {
+    @Environment(\.stackListGroupBoxContentSpacing) private var contentSpacing
+
     public init() {}
 
     public func makeBody(configuration: Configuration) -> some View {
@@ -91,7 +106,7 @@ public struct ClearStackListGroupBoxStyle: GroupBoxStyle {
 
     @ViewBuilder
     private func configurationContent(_ configuration: Configuration) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: contentSpacing) {
             configuration.label
             configuration.content
         }
@@ -137,5 +152,9 @@ public extension View {
             self.groupBoxStyle(.clearStackList)
                 .environment(\.stackListStyle, .plain)
         }
+    }
+
+    func stackListGroupBoxContentSpacing(_ value: CGFloat) -> some View {
+        environment(\.stackListGroupBoxContentSpacing, value)
     }
 }
