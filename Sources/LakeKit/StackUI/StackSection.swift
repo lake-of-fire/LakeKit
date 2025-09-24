@@ -4,13 +4,14 @@ import NavigationBackport
 fileprivate enum StackSectionMetrics {
     static let headerRowSpacing: CGFloat = 8
     static let contentTopSpacing: CGFloat = 8
+    // Provide extra horizontal room for the content mask so horizontal scrolling remains unclipped.
+    static let contentMaskHorizontalOverflow: CGFloat = 1200
 }
 
 public struct StackSection<Header: View, Content: View>: View {
     private enum Expansion { case toggleable(Binding<Bool>), alwaysExpanded }
     private let expansion: Expansion
     private let navigationValue: AnyHashable?
-    @ViewBuilder private let navigationDestination: (() -> AnyView)?
     @ViewBuilder private let header: () -> Header
     @ViewBuilder private let content: () -> Content
     @ViewBuilder private let trailingHeader: () -> AnyView
@@ -38,7 +39,6 @@ public struct StackSection<Header: View, Content: View>: View {
         self.header = header
         self.content = content
         self.trailingHeader = { AnyView(trailingHeader()) }
-        self.navigationDestination = nil
     }
     
     public init(
@@ -67,7 +67,6 @@ public struct StackSection<Header: View, Content: View>: View {
         self.header = header
         self.trailingHeader = { AnyView(trailingHeader()) }
         self.content = content
-        self.navigationDestination = nil
     }
     
     public init(
@@ -82,85 +81,9 @@ public struct StackSection<Header: View, Content: View>: View {
             trailingHeader: trailingHeader,
             content: content)
     }
-    
-    // MARK: - Destination-based initializers
-    
-    /// Toggleable, custom header
-    public init(
-        isExpanded: Binding<Bool>,
-        trailingHeader: @escaping () -> some View = { EmptyView() },
-        @ViewBuilder header: @escaping () -> Header,
-        @ViewBuilder content: @escaping () -> Content,
-        navigationDestination: @escaping () -> some View
-    ) {
-        self.expansion = .toggleable(isExpanded)
-        self.navigationValue = nil
-        self.header = header
-        self.content = content
-        self.trailingHeader = { AnyView(trailingHeader()) }
-        self.navigationDestination = { AnyView(navigationDestination()) }
-    }
-    
-    /// Toggleable, LocalizedStringKey title (Header == Text)
-    public init(
-        _ titleKey: LocalizedStringKey,
-        isExpanded: Binding<Bool>,
-        trailingHeader: @escaping () -> some View = { EmptyView() },
-        @ViewBuilder content: @escaping () -> Content,
-        navigationDestination: @escaping () -> some View
-    ) where Header == Text {
-        self.init(
-            isExpanded: isExpanded,
-            trailingHeader: trailingHeader,
-            header: { Text(titleKey) },
-            content: content,
-            navigationDestination: navigationDestination,
-        )
-    }
-    
-    
-    /// Always-expanded, custom header
-    public init(
-        @ViewBuilder header: @escaping () -> Header,
-        trailingHeader: @escaping () -> some View = { EmptyView() },
-        @ViewBuilder content: @escaping () -> Content,
-        navigationDestination: @escaping () -> some View
-    ) {
-        self.expansion = .alwaysExpanded
-        self.navigationValue = nil
-        self.header = header
-        self.trailingHeader = { AnyView(trailingHeader()) }
-        self.content = content
-        self.navigationDestination = { AnyView(navigationDestination()) }
-    }
-    
-    /// Always-expanded, LocalizedStringKey title (Header == Text)
-    public init(
-        _ titleKey: LocalizedStringKey,
-        trailingHeader: @escaping () -> some View = { EmptyView() },
-        @ViewBuilder content: @escaping () -> Content,
-        navigationDestination: @escaping () -> some View
-    ) where Header == Text {
-        self.init(
-            header: { Text(titleKey) },
-            trailingHeader: trailingHeader,
-            content: content,
-            navigationDestination: navigationDestination
-        )
-    }
-    
-    
     @ViewBuilder
     private func wrappedHeader() -> some View {
-        if let navigationDestination {
-            if #available(iOS 16, macOS 13, *) {
-                NavigationLink(destination: { navigationDestination() }) {
-                    headerWithChevron()
-                }
-            } else {
-                header()
-            }
-        } else if let navigationValue {
+        if let navigationValue {
             if #available(iOS 16, macOS 13, *) {
                 NavigationLink(value: navigationValue) {
                     headerWithChevron()
@@ -187,7 +110,7 @@ public struct StackSection<Header: View, Content: View>: View {
     private func headerChevron() -> some View {
         switch expansion {
         case .toggleable(let isExpanded):
-            if (navigationValue != nil || navigationDestination != nil),
+            if navigationValue != nil,
                (Header.self == Text.self),
                isExpanded.wrappedValue {
                 Image(systemName: "chevron.right")
@@ -335,6 +258,10 @@ fileprivate struct StackSectionDisclosureGroupStyle: DisclosureGroupStyle {
                         .transition(.move(edge: .top).combined(with: .opacity))
                 }
             }
+            .mask {
+                Rectangle()
+                    .padding(.horizontal, -StackSectionMetrics.contentMaskHorizontalOverflow)
+            }
         }
         .animation(.easeInOut(duration: 0.25), value: configuration.isExpanded)
     }
@@ -458,4 +385,3 @@ struct StackSection_Previews: PreviewProvider {
     }
 }
 #endif
-
