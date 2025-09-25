@@ -322,12 +322,8 @@ public struct StackList: View {
 
     @ViewBuilder
     private func contentWithBackground(defaultColor: Color) -> some View {
-        if let backgroundColor = resolvedContentBackgroundColor(defaultColor: defaultColor) {
-            scrollContent
-                .background(backgroundColor)
-        } else {
-            scrollContent
-        }
+        scrollContent
+            .background(resolvedContentBackgroundColor(defaultColor: defaultColor))
     }
 
     private var scrollContent: some View {
