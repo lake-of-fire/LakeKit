@@ -319,14 +319,20 @@ public struct StackList: View {
                 .groupBoxStyle(.stackList)
         }
     }
-
+    
     @ViewBuilder
     private func contentWithBackground(defaultColor: Color) -> some View {
-        scrollContent
-            .background(resolvedContentBackgroundColor(defaultColor: defaultColor))
-    }
-
-    private var scrollContent: some View {
+//        scrollContent
+//            .background {
+//                if let color = resolvedContentBackgroundColor(defaultColor: defaultColor) {
+//                    color
+//                } else {
+//                    EmptyView()
+//                }
+//            }
+//    }
+//
+//    private var scrollContent: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 let firstRowID = rows.first?.id
@@ -369,6 +375,14 @@ public struct StackList: View {
                     DispatchQueue.main.async(execute: submit)
                 }
             }
+            
+        }
+        .background(resolvedContentBackgroundColor(defaultColor: defaultColor).ignoresSafeArea())
+        .modifier {
+            if #available(iOS 17, macOS 14, *) {
+                $0
+                    .scrollClipDisabled()
+            } else { $0 }
         }
     }
     
