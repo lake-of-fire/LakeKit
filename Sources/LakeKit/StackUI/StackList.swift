@@ -363,7 +363,6 @@ public struct StackList: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .frame(maxWidth: 850)
             .frame(maxWidth: .infinity, alignment: .center)
             .onPreferenceChange(StackListRowPrefsPreferenceKey.self) { newValue in
                 let submit = {

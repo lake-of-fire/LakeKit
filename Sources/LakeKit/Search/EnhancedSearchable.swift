@@ -95,7 +95,6 @@ public struct EnhancedSearchableModifier: ViewModifier {
                     }
                 }
                 .padding(.horizontal, 16)
-                .frame(maxWidth: 850)
                 .transition(.opacity)
             }
             
