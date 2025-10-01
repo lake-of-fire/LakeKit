@@ -98,6 +98,8 @@ public struct LocationBar: View, Equatable {
         .autocorrectionDisabled()
 #if os(iOS)
         .textInputAutocapitalization(.never)
+        .keyboardType(.URL)
+        .textContentType(.URL)
 #endif
         .onSubmit {
             Task { @MainActor in
