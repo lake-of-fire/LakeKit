@@ -18,23 +18,23 @@ private struct StackListGroupBoxContentInsetsKey: EnvironmentKey {
     static let defaultValue = EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16)
 }
 
-extension EnvironmentValues {
-    var stackListBackgroundColorOverride: Color? {
+public extension EnvironmentValues {
+    public var stackListBackgroundColorOverride: Color? {
         get { self[StackListBackgroundColorOverrideKey.self] }
         set { self[StackListBackgroundColorOverrideKey.self] = newValue }
     }
 
-    var stackListIsGroupedContext: Bool {
+    public var stackListIsGroupedContext: Bool {
         get { self[StackListIsGroupedContextKey.self] }
         set { self[StackListIsGroupedContextKey.self] = newValue }
     }
 
-    var stackListGroupBoxContentSpacing: CGFloat {
+    public var stackListGroupBoxContentSpacing: CGFloat {
         get { self[StackListGroupBoxContentSpacingKey.self] }
         set { self[StackListGroupBoxContentSpacingKey.self] = newValue }
     }
 
-    var stackListGroupBoxContentInsets: EdgeInsets {
+    public var stackListGroupBoxContentInsets: EdgeInsets {
         get { self[StackListGroupBoxContentInsetsKey.self] }
         set { self[StackListGroupBoxContentInsetsKey.self] = newValue }
     }
@@ -137,12 +137,12 @@ public extension GroupBoxStyle where Self == ClearStackListGroupBoxStyle {
 
 public extension View {
     @ViewBuilder
-    func applyStackListGroupBoxStyle(isGrouped: Bool) -> some View {
+    public func applyStackListGroupBoxStyle(isGrouped: Bool) -> some View {
         applyStackListGroupBoxStyle(.automatic, defaultIsGrouped: isGrouped)
     }
 
     @ViewBuilder
-    func applyStackListGroupBoxStyle(_ appearance: StackListGroupBoxStyleOption, defaultIsGrouped: Bool = false) -> some View {
+    public func applyStackListGroupBoxStyle(_ appearance: StackListGroupBoxStyleOption, defaultIsGrouped: Bool = false) -> some View {
         switch appearance {
         case .automatic:
             if defaultIsGrouped {
@@ -164,11 +164,11 @@ public extension View {
         }
     }
 
-    func stackListGroupBoxContentSpacing(_ value: CGFloat) -> some View {
+    public func stackListGroupBoxContentSpacing(_ value: CGFloat) -> some View {
         environment(\.stackListGroupBoxContentSpacing, value)
     }
 
-    func stackListGroupBoxContentInsets(_ value: EdgeInsets) -> some View {
+    public func stackListGroupBoxContentInsets(_ value: EdgeInsets) -> some View {
         environment(\.stackListGroupBoxContentInsets, value)
     }
 }
