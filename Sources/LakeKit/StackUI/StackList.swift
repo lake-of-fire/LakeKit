@@ -312,11 +312,21 @@ public struct StackList: View {
     
     public var body: some View {
         if appearance == .grouped {
+#if os(iOS)
             contentWithBackground(defaultColor: Color.systemGroupedBackground)
                 .groupBoxStyle(.groupedStackList)
+#elseif os(macOS)
+            contentWithBackground(defaultColor: Color.groupedListBackground)
+                .groupBoxStyle(.groupedStackList)
+#endif
         } else {
+#if os(iOS)
             contentWithBackground(defaultColor: Color.systemBackground)
                 .groupBoxStyle(.stackList)
+#elseif os(macOS)
+            contentWithBackground(defaultColor: Color.groupedListBackground)
+                .groupBoxStyle(.stackList)
+#endif
         }
     }
     

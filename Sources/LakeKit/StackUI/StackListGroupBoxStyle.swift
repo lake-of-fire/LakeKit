@@ -1,6 +1,6 @@
 import SwiftUI
 
-public let stackListCornerRadius: CGFloat = 20
+public let stackListCornerRadius: CGFloat = 23
 
 private struct StackListBackgroundColorOverrideKey: EnvironmentKey {
     static let defaultValue: Color? = nil
@@ -15,7 +15,8 @@ private struct StackListGroupBoxContentSpacingKey: EnvironmentKey {
 }
 
 private struct StackListGroupBoxContentInsetsKey: EnvironmentKey {
-    static let defaultValue = EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16)
+//    static let defaultValue = EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16)
+    static let defaultValue = EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16)
 }
 
 public extension EnvironmentValues {
@@ -68,11 +69,12 @@ public enum StackListGroupBoxStyleOption {
 }
 
 private struct StackListGroupBoxContainer<Content: View>: View {
-    @Environment(\.stackListBackgroundColorOverride) private var backgroundOverride
-    @Environment(\.stackListGroupBoxContentInsets) private var contentInsets
     let defaultColor: Color
     let isGroupedContext: Bool
     let content: Content
+    
+    @Environment(\.stackListBackgroundColorOverride) private var backgroundOverride
+    @Environment(\.stackListGroupBoxContentInsets) private var contentInsets
 
     init(defaultColor: Color, isGroupedContext: Bool, @ViewBuilder content: () -> Content) {
         self.defaultColor = defaultColor
