@@ -158,7 +158,7 @@ open class LRUSQLiteCache<I: Encodable, O: Codable>: ObservableObject {
     
     public func containsKey(_ key: I) -> Bool {
         guard let keyHash = cacheKeyHash(key) else { return false }
-        if cache.hasKey(keyHash) { return true }
+        if cache.hasValue(forKey: keyHash) { return true }
         return store?.exists(id: keyHash) ?? false
     }
     
