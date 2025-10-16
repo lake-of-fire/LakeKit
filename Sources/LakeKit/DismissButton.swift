@@ -14,7 +14,8 @@ fileprivate extension View {
         _ style: DismissButtonStyleType,
         fill: Bool,
         colorScheme: ColorScheme,
-        controlSize: ControlSize
+        controlSize: ControlSize,
+        glassEffect: Bool
     ) -> some View {
         switch style {
         case .xMark:
@@ -22,6 +23,7 @@ fileprivate extension View {
                 self.buttonStyle(
                     XMarkDismissButtonStyle(
                         fill: fill,
+                        glassEffect: glassEffect,
                         colorScheme: colorScheme,
                         controlSize: controlSize
                     )
@@ -32,6 +34,7 @@ fileprivate extension View {
                 self.buttonStyle(
                     ChevronDismissButtonStyle(
                         fill: fill,
+                        glassEffect: glassEffect,
                         colorScheme: colorScheme,
                         controlSize: controlSize
                     )
@@ -47,6 +50,7 @@ public struct DismissButton: View {
     private let action: (() -> Void)?
     private var style: DismissButtonStyleType
     private var fill: Bool
+    private var glassEffect: Bool
     private let label: AnyView?
 
     @Environment(\.dismiss) private var dismiss
@@ -65,14 +69,21 @@ public struct DismissButton: View {
                 style,
                 fill: fill,
                 colorScheme: colorScheme,
-                controlSize: controlSize
+                controlSize: controlSize,
+                glassEffect: glassEffect
             )
         //            .accessibilityLabel(Text("Done"))
     }
 
-    public init(_ style: DismissButtonStyleType? = nil, fill: Bool = false, action: (() -> Void)? = nil) {
+    public init(
+        _ style: DismissButtonStyleType? = nil,
+        fill: Bool = false,
+        glassEffect: Bool = false,
+        action: (() -> Void)? = nil
+    ) {
         self.action = action
         self.fill = fill
+        self.glassEffect = glassEffect
         self.label = nil
         // Set the default style based on the platform
 #if os(iOS)
@@ -85,11 +96,13 @@ public struct DismissButton: View {
     public init<Label: View>(
         style: DismissButtonStyleType? = nil,
         fill: Bool = false,
+        glassEffect: Bool = false,
         action: (() -> Void)? = nil,
         @ViewBuilder label: () -> Label
     ) {
         self.action = action
         self.fill = fill
+        self.glassEffect = glassEffect
         self.label = AnyView(label())
 #if os(iOS)
         self.style = style ?? .xMark
@@ -102,6 +115,7 @@ public struct DismissButton: View {
 public struct BaseDismissButtonStyle: DismissButtonStyle {
     private let systemImageName: String
     private let fill: Bool
+    private let glassEffect: Bool
     private let colorScheme: ColorScheme
     private let controlSize: ControlSize
     
@@ -110,11 +124,13 @@ public struct BaseDismissButtonStyle: DismissButtonStyle {
     public init(
         systemImageName: String,
         fill: Bool,
+        glassEffect: Bool,
         colorScheme: ColorScheme,
         controlSize: ControlSize
     ) {
         self.systemImageName = systemImageName
         self.fill = fill
+        self.glassEffect = glassEffect
         self.colorScheme = colorScheme
         self.controlSize = controlSize
     }
@@ -154,7 +170,24 @@ public struct BaseDismissButtonStyle: DismissButtonStyle {
     }
     
     public func makeBody(configuration: Configuration) -> some View {
-        if #available(iOS 26, macOS 26, *) {
+        if #available(iOS 26, macOS 26, *), glassEffect {
+            ZStack {
+                Circle()
+                    .fill(.clear)
+                    .background(
+                        Circle()
+                            .fill(.ultraThinMaterial.opacity(0.92))
+                    )
+                    .overlay(
+                        Circle()
+                            .stroke(Color.white.opacity(fill ? 0 : 0.25), lineWidth: fill ? 0 : 1)
+                    )
+                Image(systemName: systemImageName)
+                    .font(.system(size: fontSize, weight: .bold, design: .rounded))
+                    .foregroundStyle(Color.primary.opacity(configuration.isPressed ? 0.6 : 0.9))
+            }
+            .contentShape(.circle)
+        } else if #available(iOS 26, macOS 26, *) {
             Image(systemName: systemImageName + (fill ? ".circle.fill" : ""))
         } else {
             ZStack {
@@ -178,15 +211,18 @@ public struct BaseDismissButtonStyle: DismissButtonStyle {
 
 public struct XMarkDismissButtonStyle: DismissButtonStyle {
     private let fill: Bool
+    private let glassEffect: Bool
     private let colorScheme: ColorScheme
     private let controlSize: ControlSize
     
     public init(
         fill: Bool,
+        glassEffect: Bool,
         colorScheme: ColorScheme,
         controlSize: ControlSize
     ) {
         self.fill = fill
+        self.glassEffect = glassEffect
         self.colorScheme = colorScheme
         self.controlSize = controlSize
     }
@@ -195,6 +231,7 @@ public struct XMarkDismissButtonStyle: DismissButtonStyle {
         BaseDismissButtonStyle(
             systemImageName: "xmark",
             fill: fill,
+            glassEffect: glassEffect,
             colorScheme: colorScheme,
             controlSize: controlSize
         ).makeBody(configuration: configuration)
@@ -203,15 +240,18 @@ public struct XMarkDismissButtonStyle: DismissButtonStyle {
 
 public struct ChevronDismissButtonStyle: DismissButtonStyle {
     private let fill: Bool
+    private let glassEffect: Bool
     private let colorScheme: ColorScheme
     private let controlSize: ControlSize
     
     public init(
         fill: Bool,
+        glassEffect: Bool,
         colorScheme: ColorScheme,
         controlSize: ControlSize
     ) {
         self.fill = fill
+        self.glassEffect = glassEffect
         self.colorScheme = colorScheme
         self.controlSize = controlSize
     }
@@ -220,6 +260,7 @@ public struct ChevronDismissButtonStyle: DismissButtonStyle {
         BaseDismissButtonStyle(
             systemImageName: "chevron.down",
             fill: fill,
+            glassEffect: glassEffect,
             colorScheme: colorScheme,
             controlSize: controlSize
         ).makeBody(configuration: configuration)
