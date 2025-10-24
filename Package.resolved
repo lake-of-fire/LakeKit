@@ -146,15 +146,6 @@
       }
     },
     {
-      "identity" : "popovers",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/lake-of-fire/Popovers.git",
-      "state" : {
-        "branch" : "main",
-        "revision" : "a989101326c57ff63c579a66bd9eeadddf05d77a"
-      }
-    },
-    {
       "identity" : "pow",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/EmergeTools/Pow.git",
