@@ -72,7 +72,7 @@ public struct DismissButton: View {
                 controlSize: controlSize,
                 glassEffect: glassEffect
             )
-        //            .accessibilityLabel(Text("Done"))
+            .accessibilityLabel(Text("Close"))
     }
 
     public init(
