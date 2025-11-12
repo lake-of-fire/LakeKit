@@ -6,7 +6,7 @@ public struct DefaultShareLinkLabel: View {
     private static let shareIcon = "square.and.arrow.up"
     
     public init() {
-        text = .init("Share…")
+        text = .init("Share")
     }
     
     public init<S: StringProtocol>(_ title: S) {
