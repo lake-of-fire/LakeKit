@@ -11,12 +11,12 @@ public struct ClearBorderedButtonStyle: ButtonStyle {
         smallMinHeight
     }
 #elseif os(macOS)
-    @ScaledMetric private var miniMinWidth: CGFloat = 30
-    @ScaledMetric private var miniMinHeight: CGFloat = 30
+    @ScaledMetric private var miniMinWidth: CGFloat = 28
+    @ScaledMetric private var miniMinHeight: CGFloat = 28
 #endif
     
-    @ScaledMetric private var smallMinWidth: CGFloat = 32
-    @ScaledMetric private var smallMinHeight: CGFloat = 32
+    @ScaledMetric private var smallMinWidth: CGFloat = 30
+    @ScaledMetric private var smallMinHeight: CGFloat = 30
     
     @ScaledMetric private var regularMinWidth: CGFloat = 44
     @ScaledMetric private var regularMinHeight: CGFloat = 44
