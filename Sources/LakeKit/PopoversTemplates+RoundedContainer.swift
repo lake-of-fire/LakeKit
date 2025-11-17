@@ -10,7 +10,7 @@ public extension Templates {
      */
     struct RoundedContainer<Content: View>: View {
         /// The container's corner radius.
-        public var cornerRadius = CGFloat(20)
+        public var cornerRadius = CGFloat(24)
         
         /// The container's background/fill color.
         public var backgroundColor = Color(.systemBackground)
