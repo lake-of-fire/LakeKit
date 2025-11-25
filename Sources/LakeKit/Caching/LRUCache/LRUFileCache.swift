@@ -202,7 +202,7 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
             do {
                 if let uint8Array = value as? [UInt8] {
                     let rawData = Data(uint8Array)
-                    if rawData.count > 200_000 {
+                    if rawData.count > 20_000 {
                         dataToStore = try (rawData as NSData).compressed(using: .lz4) as Data
                         encoding = "lz4"
                     } else {
@@ -210,7 +210,7 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
                         encoding = "raw"
                     }
                 } else if let stringValue = value as? String {
-                    if stringValue.utf16.count > 200_000 {
+                    if stringValue.utf16.count > 20_000 {
                         dataToStore = try (stringValue.data(using: .utf8)! as NSData)
                             .compressed(using: .lz4) as Data
                         encoding = "lz4"
@@ -219,14 +219,14 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
                         encoding = "raw"
                     }
                 } else if let dataValue = value as? Data {
-                    if dataValue.count ?? 0 > 200_000 {
+                    if dataValue.count ?? 0 > 20_000 {
                         encoding = "lz4"
                     } else {
                         encoding = "raw"
                     }
                 } else {
                     dataToStore = try jsonEncoder.encode(value)
-                    if let rawData = dataToStore, rawData.count ?? 0 > 200_000 {
+                    if let rawData = dataToStore, rawData.count ?? 0 > 20_000 {
                         dataToStore = try (rawData as NSData).compressed(using: .lz4) as Data
                         encoding = "json-lz4"
                     } else {
