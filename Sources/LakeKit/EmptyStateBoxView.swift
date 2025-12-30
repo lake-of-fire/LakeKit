@@ -68,6 +68,10 @@ public struct EmptyStateBoxView<Trailing: View>: View {
                             Spacer(minLength: 8)
                         }
                         trailingView
+                            .labelStyle(.titleAndIcon)
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.small)
+                            .font(.footnote)
                             .modifier {
                                 if #available(iOS 16, macOS 13, *) {
                                     $0.fontWeight(.semibold)
@@ -80,6 +84,8 @@ public struct EmptyStateBoxView<Trailing: View>: View {
         }
         .environment(\.stackListBackgroundColorOverride, preferredBackgroundColor)
         .applyStackListGroupBoxStyle(groupBoxAppearance, defaultIsGrouped: isGroupedAppearance)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .listRowInsets(.init())
         .fixedSize(horizontal: false, vertical: true)
         //.enableInjection()
     }

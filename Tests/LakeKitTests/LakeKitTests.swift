@@ -32,7 +32,7 @@ final class LRUSQLiteCacheTests: XCTestCase {
         cache.setValue(largeVal, forKey: largeKey)
         XCTAssertEqual(cache.value(forKey: largeKey), largeVal)
         
-        // New instance should rebuild from GRDB
+        // New instance should rebuild from SQLite-backed cache.
         let cache2 = LRUSQLiteCache<String, String>(namespace: ns)
         eventually {
             cache2.value(forKey: smallKey) == smallVal && cache2.value(forKey: largeKey) == largeVal

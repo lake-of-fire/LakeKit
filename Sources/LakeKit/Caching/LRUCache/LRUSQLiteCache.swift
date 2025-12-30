@@ -1,24 +1,21 @@
 import Foundation
 import LRUCache
 import SwiftUtilities
-import GRDB
+import SQLiteData
 
 #if DEBUG
 fileprivate let debugBuildID = UUID()
 #endif
 
-fileprivate struct CacheEntry: Codable, Equatable {
-    let id: String
-    let data: Data?
-    let encoding: String // "raw", "lz4", "json", "json.lz4", or "nil"
+@Table("cache")
+fileprivate struct CacheEntry: Codable, Hashable, Sendable {
+    @Column(primaryKey: true)
+    var id: String
+    var data: Data?
+    var encoding: String // "raw", "lz4", "json", "json.lz4", or "nil"
 }
 
-extension CacheEntry: FetchableRecord, PersistableRecord, TableRecord {
-    static let databaseTableName = "cache"
-    static var persistenceConflictPolicy: PersistenceConflictPolicy { .init(insert: .replace, update: .replace) }
-}
-
-fileprivate struct GRDBLRUStore {
+fileprivate struct SQLiteLRUStore {
     private let pool: DatabasePool
     
     init(fileURL: URL) throws {
@@ -39,11 +36,14 @@ fileprivate struct GRDBLRUStore {
     private var migrator: DatabaseMigrator {
         var m = DatabaseMigrator()
         m.registerMigration("v1_create_cache") { db in
-            try db.create(table: CacheEntry.databaseTableName, ifNotExists: true) { t in
-                t.column("id", .text).primaryKey()
-                t.column("data", .blob)
-                t.column("encoding", .text).notNull()
-            }
+            try #sql("""
+                CREATE TABLE IF NOT EXISTS "cache"(
+                    "id" TEXT NOT NULL PRIMARY KEY,
+                    "data" BLOB,
+                    "encoding" TEXT NOT NULL
+                );
+            """)
+            .execute(db)
         }
         return m
     }
@@ -53,11 +53,26 @@ fileprivate struct GRDBLRUStore {
     }
     
     func insert(_ entry: CacheEntry) throws {
-        try pool.write { db in try entry.insert(db) }
+        try pool.write { db in
+            try CacheEntry
+                .upsert {
+                    CacheEntry.Draft(
+                        id: entry.id,
+                        data: entry.data,
+                        encoding: entry.encoding
+                    )
+                }
+                .execute(db)
+        }
     }
     
     func removeByID(_ id: String) throws {
-        try pool.write { db in _ = try CacheEntry.deleteOne(db, key: id) }
+        try pool.write { db in
+            try CacheEntry
+                .find(id)
+                .delete()
+                .execute(db)
+        }
     }
     
     func remove(_ entry: CacheEntry) throws {
@@ -65,23 +80,28 @@ fileprivate struct GRDBLRUStore {
     }
     
     func removeAll() throws {
-        try pool.write { db in try db.execute(sql: "DELETE FROM \(CacheEntry.databaseTableName)") }
+        try pool.write { db in
+            try #sql("DELETE FROM \"cache\"").execute(db)
+        }
     }
     
     func exists(id: String) -> Bool {
         (try? pool.read { db in
-            try Bool.fetchOne(db, sql: "SELECT EXISTS(SELECT 1 FROM \(CacheEntry.databaseTableName) WHERE id = ?)", arguments: [id])
+            try CacheEntry
+                .where { $0.id == id }
+                .select(\.id)
+                .fetchOne(db) != nil
         }) ?? false
     }
 }
 
-/// A GRDB-backed LRU cache that persists values in SQLite.
+/// An SQLite-backed LRU cache that persists values in SQLite.
 open class LRUSQLiteCache<I: Encodable, O: Codable>: ObservableObject {
     @Published public var cacheDirectory: URL
     private let cache: LRUCache<String, Any?>
     private let ioQueue = DispatchQueue(label: "LRUSQLiteCache.IO")
     
-    private var store: GRDBLRUStore?
+    private var store: SQLiteLRUStore?
     
     private var jsonEncoder: JSONEncoder {
         let encoder = JSONEncoder()
@@ -108,7 +128,7 @@ open class LRUSQLiteCache<I: Encodable, O: Codable>: ObservableObject {
         let dbURL = cacheDirectory.appendingPathComponent("cache.sqlite")
         
         do {
-            let store = try GRDBLRUStore(fileURL: dbURL)
+            let store = try SQLiteLRUStore(fileURL: dbURL)
             if let versionData = try? Data(contentsOf: versionFileURL),
                String(data: versionData, encoding: .utf8) != versionString {
                 try store.removeAll()
@@ -117,7 +137,7 @@ open class LRUSQLiteCache<I: Encodable, O: Codable>: ObservableObject {
             self.store = store
             self.rebuild()
         } catch {
-            print("Failed to initialize GRDBLRUStore: \(error)")
+            print("Failed to initialize SQLiteLRUStore: \(error)")
         }
     }
     

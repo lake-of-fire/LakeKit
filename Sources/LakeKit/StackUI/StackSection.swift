@@ -3,9 +3,11 @@ import NavigationBackport
 
 fileprivate enum StackSectionMetrics {
     static let headerRowSpacing: CGFloat = 8
+    static let trailingIconHeaderRowSpacing: CGFloat = 6
     static let contentTopSpacing: CGFloat = 8
     // Provide extra horizontal room for the content mask so horizontal scrolling remains unclipped.
     static let contentMaskHorizontalOverflow: CGFloat = 1200
+    static let trailingIconButtonSize: CGFloat = 32
 }
 
 public struct StackSection<Header: View, Content: View, NavigationValue: Hashable>: View {
@@ -231,6 +233,28 @@ public extension StackSection where NavigationValue == Never {
     }
 }
 
+public enum StackSectionTrailingHeaderStyle: Sendable {
+    case automatic
+    case iconOnly
+}
+
+private struct StackSectionTrailingHeaderStyleKey: EnvironmentKey {
+    static let defaultValue: StackSectionTrailingHeaderStyle = .automatic
+}
+
+public extension EnvironmentValues {
+    var stackSectionTrailingHeaderStyle: StackSectionTrailingHeaderStyle {
+        get { self[StackSectionTrailingHeaderStyleKey.self] }
+        set { self[StackSectionTrailingHeaderStyleKey.self] = newValue }
+    }
+}
+
+public extension View {
+    func stackSectionTrailingHeaderStyle(_ style: StackSectionTrailingHeaderStyle) -> some View {
+        environment(\.stackSectionTrailingHeaderStyle, style)
+    }
+}
+
 fileprivate struct SectionHeaderModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
@@ -240,21 +264,50 @@ fileprivate struct SectionHeaderModifier: ViewModifier {
 }
 
 fileprivate struct StackSectionTrailingHeaderModifier: ViewModifier {
+    @Environment(\.stackSectionTrailingHeaderStyle) private var trailingHeaderStyle
+
     func body(content: Content) -> some View {
         content
-#if os(iOS)
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-#endif
             .font(.footnote)
+            .modifier(StackSectionTrailingHeaderButtonStyleModifier(style: trailingHeaderStyle))
+            .modifier(StackSectionTrailingHeaderFontWeightModifier())
+    }
+}
+
+fileprivate struct StackSectionTrailingHeaderButtonStyleModifier: ViewModifier {
+    let style: StackSectionTrailingHeaderStyle
+
+    func body(content: Content) -> some View {
 #if os(iOS)
-            .buttonBorderShape(.capsule)
+        if style == .iconOnly {
+            content
+                .modifier(StackSectionChevronButtonStyleModifier())
+        } else if #available(iOS 17, *) {
+            content
+                .buttonStyle(BorderedButtonStyle())
+                .controlSize(.small)
+                .buttonBorderShape(.capsule)
+        } else if #available(iOS 15, *) {
+            content
+                .buttonStyle(BorderedButtonStyle())
+                .controlSize(.small)
+                .buttonBorderShape(.capsule)
+        } else {
+            content
+        }
+#else
+        content
 #endif
-            .modifier {
-                if #available(iOS 16, macOS 13, *) {
-                    $0.fontWeight(.semibold)
-                } else { $0 }
-            }
+    }
+}
+
+fileprivate struct StackSectionTrailingHeaderFontWeightModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 16, macOS 13, *) {
+            content.fontWeight(Font.Weight.semibold)
+        } else {
+            content
+        }
     }
 }
 
@@ -262,10 +315,14 @@ fileprivate struct StackSectionTrailingHeaderModifier: ViewModifier {
 fileprivate struct StackSectionDisclosureGroupStyle: DisclosureGroupStyle {
     @ViewBuilder let trailingHeader: () -> AnyView
     @Environment(\.stackListConfig) private var config
+    @Environment(\.stackSectionTrailingHeaderStyle) private var trailingHeaderStyle
     
     func makeBody(configuration: Configuration) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: StackSectionMetrics.headerRowSpacing) {
+            HStack(spacing: trailingHeaderStyle == .iconOnly
+                ? StackSectionMetrics.trailingIconHeaderRowSpacing
+                : StackSectionMetrics.headerRowSpacing
+            ) {
                 // Title + optional inline chevron placed immediately after the title
                 HStack(spacing: 5) {
                     configuration.label
@@ -285,24 +342,12 @@ fileprivate struct StackSectionDisclosureGroupStyle: DisclosureGroupStyle {
                     Image(systemName: "chevron.right")
                         .modifier {
                             if #available(iOS 16, macOS 13, *) {
-                                $0.font(.footnote.weight(.semibold))
+                                $0.font(.footnote.weight(Font.Weight.semibold))
                             } else { $0 }
                         }
                         .rotationEffect(configuration.isExpanded ? Angle.degrees(90) : Angle.zero)
                 }
-#if os(iOS)
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-#endif
-                .modifier {
-                    if #available(iOS 17, macOS 14, *) {
-                        $0
-                            .buttonBorderShape(.circle)
-                        //                            .backgroundStyle(Color.stackListGroupedBackground)
-                    } else {
-                        $0
-                    }
-                }
+                .modifier(StackSectionChevronButtonStyleModifier())
             }
             
             VStack(spacing: 0) {
@@ -323,6 +368,31 @@ fileprivate struct StackSectionDisclosureGroupStyle: DisclosureGroupStyle {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: configuration.isExpanded)
+    }
+}
+
+fileprivate struct StackSectionChevronButtonStyleModifier: ViewModifier {
+    func body(content: Content) -> some View {
+#if os(iOS)
+        if #available(iOS 17, *) {
+            content
+                .frame(
+                    width: StackSectionMetrics.trailingIconButtonSize,
+                    height: StackSectionMetrics.trailingIconButtonSize
+                )
+                .buttonStyle(BorderedButtonStyle())
+                .controlSize(.small)
+                .buttonBorderShape(.circle)
+        } else if #available(iOS 15, *) {
+            content
+                .buttonStyle(BorderedButtonStyle())
+                .controlSize(.small)
+        } else {
+            content
+        }
+#else
+        content
+#endif
     }
 }
 
