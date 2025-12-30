@@ -269,29 +269,67 @@ fileprivate struct StackSectionTrailingHeaderModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .font(.footnote)
-            .modifier(StackSectionTrailingHeaderButtonStyleModifier(style: trailingHeaderStyle))
+            .modifier(StackSectionHeaderButtonStyleModifier(style: .trailing(trailingHeaderStyle)))
             .modifier(StackSectionTrailingHeaderFontWeightModifier())
     }
 }
 
-fileprivate struct StackSectionTrailingHeaderButtonStyleModifier: ViewModifier {
-    let style: StackSectionTrailingHeaderStyle
+fileprivate enum StackSectionHeaderButtonStyle {
+    case trailing(StackSectionTrailingHeaderStyle)
+    case chevron
+}
+
+fileprivate struct StackSectionHeaderButtonStyleModifier: ViewModifier {
+    let style: StackSectionHeaderButtonStyle
 
     func body(content: Content) -> some View {
 #if os(iOS)
-        if style == .iconOnly {
-            content
-                .modifier(StackSectionChevronButtonStyleModifier())
-        } else if #available(iOS 17, *) {
-            content
-                .buttonStyle(BorderedButtonStyle())
-                .controlSize(.small)
-                .buttonBorderShape(.capsule)
+        if #available(iOS 17, *) {
+            switch style {
+            case .chevron:
+                content
+                    .frame(
+                        width: StackSectionMetrics.trailingIconButtonSize,
+                        height: StackSectionMetrics.trailingIconButtonSize
+                    )
+                    .buttonStyle(BorderedButtonStyle())
+                    .controlSize(.small)
+                    .buttonBorderShape(.circle)
+            case .trailing(let trailingStyle):
+                if trailingStyle == .iconOnly {
+                    content
+                        .frame(
+                            width: StackSectionMetrics.trailingIconButtonSize,
+                            height: StackSectionMetrics.trailingIconButtonSize
+                        )
+                        .buttonStyle(BorderedButtonStyle())
+                        .controlSize(.small)
+                        .buttonBorderShape(.circle)
+                } else {
+                    content
+                        .buttonStyle(BorderedButtonStyle())
+                        .controlSize(.small)
+                        .buttonBorderShape(.capsule)
+                }
+            }
         } else if #available(iOS 15, *) {
-            content
-                .buttonStyle(BorderedButtonStyle())
-                .controlSize(.small)
-                .buttonBorderShape(.capsule)
+            switch style {
+            case .chevron:
+                content
+                    .buttonStyle(BorderedButtonStyle())
+                    .controlSize(.small)
+            case .trailing(let trailingStyle):
+                if trailingStyle == .iconOnly {
+                    content
+                        .buttonStyle(BorderedButtonStyle())
+                        .controlSize(.small)
+                } else {
+                    content
+                        .buttonStyle(BorderedButtonStyle())
+                        .controlSize(.small)
+                        .buttonBorderShape(.capsule)
+                }
+            }
         } else {
             content
         }
@@ -347,7 +385,7 @@ fileprivate struct StackSectionDisclosureGroupStyle: DisclosureGroupStyle {
                         }
                         .rotationEffect(configuration.isExpanded ? Angle.degrees(90) : Angle.zero)
                 }
-                .modifier(StackSectionChevronButtonStyleModifier())
+                .modifier(StackSectionHeaderButtonStyleModifier(style: .chevron))
             }
             
             VStack(spacing: 0) {
@@ -368,31 +406,6 @@ fileprivate struct StackSectionDisclosureGroupStyle: DisclosureGroupStyle {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: configuration.isExpanded)
-    }
-}
-
-fileprivate struct StackSectionChevronButtonStyleModifier: ViewModifier {
-    func body(content: Content) -> some View {
-#if os(iOS)
-        if #available(iOS 17, *) {
-            content
-                .frame(
-                    width: StackSectionMetrics.trailingIconButtonSize,
-                    height: StackSectionMetrics.trailingIconButtonSize
-                )
-                .buttonStyle(BorderedButtonStyle())
-                .controlSize(.small)
-                .buttonBorderShape(.circle)
-        } else if #available(iOS 15, *) {
-            content
-                .buttonStyle(BorderedButtonStyle())
-                .controlSize(.small)
-        } else {
-            content
-        }
-#else
-        content
-#endif
     }
 }
 
