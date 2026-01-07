@@ -3,11 +3,11 @@ import NavigationBackport
 
 fileprivate enum StackSectionMetrics {
     static let headerRowSpacing: CGFloat = 8
-    static let trailingIconHeaderRowSpacing: CGFloat = 6
     static let contentTopSpacing: CGFloat = 8
     // Provide extra horizontal room for the content mask so horizontal scrolling remains unclipped.
     static let contentMaskHorizontalOverflow: CGFloat = 1200
-    static let trailingIconButtonSize: CGFloat = 32
+    static let trailingButtonHeight: CGFloat = 32
+    static let trailingButtonInnerInset: CGFloat = 2
 }
 
 public struct StackSection<Header: View, Content: View, NavigationValue: Hashable>: View {
@@ -268,9 +268,10 @@ fileprivate struct StackSectionTrailingHeaderModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .font(.footnote)
+            .font(.caption)
             .modifier(StackSectionHeaderButtonStyleModifier(style: .trailing(trailingHeaderStyle)))
             .modifier(StackSectionTrailingHeaderFontWeightModifier())
+            .modifier(StackSectionDebugSizeModifier(label: "TrailingHeader"))
     }
 }
 
@@ -284,54 +285,23 @@ fileprivate struct StackSectionHeaderButtonStyleModifier: ViewModifier {
 
     func body(content: Content) -> some View {
 #if os(iOS)
-        if #available(iOS 17, *) {
+        if #available(iOS 15, *) {
             switch style {
             case .chevron:
                 content
-                    .frame(
-                        width: StackSectionMetrics.trailingIconButtonSize,
-                        height: StackSectionMetrics.trailingIconButtonSize
-                    )
-                    .buttonStyle(BorderedButtonStyle())
-                    .controlSize(.small)
-                    .buttonBorderShape(.circle)
+                    .buttonStyle(.plain)
+                    .modifier(StackSectionTrailingButtonVisualModifier(shape: .circle))
             case .trailing(let trailingStyle):
                 if trailingStyle == .iconOnly {
                     content
-                        .frame(
-                            width: StackSectionMetrics.trailingIconButtonSize,
-                            height: StackSectionMetrics.trailingIconButtonSize
-                        )
-                        .buttonStyle(BorderedButtonStyle())
-                        .controlSize(.small)
-                        .buttonBorderShape(.circle)
+                        .buttonStyle(.plain)
+                        .modifier(StackSectionTrailingButtonVisualModifier(shape: .circle))
                 } else {
                     content
-                        .buttonStyle(BorderedButtonStyle())
-                        .controlSize(.small)
-                        .buttonBorderShape(.capsule)
+                        .buttonStyle(.plain)
+                        .modifier(StackSectionTrailingButtonVisualModifier(shape: .capsule))
                 }
             }
-        } else if #available(iOS 15, *) {
-            switch style {
-            case .chevron:
-                content
-                    .buttonStyle(BorderedButtonStyle())
-                    .controlSize(.small)
-            case .trailing(let trailingStyle):
-                if trailingStyle == .iconOnly {
-                    content
-                        .buttonStyle(BorderedButtonStyle())
-                        .controlSize(.small)
-                } else {
-                    content
-                        .buttonStyle(BorderedButtonStyle())
-                        .controlSize(.small)
-                        .buttonBorderShape(.capsule)
-                }
-            }
-        } else {
-            content
         }
 #else
         content
@@ -339,10 +309,71 @@ fileprivate struct StackSectionHeaderButtonStyleModifier: ViewModifier {
     }
 }
 
+fileprivate enum StackSectionTrailingButtonShape {
+    case circle
+    case capsule
+}
+
+fileprivate struct AnyShape: Shape {
+    private let pathBuilder: (CGRect) -> Path
+
+    init<S: Shape>(_ shape: S) {
+        pathBuilder = { rect in
+            shape.path(in: rect)
+        }
+    }
+
+    func path(in rect: CGRect) -> Path {
+        pathBuilder(rect)
+    }
+}
+
+fileprivate struct StackSectionTrailingButtonVisualModifier: ViewModifier {
+    let shape: StackSectionTrailingButtonShape
+
+    func body(content: Content) -> some View {
+        content
+            .foregroundStyle(.tint)
+            .tint(.accentColor)
+            .frame(
+                width: shape == .circle ? StackSectionMetrics.trailingButtonHeight : nil,
+                height: StackSectionMetrics.trailingButtonHeight
+            )
+            .padding(.horizontal, shape == .capsule ? 12 : 0)
+            .background(
+                GeometryReader { proxy in
+                    let inset = StackSectionMetrics.trailingButtonInnerInset
+                    let size = proxy.size
+                    let backgroundSize = CGSize(
+                        width: max(0, size.width - inset * 2),
+                        height: max(0, size.height - inset * 2)
+                    )
+                    let shapeView: AnyShape = {
+                        switch shape {
+                        case .circle:
+                            return AnyShape(Circle())
+                        case .capsule:
+                            return AnyShape(Capsule())
+                        }
+                    }()
+                    shapeView
+                        .fill(Color(UIColor.tertiarySystemFill))
+                        .frame(width: backgroundSize.width, height: backgroundSize.height)
+                        .position(x: size.width / 2, y: size.height / 2)
+                }
+            )
+            .contentShape(
+                shape == .circle
+                    ? AnyShape(Circle())
+                    : AnyShape(Capsule())
+            )
+    }
+}
+
 fileprivate struct StackSectionTrailingHeaderFontWeightModifier: ViewModifier {
     func body(content: Content) -> some View {
         if #available(iOS 16, macOS 13, *) {
-            content.fontWeight(Font.Weight.semibold)
+            content.fontWeight(Font.Weight.bold)
         } else {
             content
         }
@@ -357,10 +388,7 @@ fileprivate struct StackSectionDisclosureGroupStyle: DisclosureGroupStyle {
     
     func makeBody(configuration: Configuration) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: trailingHeaderStyle == .iconOnly
-                ? StackSectionMetrics.trailingIconHeaderRowSpacing
-                : StackSectionMetrics.headerRowSpacing
-            ) {
+            HStack(spacing: StackSectionMetrics.headerRowSpacing) {
                 // Title + optional inline chevron placed immediately after the title
                 HStack(spacing: 5) {
                     configuration.label
@@ -380,12 +408,13 @@ fileprivate struct StackSectionDisclosureGroupStyle: DisclosureGroupStyle {
                     Image(systemName: "chevron.right")
                         .modifier {
                             if #available(iOS 16, macOS 13, *) {
-                                $0.font(.footnote.weight(Font.Weight.semibold))
+                                $0.font(.caption.weight(Font.Weight.bold))
                             } else { $0 }
                         }
                         .rotationEffect(configuration.isExpanded ? Angle.degrees(90) : Angle.zero)
                 }
                 .modifier(StackSectionHeaderButtonStyleModifier(style: .chevron))
+                .modifier(StackSectionDebugSizeModifier(label: "Chevron"))
             }
             
             VStack(spacing: 0) {
@@ -406,6 +435,31 @@ fileprivate struct StackSectionDisclosureGroupStyle: DisclosureGroupStyle {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: configuration.isExpanded)
+    }
+}
+
+fileprivate struct StackSectionDebugSizeModifier: ViewModifier {
+    let label: String
+
+    func body(content: Content) -> some View {
+#if DEBUG
+        content
+            .background(
+                GeometryReader { proxy in
+                    Color.clear
+                        .onAppear {
+                            let frame = proxy.frame(in: .global)
+                            print("# TINYFILTERBUTTON \(label) size=\(proxy.size) global=\(frame)")
+                        }
+                        .onChange(of: proxy.size) { newSize in
+                            let frame = proxy.frame(in: .global)
+                            print("# TINYFILTERBUTTON \(label) size=\(newSize) global=\(frame)")
+                        }
+                }
+            )
+#else
+        content
+#endif
     }
 }
 
