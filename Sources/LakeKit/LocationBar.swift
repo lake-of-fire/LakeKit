@@ -152,3 +152,71 @@ public struct LocationBar: View, Equatable {
         return lhs.locationText == rhs.locationText && lhs.prompt == rhs.prompt
     }
 }
+
+public struct LocationBarProgressBar: View {
+    public let progress: Double?
+    public var tint: Color
+    public var height: CGFloat
+    public var hideDelay: TimeInterval
+
+    @State private var displayProgress: Double = 0
+    @State private var isVisible = false
+    @State private var hideTask: Task<Void, Never>?
+
+    public init(
+        progress: Double?,
+        tint: Color = .accentColor,
+        height: CGFloat = 2,
+        hideDelay: TimeInterval = 0.35
+    ) {
+        self.progress = progress
+        self.tint = tint
+        self.height = height
+        self.hideDelay = hideDelay
+    }
+
+    public var body: some View {
+        GeometryReader { proxy in
+            Capsule()
+                .fill(tint)
+                .frame(width: proxy.size.width * displayProgress, height: height)
+                .opacity(isVisible ? 1 : 0)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+        .onAppear {
+            updateProgress(progress)
+        }
+        .onChange(of: progress) { newValue in
+            updateProgress(newValue)
+        }
+    }
+
+    @MainActor
+    private func updateProgress(_ progress: Double?) {
+        hideTask?.cancel()
+        hideTask = nil
+
+        let clampedProgress = max(0, min(progress ?? 0, 1))
+        if let progress {
+            isVisible = true
+            withAnimation(.easeOut(duration: 0.12)) {
+                displayProgress = clampedProgress
+            }
+        } else if isVisible {
+            withAnimation(.easeOut(duration: 0.12)) {
+                displayProgress = 1
+            }
+            hideTask = Task { @MainActor in
+                try? await Task.sleep(nanoseconds: UInt64(hideDelay * 1_000_000_000))
+                withAnimation(.easeOut(duration: 0.2)) {
+                    isVisible = false
+                }
+                displayProgress = 0
+            }
+        } else {
+            displayProgress = 0
+        }
+    }
+}
