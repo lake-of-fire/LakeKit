@@ -356,8 +356,19 @@ fileprivate struct StackSectionTrailingButtonVisualModifier: ViewModifier {
                             return AnyShape(Capsule())
                         }
                     }()
+                    let fillColor: Color = {
+#if os(macOS)
+                        if #available(macOS 14, *) {
+                            return Color(AppKitOrUIKitColor.tertiarySystemFill)
+                        } else {
+                            return Color(AppKitOrUIKitColor.controlBackgroundColor)
+                        }
+#else
+                        return Color(AppKitOrUIKitColor.tertiarySystemFill)
+#endif
+                    }()
                     shapeView
-                        .fill(Color(UIColor.tertiarySystemFill))
+                        .fill(fillColor)
                         .frame(width: backgroundSize.width, height: backgroundSize.height)
                         .position(x: size.width / 2, y: size.height / 2)
                 }
