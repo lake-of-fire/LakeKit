@@ -174,6 +174,7 @@ public struct BaseDismissButtonStyle: DismissButtonStyle {
             ZStack {
                 Circle()
                     .fill(.clear)
+                    .frame(maxWidth: circleSize, maxHeight: circleSize)
                     .background(
                         Circle()
                             .fill(.ultraThinMaterial.opacity(0.92))
@@ -189,6 +190,7 @@ public struct BaseDismissButtonStyle: DismissButtonStyle {
             .contentShape(.circle)
         } else if #available(iOS 26, macOS 26, *) {
             Image(systemName: systemImageName + (fill ? ".circle.fill" : ""))
+                .frame(maxWidth: circleSize, maxHeight: circleSize)
         } else {
             ZStack {
                 Circle()
