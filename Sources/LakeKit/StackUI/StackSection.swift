@@ -238,6 +238,104 @@ public enum StackSectionTrailingHeaderStyle: Sendable {
     case iconOnly
 }
 
+public enum StackSectionTrailingButtonStyleShape: Sendable {
+    case circle
+    case capsule
+}
+
+public struct StackSectionTrailingButtonStyleModifier: ViewModifier {
+    let shape: StackSectionTrailingButtonStyleShape
+    let foreground: Color
+    let tint: Color
+    let iconOnly: Bool
+
+    public init(
+        shape: StackSectionTrailingButtonStyleShape,
+        foreground: Color = .accentColor,
+        tint: Color = .accentColor,
+        iconOnly: Bool = false
+    ) {
+        self.shape = shape
+        self.foreground = foreground
+        self.tint = tint
+        self.iconOnly = iconOnly
+    }
+
+    public func body(content: Content) -> some View {
+        content
+            .foregroundStyle(foreground)
+            .tint(tint)
+            .modifier {
+                if iconOnly {
+                    $0.labelStyle(.iconOnly)
+                } else {
+                    $0
+                }
+            }
+            .frame(
+                width: shape == .circle ? StackSectionMetrics.trailingButtonHeight : nil,
+                height: StackSectionMetrics.trailingButtonHeight
+            )
+            .padding(.horizontal, shape == .capsule ? 12 : 0)
+            .background(
+                GeometryReader { proxy in
+                    let inset = StackSectionMetrics.trailingButtonInnerInset
+                    let size = proxy.size
+                    let backgroundSize = CGSize(
+                        width: max(0, size.width - inset * 2),
+                        height: max(0, size.height - inset * 2)
+                    )
+                    let shapeView: AnyShape = {
+                        switch shape {
+                        case .circle:
+                            return AnyShape(Circle())
+                        case .capsule:
+                            return AnyShape(Capsule())
+                        }
+                    }()
+                    let fillColor: Color = {
+#if os(macOS)
+                        if #available(macOS 14, *) {
+                            return Color(AppKitOrUIKitColor.tertiarySystemFill)
+                        } else {
+                            return Color(AppKitOrUIKitColor.controlBackgroundColor)
+                        }
+#else
+                        return Color(AppKitOrUIKitColor.tertiarySystemFill)
+#endif
+                    }()
+                    shapeView
+                        .fill(fillColor)
+                        .frame(width: backgroundSize.width, height: backgroundSize.height)
+                        .position(x: size.width / 2, y: size.height / 2)
+                }
+            )
+            .contentShape(
+                shape == .circle
+                    ? AnyShape(Circle())
+                    : AnyShape(Capsule())
+            )
+    }
+}
+
+public extension View {
+    func stackSectionTrailingButtonStyle(
+        shape: StackSectionTrailingButtonStyleShape,
+        foreground: Color = .accentColor,
+        tint: Color = .accentColor,
+        iconOnly: Bool = false
+    ) -> some View {
+        modifier(
+            StackSectionTrailingButtonStyleModifier(
+                shape: shape,
+                foreground: foreground,
+                tint: tint,
+                iconOnly: iconOnly
+            )
+        )
+    }
+}
+
 private struct StackSectionTrailingHeaderStyleKey: EnvironmentKey {
     static let defaultValue: StackSectionTrailingHeaderStyle = .automatic
 }
@@ -332,52 +430,14 @@ fileprivate struct StackSectionTrailingButtonVisualModifier: ViewModifier {
     let shape: StackSectionTrailingButtonShape
 
     func body(content: Content) -> some View {
-        content
-            .foregroundStyle(.tint)
-            .tint(.accentColor)
-            .frame(
-                width: shape == .circle ? StackSectionMetrics.trailingButtonHeight : nil,
-                height: StackSectionMetrics.trailingButtonHeight
+        content.modifier(
+            StackSectionTrailingButtonStyleModifier(
+                shape: shape == .circle ? .circle : .capsule,
+                foreground: .accentColor,
+                tint: .accentColor,
+                iconOnly: false
             )
-            .padding(.horizontal, shape == .capsule ? 12 : 0)
-            .background(
-                GeometryReader { proxy in
-                    let inset = StackSectionMetrics.trailingButtonInnerInset
-                    let size = proxy.size
-                    let backgroundSize = CGSize(
-                        width: max(0, size.width - inset * 2),
-                        height: max(0, size.height - inset * 2)
-                    )
-                    let shapeView: AnyShape = {
-                        switch shape {
-                        case .circle:
-                            return AnyShape(Circle())
-                        case .capsule:
-                            return AnyShape(Capsule())
-                        }
-                    }()
-                    let fillColor: Color = {
-#if os(macOS)
-                        if #available(macOS 14, *) {
-                            return Color(AppKitOrUIKitColor.tertiarySystemFill)
-                        } else {
-                            return Color(AppKitOrUIKitColor.controlBackgroundColor)
-                        }
-#else
-                        return Color(AppKitOrUIKitColor.tertiarySystemFill)
-#endif
-                    }()
-                    shapeView
-                        .fill(fillColor)
-                        .frame(width: backgroundSize.width, height: backgroundSize.height)
-                        .position(x: size.width / 2, y: size.height / 2)
-                }
-            )
-            .contentShape(
-                shape == .circle
-                    ? AnyShape(Circle())
-                    : AnyShape(Capsule())
-            )
+        )
     }
 }
 
