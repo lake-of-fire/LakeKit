@@ -162,7 +162,7 @@ open class LRUSQLiteCache<I: Encodable, O: Codable>: ObservableObject {
         }
     }
     public func removeAll() {
-        cache.removeAllValues()
+        cache.removeAll()
         ioQueue.async { [store] in
             try? store?.removeAll()
         }

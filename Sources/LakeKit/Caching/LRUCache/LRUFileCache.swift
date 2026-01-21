@@ -110,7 +110,7 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
     }
     public func removeAll() {
 //        debugPrint("# REMOVE ALL", cacheDirectory.lastPathComponent)
-        cache.removeAllValues()
+        cache.removeAll()
         let fileManager = FileManager.default
         if let files = try? fileManager.contentsOfDirectory(at: cacheDirectory, includingPropertiesForKeys: nil) {
             for file in files where !file.lastPathComponent.hasPrefix(".") {
