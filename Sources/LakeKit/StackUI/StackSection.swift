@@ -246,13 +246,13 @@ public enum StackSectionTrailingButtonStyleShape: Sendable {
 public struct StackSectionTrailingButtonStyleModifier: ViewModifier {
     let shape: StackSectionTrailingButtonStyleShape
     let foreground: Color
-    let tint: Color
+    let tint: Color?
     let iconOnly: Bool
 
     public init(
         shape: StackSectionTrailingButtonStyleShape,
         foreground: Color = .accentColor,
-        tint: Color = .accentColor,
+        tint: Color? = .accentColor,
         iconOnly: Bool = false
     ) {
         self.shape = shape
@@ -322,7 +322,7 @@ public extension View {
     func stackSectionTrailingButtonStyle(
         shape: StackSectionTrailingButtonStyleShape,
         foreground: Color = .accentColor,
-        tint: Color = .accentColor,
+        tint: Color? = .accentColor,
         iconOnly: Bool = false
     ) -> some View {
         modifier(
