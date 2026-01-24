@@ -434,7 +434,7 @@ fileprivate struct StackSectionTrailingButtonVisualModifier: ViewModifier {
             StackSectionTrailingButtonStyleModifier(
                 shape: shape == .circle ? .circle : .capsule,
                 foreground: .accentColor,
-                tint: .accentColor,
+                tint: nil,
                 iconOnly: false
             )
         )
