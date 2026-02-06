@@ -198,22 +198,4 @@ final class LRUSQLiteCacheTests: XCTestCase {
         XCTAssertEqual(cache.value(forKey: "b"), "B")
     }
 
-    func testFilenameSanitizerReplacesInvalidCharacters() {
-        XCTAssertEqual(
-            LakeKitFilenameSanitizer.sanitize("Manabi/Reader:Export?.zip"),
-            "Manabi-Reader-Export-.zip"
-        )
-    }
-
-    func testFilenameSanitizerFallsBackForEmptyNames() {
-        XCTAssertEqual(
-            LakeKitFilenameSanitizer.sanitize("   \n\t  ", fallback: "Reader Backup"),
-            "Reader Backup"
-        )
-    }
-
-    func testFilenameSanitizerCapsLength() {
-        let proposed = String(repeating: "a", count: 160)
-        XCTAssertEqual(LakeKitFilenameSanitizer.sanitize(proposed).count, 100)
-    }
 }

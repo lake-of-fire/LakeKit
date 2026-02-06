@@ -129,13 +129,12 @@ private struct FileDownloadExporterSheet: View {
     @ViewBuilder
     private var exporterBridge: some View {
         if let document = exporterDocument {
-            let exportFilename = LakeKitFilenameSanitizer.sanitize(request.defaultFilename, fallback: "Download")
             Color.clear
                 .fileExporter(
                     isPresented: $isFileExporterPresented,
                     document: document,
                     contentType: request.contentType,
-                    defaultFilename: exportFilename
+                    defaultFilename: request.defaultFilename
                 ) { _ in
                     finishAndDismiss()
                 }
@@ -220,8 +219,7 @@ private struct TemporaryDownloadedFileDocument: FileDocument {
         let workingDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent("FileDownloadExporter-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: workingDirectory, withIntermediateDirectories: true)
-        let destinationFilename = LakeKitFilenameSanitizer.sanitize(request.defaultFilename, fallback: "Download")
-        let destinationURL = workingDirectory.appendingPathComponent(destinationFilename)
+        let destinationURL = workingDirectory.appendingPathComponent(request.defaultFilename)
         if FileManager.default.fileExists(atPath: destinationURL.path) {
             try FileManager.default.removeItem(at: destinationURL)
         }

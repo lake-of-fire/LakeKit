@@ -38,12 +38,11 @@ public class Logger/*: ObservableObject*/ {
     // MARK: Methods
     // This method throws in theory, but not in practice.
     static func logDirectoryURL() throws -> URL {
-        var url = try FileManager.default.url(
-            for: .applicationSupportDirectory,
-            in: .userDomainMask,
-            appropriateFor: nil,
-            create: true)
-        url.appendPathComponent("logs")
+        // Avoid `url(...create: true)` on the main thread; create the directory explicitly later.
+        let baseURL = FileManager.default
+            .urls(for: .applicationSupportDirectory, in: .userDomainMask)
+            .first ?? URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+        let url = baseURL.appendingPathComponent("logs", isDirectory: true)
         return url
     }
     

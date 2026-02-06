@@ -1,61 +1,6 @@
 import Foundation
 import SwiftUI
 
-public enum LakeKitFilenameSanitizer {
-    private static let invalidFilenameCharacters = CharacterSet(charactersIn: "/\\?%*|\"<>:")
-        .union(.controlCharacters)
-
-    public static func sanitize(
-        _ proposedName: String?,
-        fallback: String = "Export",
-        maxLength: Int = 100
-    ) -> String {
-        let trimmedName = proposedName?.trimmingCharacters(in: .whitespacesAndNewlines)
-        var sanitized = sanitizeCore(trimmedName, maxLength: maxLength)
-        if sanitized.isEmpty {
-            sanitized = sanitizeCore(fallback, maxLength: maxLength)
-        }
-        if sanitized.isEmpty || sanitized == "." || sanitized == ".." {
-            return "Export"
-        }
-        return sanitized
-    }
-
-    private static func sanitizeCore(_ value: String?, maxLength: Int) -> String {
-        guard let value, !value.isEmpty else { return "" }
-
-        var characters: [Character] = []
-        characters.reserveCapacity(min(value.count, maxLength))
-        var previousCharacterWasWhitespace = false
-
-        for scalar in value.unicodeScalars {
-            if invalidFilenameCharacters.contains(scalar) {
-                characters.append("-")
-                previousCharacterWasWhitespace = false
-                continue
-            }
-
-            if CharacterSet.whitespacesAndNewlines.contains(scalar) {
-                if !previousCharacterWasWhitespace {
-                    characters.append(" ")
-                    previousCharacterWasWhitespace = true
-                }
-                continue
-            }
-
-            characters.append(Character(scalar))
-            previousCharacterWasWhitespace = false
-        }
-
-        var sanitized = String(characters).trimmingCharacters(in: .whitespacesAndNewlines)
-        if sanitized.count > maxLength {
-            sanitized = String(sanitized.prefix(maxLength))
-        }
-
-        return sanitized
-    }
-}
-
 public enum TransferError: Error {
     case importFailed
 }
@@ -63,10 +8,6 @@ public enum TransferError: Error {
 public struct ZIPArchive: Codable {
     public let title: String
     public let content: Data
-
-    public var exportFilenameBase: String {
-        LakeKitFilenameSanitizer.sanitize(title, fallback: "Manabi Archive")
-    }
     
     public init(title: String, content: Data) {
         self.title = title
@@ -97,7 +38,7 @@ extension ZIPArchive: Transferable {
         FileRepresentation(contentType: .zip,
                            shouldAttemptToOpenInPlace: false) { zip in
             let resultURL = FileManager.default.temporaryDirectory
-                .appendingPathComponent(zip.exportFilenameBase)
+                .appendingPathComponent(zip.title)
                 .appendingPathExtension("zip")
             if FileManager.default.fileExists(atPath: resultURL.path) {
                 try FileManager.default.removeItem(at: resultURL)
