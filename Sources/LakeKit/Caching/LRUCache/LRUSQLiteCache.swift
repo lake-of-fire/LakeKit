@@ -120,7 +120,8 @@ open class LRUSQLiteCache<I: Encodable, O: Codable>: ObservableObject {
         cache = LRUCache(totalCostLimit: totalBytesLimit, countLimit: countLimit)
         
         let versionFileURL = cacheDirectory.appendingPathComponent("lru_cache_version.txt")
-        var versionString = version.map(String.init) ?? Bundle.main.versionString
+        let bundleVersion = (Bundle.main.infoDictionary?["CFBundleVersion"] as? String) ?? "0"
+        var versionString = version.map(String.init) ?? bundleVersion
 #if DEBUG
         versionString += debugBuildID.uuidString
 #endif
@@ -133,7 +134,7 @@ open class LRUSQLiteCache<I: Encodable, O: Codable>: ObservableObject {
                String(data: versionData, encoding: .utf8) != versionString {
                 try store.removeAll()
             }
-            try? versionString.data(using: .utf8)?.write(to: versionFileURL)
+            try? versionString.data(using: String.Encoding.utf8)?.write(to: versionFileURL)
             self.store = store
             self.rebuild()
         } catch {

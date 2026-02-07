@@ -8,74 +8,183 @@ fileprivate func bundleIdentifier() -> String {
     return (Bundle(for: Logger.self).bundleIdentifier ?? "")
 }
 
+fileprivate extension Logging.Logger.Level {
+    func toPuppyLogLevel() -> LogLevel {
+        switch self {
+        case .trace:
+            return .trace
+        case .debug:
+            return .debug
+        case .info:
+            return .info
+        case .notice:
+            return .notice
+        case .warning:
+            return .warning
+        case .error:
+            return .error
+        case .critical:
+            return .critical
+        }
+    }
+}
+
+fileprivate final class MutablePuppySink {
+    private var puppy: Puppy
+    private let lock = NSLock()
+
+    init(puppy: Puppy) {
+        self.puppy = puppy
+    }
+
+    func add(_ logger: any Loggerable) {
+        lock.lock()
+        puppy.add(logger)
+        lock.unlock()
+    }
+
+    func log(
+        level: Logging.Logger.Level,
+        message: Logging.Logger.Message,
+        metadata: Logging.Logger.Metadata,
+        source: String,
+        file: String,
+        function: String,
+        line: UInt,
+        label: String
+    ) {
+        let metadataString = metadata.isEmpty ? "" : "\(metadata)"
+        let swiftLogInfo = ["label": label, "source": source, "metadata": metadataString]
+        lock.lock()
+        puppy.logMessage(
+            level.toPuppyLogLevel(),
+            message: "\(message)",
+            tag: "swiftlog",
+            function: function,
+            file: file,
+            line: line,
+            swiftLogInfo: swiftLogInfo
+        )
+        lock.unlock()
+    }
+}
+
+fileprivate struct MutablePuppyLogHandler: LogHandler {
+    var logLevel: Logging.Logger.Level = .info
+    var metadata: Logging.Logger.Metadata = [:]
+
+    subscript(metadataKey key: String) -> Logging.Logger.Metadata.Value? {
+        get { metadata[key] }
+        set { metadata[key] = newValue }
+    }
+
+    private let label: String
+    private let puppySink: MutablePuppySink
+
+    init(label: String, puppySink: MutablePuppySink) {
+        self.label = label
+        self.puppySink = puppySink
+    }
+
+    func log(
+        level: Logging.Logger.Level,
+        message: Logging.Logger.Message,
+        metadata: Logging.Logger.Metadata?,
+        source: String,
+        file: String,
+        function: String,
+        line: UInt
+    ) {
+        let mergedMetadata = mergedMetadata(metadata)
+        puppySink.log(
+            level: level,
+            message: message,
+            metadata: mergedMetadata,
+            source: source,
+            file: file,
+            function: function,
+            line: line,
+            label: label
+        )
+    }
+
+    private func mergedMetadata(_ metadata: Logging.Logger.Metadata?) -> Logging.Logger.Metadata {
+        guard let metadata else { return self.metadata }
+        return self.metadata.merging(metadata, uniquingKeysWith: { _, new in new })
+    }
+}
+
 public class Logger/*: ObservableObject*/ {
     public static let shared = Logger()
     public let logger: Logging.Logger
+    private let puppySink: MutablePuppySink
     
     private var fileLogger: FileRotationLogger?
+    private static let fileIOQueue = DispatchQueue(label: "LakeKit.Logger.FileIO", qos: .utility)
     
     init() {
-        (logger, fileLogger) = Self.makeLogger()
-        
-        do {
-            try createLogDirectory()
-        } catch {
-            print("Could not create the log directory: \(error.localizedDescription)")
-        }
+        let configured = Self.makeLogger()
+        self.logger = configured.logger
+        self.puppySink = configured.puppySink
+        configureFileLogger()
     }
     
     /// Deletes all log files from the log directory.
     public func clearLogFiles() {
         do {
-            let url = try Self.logDirectoryURL()
-            fileLogger?.delete(url)
-            print("All log files deleted from \(url.path)")
+            try Self.performFileIO { [self] in
+                let url = try Self.logDirectoryURL()
+                fileLogger?.delete(url)
+                print("All log files deleted from \(url.path)")
+            }
         } catch {
             print("Failed to clear log files: \(error)")
         }
     }
     
     // MARK: Methods
+    private static func performFileIO<T>(_ work: () throws -> T) rethrows -> T {
+        if Thread.isMainThread {
+            return try fileIOQueue.sync {
+                try work()
+            }
+        }
+        return try work()
+    }
+
     // This method throws in theory, but not in practice.
     static func logDirectoryURL() throws -> URL {
-        // Avoid `url(...create: true)` on the main thread; create the directory explicitly later.
-        let baseURL = FileManager.default
-            .urls(for: .applicationSupportDirectory, in: .userDomainMask)
-            .first ?? URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
-        let url = baseURL.appendingPathComponent("logs", isDirectory: true)
-        return url
-    }
-    
-    func createLogDirectory() throws {
-        let url = try Self.logDirectoryURL()
-        if !FileManager.default.fileExists(atPath: url.path) {
-            try FileManager.default.createDirectory(
-                at: url,
-                withIntermediateDirectories: true,
-                attributes: nil)
+        try performFileIO {
+            // Derive the sandboxed app-support path without a .userDomainMask lookup.
+            let baseURL = URL(fileURLWithPath: NSHomeDirectory(), isDirectory: true)
+                .appendingPathComponent("Library", isDirectory: true)
+                .appendingPathComponent("Application Support", isDirectory: true)
+            return baseURL.appendingPathComponent("logs", isDirectory: true)
         }
     }
     
-    static func makeLogger() -> (Logging.Logger, FileRotationLogger?) {
+    func createLogDirectory() throws {
+        try Self.performFileIO {
+            let url = try Self.logDirectoryURL()
+            if !FileManager.default.fileExists(atPath: url.path) {
+                try FileManager.default.createDirectory(
+                    at: url,
+                    withIntermediateDirectories: true,
+                    attributes: nil)
+            }
+        }
+    }
+    
+    private static func makeLogger() -> (logger: Logging.Logger, puppySink: MutablePuppySink) {
         var puppy = Puppy()
 #if DEBUG
         puppy.add(makeConsoleLogger())
         puppy.add(ConsoleLogger("print", logFormat: ConsoleLogFormatter()))
 #endif
-        var fileLogger: FileRotationLogger?
-        do {
-            fileLogger = try makeFileLogger()
-            if let fileLogger {
-                puppy.add(fileLogger)
-            }
-        } catch {
-            // If the logger can't be created we just log the error through OSLog
-            // and create an empty logger.
-            print("Could not create the file logger: \(error)")
-        }
+        let puppySink = MutablePuppySink(puppy: puppy)
         
         LoggingSystem.bootstrap { label in
-            var handler = PuppyLogHandler(label: label, puppy: puppy)
+            var handler = MutablePuppyLogHandler(label: label, puppySink: puppySink)
             // Set the logging level.
 #if DEBUG
             handler.logLevel = .trace
@@ -86,16 +195,34 @@ public class Logger/*: ObservableObject*/ {
         }
         
         return (
-            Logging.Logger(label: bundleIdentifier() + ".swiftlog"),
-            fileLogger
+            logger: Logging.Logger(label: bundleIdentifier() + ".swiftlog"),
+            puppySink: puppySink
         )
+    }
+
+    private func configureFileLogger() {
+        // Startup logger bootstrap stays immediate; file-backed logging setup is deferred
+        // to avoid launch-time file system work on the main thread.
+        Self.fileIOQueue.async { [weak self] in
+            guard let self else { return }
+            do {
+                try createLogDirectory()
+                let fileLogger = try Self.makeFileLogger()
+                self.fileLogger = fileLogger
+                self.puppySink.add(fileLogger)
+            } catch {
+                print("Could not create the file logger: \(error)")
+            }
+        }
     }
     
     func getCurrentLogs() -> [URL] {
         do {
-            let url = try Self.logDirectoryURL()
-            let items = try FileManager.default.contentsOfDirectory(atPath: url.path)
-            return items.compactMap { url.appendingPathComponent($0) } .sorted(by: { $0.lastPathComponent > $1.lastPathComponent })
+            return try Self.performFileIO {
+                let url = try Self.logDirectoryURL()
+                let items = try FileManager.default.contentsOfDirectory(atPath: url.path)
+                return items.compactMap { url.appendingPathComponent($0) } .sorted(by: { $0.lastPathComponent > $1.lastPathComponent })
+            }
         } catch {
             print("Could not list the logs: \(error)")
             return []

@@ -1,5 +1,7 @@
 import SwiftUI
+#if os(macOS)
 import DSFSearchField
+#endif
 import DebouncedOnChange
 
 struct IsEnhancedlySearchingKey: EnvironmentKey {

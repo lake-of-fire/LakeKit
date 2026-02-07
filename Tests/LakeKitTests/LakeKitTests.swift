@@ -1,5 +1,6 @@
 import XCTest
 @testable import LakeKit
+@testable import LakeKitSQLiteCache
 
 final class LRUSQLiteCacheTests: XCTestCase {
     // MARK: - Helpers
