@@ -1,4 +1,5 @@
 import Foundation
+import GRDB
 import LRUCache
 import SwiftUtilities
 import SQLiteData
@@ -36,42 +37,66 @@ fileprivate struct SQLiteLRUStore {
     private var migrator: DatabaseMigrator {
         var m = DatabaseMigrator()
         m.registerMigration("v1_create_cache") { db in
-            try #sql("""
+            try db.execute(sql: """
                 CREATE TABLE IF NOT EXISTS "cache"(
                     "id" TEXT NOT NULL PRIMARY KEY,
                     "data" BLOB,
                     "encoding" TEXT NOT NULL
                 );
             """)
-            .execute(db)
         }
         return m
     }
     
     var items: [CacheEntry] {
-        (try? pool.read { db in try CacheEntry.fetchAll(db) }) ?? []
+        (try? pool.read { db in
+            try Row.fetchAll(
+                db,
+                sql: """
+                    SELECT
+                        "id",
+                        "data",
+                        "encoding"
+                    FROM "cache"
+                    """
+            ).map { row in
+                CacheEntry(
+                    id: row["id"],
+                    data: row["data"],
+                    encoding: row["encoding"]
+                )
+            }
+        }) ?? []
     }
     
     func insert(_ entry: CacheEntry) throws {
         try pool.write { db in
-            try CacheEntry
-                .upsert {
-                    CacheEntry.Draft(
-                        id: entry.id,
-                        data: entry.data,
-                        encoding: entry.encoding
+            try db.execute(
+                sql: """
+                    INSERT INTO "cache"(
+                        "id",
+                        "data",
+                        "encoding"
                     )
-                }
-                .execute(db)
+                    VALUES (?, ?, ?)
+                    ON CONFLICT("id") DO UPDATE SET
+                        "data" = excluded."data",
+                        "encoding" = excluded."encoding"
+                    """,
+                arguments: [entry.id, entry.data, entry.encoding]
+            )
         }
     }
     
     func removeByID(_ id: String) throws {
         try pool.write { db in
-            try CacheEntry
-                .find(id)
-                .delete()
-                .execute(db)
+            try db.execute(
+                sql: """
+                    DELETE FROM "cache"
+                    WHERE "id" = ?
+                    """,
+                arguments: [id]
+            )
         }
     }
     
@@ -81,16 +106,22 @@ fileprivate struct SQLiteLRUStore {
     
     func removeAll() throws {
         try pool.write { db in
-            try #sql("DELETE FROM \"cache\"").execute(db)
+            try db.execute(sql: "DELETE FROM \"cache\"")
         }
     }
     
     func exists(id: String) -> Bool {
         (try? pool.read { db in
-            try CacheEntry
-                .where { $0.id == id }
-                .select(\.id)
-                .fetchOne(db) != nil
+            try String.fetchOne(
+                db,
+                sql: """
+                    SELECT "id"
+                    FROM "cache"
+                    WHERE "id" = ?
+                    LIMIT 1
+                    """,
+                arguments: [id]
+            ) != nil
         }) ?? false
     }
 }
