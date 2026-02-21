@@ -28,7 +28,7 @@ public struct BatchedTranslationRequest {
         return requests.isEmpty
     }
     
-    @available(iOS 18, macOS 15, *)
+    @available(iOS 18, macOS 15, macCatalyst 26, *)
     public func translationSessionRequests() -> [TranslationSession.Request] {
         return requests.enumerated().map { (index, request) in
             TranslationSession.Request(
@@ -39,7 +39,7 @@ public struct BatchedTranslationRequest {
     }
     
     public mutating func invalidate() {
-        if #available(iOS 18, macOS 15, *) {
+        if #available(iOS 18, macOS 15, macCatalyst 26, *) {
             guard var configuration = (translationTaskConfiguration as? TranslationSession.Configuration) else { return }
             configuration.invalidate()
             translationTaskConfiguration = configuration // Necessary?

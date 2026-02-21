@@ -22,7 +22,7 @@ let package = Package(
         .package(url: "https://github.com/lake-of-fire/BigSyncKit.git", branch: "main"),
         .package(url: "https://github.com/lake-of-fire/RealmSwiftGaps.git", branch: "main"),
         .package(url: "https://github.com/lake-of-fire/SwiftUIDownloads.git", branch: "main"),
-        .package(url: "https://github.com/lake-of-fire/SwiftUtilities.git", branch: "main"),
+        .package(path: "../SwiftUtilities"),
         .package(url: "https://github.com/lake-of-fire/LakeImage.git", branch: "main"),
 //        .package(url: "https://github.com/NuPlay/ExpandableText.git", branch: "main"),
         .package(url: "https://github.com/lake-of-fire/swiftui-webview.git", branch: "main"),
@@ -83,7 +83,11 @@ let package = Package(
 //                .product(name: "FrameUp", package: "FrameUp"),
 //                .product(name: "Flow", package: "SwiftUI-Flow"),
                 //                .product(name: "SwiftUIKit", package: "SwiftUIKit"),
-                .product(name: "VisionLiveText_SwiftUICompatible", package: "VisionLiveText_SwiftUICompatible"),
+                .product(
+                    name: "VisionLiveText_SwiftUICompatible",
+                    package: "VisionLiveText_SwiftUICompatible",
+                    condition: .when(platforms: [.iOS])
+                ),
                 .product(name: "FilePicker", package: "FilePicker"),
                 .product(name: "SwiftUIDownloads", package: "SwiftUIDownloads"),
                 .product(name: "LRUCache", package: "LRUCache"),
