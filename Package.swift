@@ -18,7 +18,7 @@ let package = Package(
     ],
     dependencies: [
 //        .package(url: "https://github.com/lake-of-fire/RealmBinary.git", branch: "main"),
-        .package(url: "https://github.com/realm/realm-swift.git", from: "20.0.3"),
+        .package(url: "https://github.com/realm/realm-swift.git", from: "20.0.4"),
         .package(url: "https://github.com/lake-of-fire/BigSyncKit.git", branch: "main"),
         .package(url: "https://github.com/lake-of-fire/RealmSwiftGaps.git", branch: "main"),
         .package(url: "https://github.com/lake-of-fire/SwiftUIDownloads.git", branch: "main"),
@@ -49,7 +49,7 @@ let package = Package(
 //        .package(url: "https://github.com/kean/Pulse.git", branch: "main"),
         .package(url: "https://github.com/stevengharris/SplitView.git", branch: "main"),
         .package(url: "https://github.com/lake-of-fire/VisionLiveText_SwiftUICompatible.git", branch: "main"),
-        .package(url: "https://github.com/EmergeTools/Pow.git", branch: "main"),
+        .package(url: "https://github.com/EmergeTools/Pow.git", from: "1.0.5"),
         .package(url: "https://github.com/apple/swift-log.git", branch: "main"),
         .package(url: "https://github.com/pointfreeco/sqlite-data.git", from: "1.4.1"),
         .package(url: "https://github.com/Tunous/DebouncedOnChange.git", branch: "main"),
