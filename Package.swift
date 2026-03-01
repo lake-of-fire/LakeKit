@@ -51,7 +51,7 @@ let package = Package(
         .package(url: "https://github.com/lake-of-fire/VisionLiveText_SwiftUICompatible.git", branch: "main"),
         .package(url: "https://github.com/EmergeTools/Pow.git", branch: "main"),
         .package(url: "https://github.com/apple/swift-log.git", branch: "main"),
-        .package(url: "https://github.com/pointfreeco/sqlite-data.git", from: "1.4.1"),
+        .package(url: "https://github.com/pointfreeco/sqlite-data.git", from: "1.6.0"),
         .package(url: "https://github.com/Tunous/DebouncedOnChange.git", branch: "main"),
         .package(url: "https://github.com/lake-of-fire/Puppy.git", branch: "main"),
         .package(url: "https://github.com/lake-of-fire/CloudKitSyncMonitor.git", branch: "main"),

@@ -1,5 +1,5 @@
 {
-  "originHash" : "c917249fbe7fcdbd7ca146e53ba1b793244abd109dcbab9014e465314ba43d6d",
+  "originHash" : "79d196090bd658f3342e6415cc8b1a764fe07f8e31d5c8d0180b4001000d5355",
   "pins" : [
     {
       "identity" : "bettersafariview2",
@@ -83,15 +83,6 @@
       }
     },
     {
-      "identity" : "hotswiftui",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/johnno1962/HotSwiftUI.git",
-      "state" : {
-        "branch" : "main",
-        "revision" : "9e701abd2da67c7cfac5b70ae6f225fa92a1c7bc"
-      }
-    },
-    {
       "identity" : "keychain-swift",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/lake-of-fire/keychain-swift.git",
@@ -151,7 +142,7 @@
       "location" : "https://github.com/EmergeTools/Pow.git",
       "state" : {
         "branch" : "main",
-        "revision" : "f650bd26c71084a49a99185f4b3e9c05a4a3ac8d"
+        "revision" : "1b4b1dda28c50b95f0872927ee2226fe8b58950e"
       }
     },
     {
@@ -168,8 +159,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/realm/realm-core.git",
       "state" : {
-        "revision" : "15493076ad9fef22c16cc64cbfbf9e5b65c385f9",
-        "version" : "20.1.0"
+        "revision" : "4cc46f8607516226e5465062fdacd088fbd94552",
+        "version" : "20.1.4"
       }
     },
     {
@@ -177,8 +168,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/realm/realm-swift.git",
       "state" : {
-        "revision" : "6260534683132eb981338c7c39fd5e69205876e6",
-        "version" : "20.0.3"
+        "revision" : "600e187711e5fa4e8e2c0429cacee27e8e44f112",
+        "version" : "20.0.4"
       }
     },
     {
@@ -204,8 +195,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/pointfreeco/sqlite-data.git",
       "state" : {
-        "revision" : "05704b563ecb7f0bd7e49b6f360a6383a3e53e7d",
-        "version" : "1.5.1"
+        "revision" : "65502acdb033ec8025a0bcc443abf2f4ca0598f9",
+        "version" : "1.6.0"
       }
     },
     {
@@ -231,8 +222,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-async-algorithms",
       "state" : {
-        "branch" : "main",
-        "revision" : "103f5e5beab0896f7ec5e85d9383ce0f026065f5"
+        "revision" : "2971dd5d9f6e0515664b01044826bcea16e59fac",
+        "version" : "1.1.2"
       }
     },
     {
@@ -339,8 +330,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/pointfreeco/swift-structured-queries",
       "state" : {
-        "revision" : "d8163b3a98f3c8434c4361e85126db449d84bc66",
-        "version" : "0.30.0"
+        "revision" : "20db4a2a446f51e67e1207d54a23ad0a03471a7b",
+        "version" : "0.31.0"
       }
     },
     {
@@ -359,15 +350,6 @@
       "state" : {
         "revision" : "19ce89c82df9c042f4153d204c03fc904cab9c98",
         "version" : "26.0.1"
-      }
-    },
-    {
-      "identity" : "swiftdate",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/malcommac/SwiftDate.git",
-      "state" : {
-        "branch" : "master",
-        "revision" : "5d943224c3bb173e6ecf27295611615eba90c80e"
       }
     },
     {
@@ -404,24 +386,6 @@
       "state" : {
         "branch" : "main",
         "revision" : "f4707c81aef01aae5e2f3a8a5315add150165b28"
-      }
-    },
-    {
-      "identity" : "swiftuidrag",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/lake-of-fire/SwiftUIDrag.git",
-      "state" : {
-        "branch" : "main",
-        "revision" : "468d9567d71c3f61c0094c57b5b6fcdaf7a53716"
-      }
-    },
-    {
-      "identity" : "swiftutilities",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/lake-of-fire/SwiftUtilities.git",
-      "state" : {
-        "branch" : "main",
-        "revision" : "15f8313b36c066dedffd662809b52de965efa6b6"
       }
     },
     {
