@@ -43,9 +43,7 @@ public extension Templates {
             @ViewBuilder view: () -> Content
         ) {
             self.cornerRadius = cornerRadius
-            if let shadow = shadow {
-                self.shadow = shadow
-            }
+            self.shadow = shadow
             self.padding = padding
             self.view = view()
         }
@@ -54,7 +52,7 @@ public extension Templates {
             PopoverReader { context in
                 view
                     .padding(padding)
-                    .background(.regularMaterial)
+                    .background(backgroundColor)
                 //                    .background(.thickMaterial)
                 //                    .background(.red.opacity(0.25))
                 //                        RoundedRectangle(cornerRadius: 16)
@@ -70,14 +68,12 @@ public extension Templates {
                         RoundedRectangle(cornerRadius: cornerRadius)
                             .stroke(Color.primary.opacity(0.15), lineWidth: 1.5)
                     )
-//                    .popoverShadow(shadow: .init(color: Color.black.opacity(0.2), radius: 20, x: 0, y: 4 ))
-                    .popoverShadow(shadow: .init(color: Color.black.opacity(0.2), radius: 16, x: 0, y: 0 ))
+                    .popoverShadowIfNeeded(shadow: shadow)
                 //                    .background {
                 //                        Color.clear
                 //                            .popoverShadowIfNeeded(shadow: shadow)
                 //                    }
             }
-            .shadow(radius: 20)
         }
     }
 }
