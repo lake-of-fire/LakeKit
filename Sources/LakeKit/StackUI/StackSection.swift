@@ -455,7 +455,6 @@ fileprivate struct StackSectionTrailingHeaderFontWeightModifier: ViewModifier {
 fileprivate struct StackSectionDisclosureGroupStyle: DisclosureGroupStyle {
     @ViewBuilder let trailingHeader: () -> AnyView
     @Environment(\.stackListConfig) private var config
-    @Environment(\.stackSectionTrailingHeaderStyle) private var trailingHeaderStyle
     
     func makeBody(configuration: Configuration) -> some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -474,7 +473,9 @@ fileprivate struct StackSectionDisclosureGroupStyle: DisclosureGroupStyle {
                 
                 // Trailing circular toggle button (only control that changes expansion)
                 Button {
-                    configuration.isExpanded.toggle()
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        configuration.isExpanded.toggle()
+                    }
                 } label: {
                     Image(systemName: "chevron.right")
                         .modifier {
@@ -488,25 +489,156 @@ fileprivate struct StackSectionDisclosureGroupStyle: DisclosureGroupStyle {
                 .modifier(StackSectionDebugSizeModifier(label: "Chevron"))
             }
             
-            VStack(spacing: 0) {
-                if configuration.isExpanded {
-                    configuration.content
-                        .padding(.top, StackSectionMetrics.contentTopSpacing)
-                        .padding(.bottom, config.expandedBottomPadding)
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                } else {
-                    // Keep layout stable without mounting heavy UIKitRepresentables
-                    EmptyView()
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                }
-            }
+            StackSectionCollapsibleContent(
+                isExpanded: configuration.isExpanded,
+                bottomPadding: config.expandedBottomPadding,
+                content: configuration.content
+            )
             .mask {
                 Rectangle()
                     .padding(.horizontal, -StackSectionMetrics.contentMaskHorizontalOverflow)
             }
         }
-        .animation(.easeInOut(duration: 0.25), value: configuration.isExpanded)
     }
+}
+
+fileprivate struct StackSectionCollapsibleContent<Content: View>: View {
+    let isExpanded: Bool
+    let bottomPadding: CGFloat
+    let content: Content
+
+    @State private var measuredHeight: CGFloat = 0
+    @State private var isContentMounted: Bool
+    @State private var visibleHeight: CGFloat?
+    @State private var visibleOpacity: CGFloat
+    @State private var visibleOffset: CGFloat
+    @State private var collapseTask: Task<Void, Never>?
+    @State private var transitionRequestID: UInt = 0
+
+    init(
+        isExpanded: Bool,
+        bottomPadding: CGFloat,
+        content: Content
+    ) {
+        self.isExpanded = isExpanded
+        self.bottomPadding = bottomPadding
+        self.content = content
+        _isContentMounted = State(initialValue: isExpanded)
+        _visibleHeight = State(initialValue: isExpanded ? nil : 0)
+        _visibleOpacity = State(initialValue: isExpanded ? 1 : 0)
+        _visibleOffset = State(initialValue: isExpanded ? 0 : StackSectionCollapsibleContentMetrics.collapsedOffset)
+    }
+
+    var body: some View {
+        Group {
+            if isContentMounted {
+                content
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, StackSectionMetrics.contentTopSpacing)
+                    .padding(.bottom, bottomPadding)
+                    .background(
+                        GeometryReader { proxy in
+                            Color.clear
+                                .preference(
+                                    key: StackSectionMeasuredContentHeightPreferenceKey.self,
+                                    value: proxy.size.height
+                                )
+                        }
+                    )
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(height: visibleHeight, alignment: .top)
+        .clipped()
+        .opacity(visibleOpacity)
+        .offset(y: visibleOffset)
+        .allowsHitTesting(isExpanded)
+        .accessibilityHidden(!isExpanded)
+        .onAppear {
+            syncInitialState()
+        }
+        .onChange(of: isExpanded) { expanded in
+            updateExpansionState(expanded)
+        }
+        .onPreferenceChange(StackSectionMeasuredContentHeightPreferenceKey.self) { height in
+            guard height > 0 else { return }
+            measuredHeight = height
+            guard isExpanded else { return }
+            withAnimation(.easeInOut(duration: StackSectionCollapsibleContentMetrics.duration)) {
+                visibleHeight = height
+                visibleOpacity = 1
+                visibleOffset = 0
+            }
+        }
+    }
+
+    private func syncInitialState() {
+        collapseTask?.cancel()
+        if isExpanded {
+            isContentMounted = true
+            visibleOpacity = 1
+            visibleOffset = 0
+            visibleHeight = measuredHeight > 0 ? measuredHeight : nil
+        } else {
+            isContentMounted = false
+            visibleOpacity = 0
+            visibleOffset = StackSectionCollapsibleContentMetrics.collapsedOffset
+            visibleHeight = 0
+        }
+    }
+
+    private func updateExpansionState(_ expanded: Bool) {
+        transitionRequestID &+= 1
+        let requestID = transitionRequestID
+        collapseTask?.cancel()
+
+        if expanded {
+            withTransaction(Transaction(animation: nil)) {
+                isContentMounted = true
+                visibleHeight = 0
+                visibleOpacity = 0
+                visibleOffset = 0
+            }
+            if measuredHeight > 0 {
+                let targetHeight = measuredHeight
+                DispatchQueue.main.async {
+                    guard transitionRequestID == requestID else { return }
+                    withAnimation(.easeInOut(duration: StackSectionCollapsibleContentMetrics.duration)) {
+                        visibleOpacity = 1
+                        visibleOffset = 0
+                        visibleHeight = targetHeight
+                    }
+                }
+            }
+            return
+        }
+
+        withAnimation(.easeInOut(duration: StackSectionCollapsibleContentMetrics.duration)) {
+            visibleOpacity = 0
+            visibleOffset = StackSectionCollapsibleContentMetrics.collapsedOffset
+            visibleHeight = 0
+        }
+
+        collapseTask = Task { @MainActor in
+            let durationNanoseconds = UInt64(StackSectionCollapsibleContentMetrics.duration * 1_000_000_000)
+            try? await Task.sleep(nanoseconds: durationNanoseconds)
+            guard !Task.isCancelled, !isExpanded else { return }
+            isContentMounted = false
+        }
+    }
+}
+
+fileprivate struct StackSectionMeasuredContentHeightPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
+fileprivate enum StackSectionCollapsibleContentMetrics {
+    static let duration = 0.25
+    static let collapsedOffset: CGFloat = -8
 }
 
 fileprivate struct StackSectionDebugSizeModifier: ViewModifier {
