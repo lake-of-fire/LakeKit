@@ -4,7 +4,7 @@ import SwiftUtilities
 
 @globalActor
 fileprivate actor LRUFileCacheActor {
-    static var shared = LRUFileCacheActor()
+    static let shared = LRUFileCacheActor()
 }
 
 #if DEBUG
