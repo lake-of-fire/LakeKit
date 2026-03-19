@@ -65,14 +65,14 @@ public struct DismissButton: View {
                 Text("Done")
             }
         }
-            .dismissButtonStyle(
-                style,
-                fill: fill,
-                colorScheme: colorScheme,
-                controlSize: controlSize,
-                glassEffect: glassEffect
-            )
-            .accessibilityLabel(Text("Close"))
+        .dismissButtonStyle(
+            style,
+            fill: fill,
+            colorScheme: colorScheme,
+            controlSize: controlSize,
+            glassEffect: glassEffect
+        )
+        .accessibilityLabel(Text("Close"))
     }
 
     public init(

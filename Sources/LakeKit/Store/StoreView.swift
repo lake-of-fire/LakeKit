@@ -559,8 +559,10 @@ public struct StoreView: View {
                         scrollValue: scrollValue
                     )
                 }
+#if DEBUG
                 AddReferralCodeButton()
                     .padding(.top, 3)
+#endif
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 16)
@@ -690,8 +692,10 @@ public struct StoreView: View {
                                             //                                    .fixedSize(horizontal: true, vertical: false)
                                             .frame(maxWidth: storeOptionsMaxWidth(geometrySize: geometry.size))
                                             
+#if DEBUG
                                             AddReferralCodeButton()
                                                 .padding(.top, 16)
+#endif
                                         }
                                         .padding(.top, 5)
                                     })

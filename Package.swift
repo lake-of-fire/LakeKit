@@ -22,7 +22,7 @@ let package = Package(
         .package(path: "../RealmSwiftGaps"),
         .package(path: "../SwiftUIDownloads"),
         .package(path: "../SwiftUtilities"),
-        .package(path: "../LakeImage"),
+        .package(url: "https://github.com/lake-of-fire/LakeImage.git", branch: "main"),
 //        .package(url: "https://github.com/NuPlay/ExpandableText.git", branch: "main"),
         .package(path: "../swiftui-webview"),
 //        .package(url: "https://github.com/demharusnam/SwiftUIDrag.git", branch: "main"),
