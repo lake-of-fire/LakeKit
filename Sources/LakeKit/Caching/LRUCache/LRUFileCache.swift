@@ -124,7 +124,7 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
         guard let keyHash = cacheKeyHash(key) else {
             return false
         }
-        return diskOnlyKeys.contains(keyHash) || cache.hasKey(keyHash)
+        return diskOnlyKeys.contains(keyHash) || cache.value(forKey: keyHash) != nil
     }
     
     public func value(forKey key: I) -> O? {

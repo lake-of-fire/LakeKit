@@ -17,7 +17,11 @@ public struct PurchaseOptionView: View {
     @EnvironmentObject private var storeHelper: StoreHelper
     
     private var hasValidReferralCode: Bool {
+#if DEBUG
         return !(pendingReferralCode?.isEmpty ?? true)
+#else
+        return false
+#endif
     }
     
     var storeProduct: StoreProduct {
