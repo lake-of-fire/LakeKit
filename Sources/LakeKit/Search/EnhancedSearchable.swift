@@ -4,6 +4,23 @@ import DSFSearchField
 #endif
 import DebouncedOnChange
 
+private func logLookupKeyboardSearch(
+    _ stage: String,
+    autosaveName: String?,
+    prompt: String?,
+    result: String
+) {
+    debugPrint(
+        "# LOOKUPKEYBOARD",
+        [
+            "stage": stage,
+            "autosaveName": autosaveName as Any,
+            "prompt": prompt as Any,
+            "result": result
+        ] as [String: Any]
+    )
+}
+
 struct IsEnhancedlySearchingKey: EnvironmentKey {
     static let defaultValue = false
 }
@@ -29,34 +46,50 @@ public struct EnhancedSearchableModifier: ViewModifier {
     let prompt: String?
     let placement: EnhancedSearchPlacement
     let searchAction: ((String) async throws -> Void)
-    
+
 #if os(iOS)
-    //    @State private var isIOSSearching = false
-    @State private var isExecutingSearchFieldFocusWorkaround = false
+    @State private var isSearchFieldEditing = false
+    @State private var searchFieldFocusRequestID = 0
 #endif
-    
+
     private var promptText: Text? {
         guard let prompt = prompt else { return nil }
         return Text(prompt)
     }
-    
+
     @State private var searchTask: Task<Void, Never>?
     @State private var shouldClear = false
+#if os(macOS)
     @FocusState private var focusedField: String?
-    
+#endif
+
     public func body(content: Content) -> some View {
+        let shouldShowCancelButton = isPresented && (canHide || isEnhancedlySearching || {
+#if os(macOS)
+            focusedField == "search"
+#else
+            isSearchFieldEditing
+#endif
+        }())
+
         VStack {
             if case .contentTop = placement, isPresented {
                 HStack {
                     Group {
 #if os(macOS)
-                        DSFSearchField.SwiftUI(text: $searchText, shouldClear: $shouldClear, placeholderText: prompt, autosaveName: autosaveName, onSearchTermChange: { searchText in
-                            Task { @MainActor in
-                                if self.searchText != searchText {
-                                    self.searchText = searchText
+                        DSFSearchField.SwiftUI(
+                            text: $searchText,
+                            shouldClear: $shouldClear,
+                            placeholderText: prompt,
+                            autosaveName: autosaveName,
+                            onSearchTermChange: { searchText in
+                                Task { @MainActor in
+                                    if self.searchText != searchText {
+                                        self.searchText = searchText
+                                    }
                                 }
                             }
-                        })
+                        )
                         .onExitCommand {
                             shouldClear = true
                             isPresented = false
@@ -66,13 +99,28 @@ public struct EnhancedSearchableModifier: ViewModifier {
                         RoundedTextField(
                             text: $searchText,
                             placeholder: prompt ?? "Search",
-                            leftSystemImage: "magnifyingglass"
+                            leftSystemImage: "magnifyingglass",
+                            focusRequestID: searchFieldFocusRequestID,
+                            onEditingChanged: { isEditing in
+                                logLookupKeyboardSearch(
+                                    "enhancedSearchable.searchFieldEditing",
+                                    autosaveName: autosaveName,
+                                    prompt: prompt,
+                                    result: "value=\(isEditing)"
+                                )
+                                isSearchFieldEditing = isEditing
+                                if isEditing, !isEnhancedlySearching {
+                                    isEnhancedlySearching = true
+                                }
+                            }
                         )
                         .submitLabel(.search)
 #endif
                     }
+#if os(macOS)
                     .focused($focusedField, equals: "search")
-                    if isPresented && (canHide || isEnhancedlySearching || focusedField == "search") {
+#endif
+                    if shouldShowCancelButton {
 #if os(macOS)
                         Button("Done") {
                             shouldClear = true
@@ -82,9 +130,15 @@ public struct EnhancedSearchableModifier: ViewModifier {
                         .buttonStyle(.borderless)
 #else
                         Button {
+                            logLookupKeyboardSearch(
+                                "enhancedSearchable.cancelTapped",
+                                autosaveName: autosaveName,
+                                prompt: prompt,
+                                result: "searchTextLength=\(searchText.count)"
+                            )
                             withAnimation {
                                 isEnhancedlySearching = false
-                                focusedField = nil
+                                isSearchFieldEditing = false
                                 isPresented = false
                             }
                             searchText = ""
@@ -93,20 +147,41 @@ public struct EnhancedSearchableModifier: ViewModifier {
                                 .padding(.horizontal, 5)
                                 .fixedSize()
                         }
+                        .simultaneousGesture(
+                            DragGesture(minimumDistance: 0)
+                                .onChanged { _ in
+                                    logLookupKeyboardSearch(
+                                        "enhancedSearchable.cancelPressBegan",
+                                        autosaveName: autosaveName,
+                                        prompt: prompt,
+                                        result: "searchTextLength=\(searchText.count)"
+                                    )
+                                }
+                                .onEnded { _ in
+                                    logLookupKeyboardSearch(
+                                        "enhancedSearchable.cancelPressEnded",
+                                        autosaveName: autosaveName,
+                                        prompt: prompt,
+                                        result: "searchTextLength=\(searchText.count)"
+                                    )
+                                }
+                        )
 #endif
                     }
                 }
                 .padding(.horizontal, 16)
                 .transition(.opacity)
             }
-            
+
             content
                 .onChange(of: isPresented) { [oldValue = isPresented] newValue in
                     guard oldValue != newValue else { return }
                     if newValue {
                         if case .contentTop = placement {
                             Task { @MainActor in
+#if os(macOS)
                                 focusedField = "search"
+#endif
                             }
                         }
                         if case .native = placement {
@@ -117,14 +192,17 @@ public struct EnhancedSearchableModifier: ViewModifier {
                             }
                         }
                     } else {
-                        // Closing: end the search session
                         searchText.removeAll()
                         if searchText.isEmpty {
                             isEnhancedlySearching = false
                         }
                         if case .contentTop = placement {
                             Task { @MainActor in
+#if os(macOS)
                                 focusedField = nil
+#else
+                                isSearchFieldEditing = false
+#endif
                             }
                         }
                         searchTask?.cancel()
@@ -143,54 +221,102 @@ public struct EnhancedSearchableModifier: ViewModifier {
             isEnhancedlySearching: $isEnhancedlySearching
         )
         .onDisappear {
+#if os(macOS)
+            let disappearResult = "focusedField=nil"
+#else
+            let disappearResult = "isSearchFieldEditing=false"
+#endif
+            logLookupKeyboardSearch(
+                "enhancedSearchable.onDisappear",
+                autosaveName: autosaveName,
+                prompt: prompt,
+                result: disappearResult
+            )
             Task { @MainActor in
+#if os(macOS)
                 focusedField = nil
+#else
+                isSearchFieldEditing = false
+#endif
             }
         }
         .onChange(of: searchText) { searchText in
+            logLookupKeyboardSearch(
+                "enhancedSearchable.searchText",
+                autosaveName: autosaveName,
+                prompt: prompt,
+                result: "length=\(searchText.count)"
+            )
             updateSearchingStatus(forSearchText: searchText)
         }
         .onChange(of: searchText, debounceTime: 0.18) { searchText in
             onSearchTextChange(searchText: searchText)
         }
 #if os(iOS)
-        .onChange(of: focusedField) { focusedField in
-            guard case .contentTop = placement else { return }
-            if !isEnhancedlySearching, focusedField == "search" {
-                isEnhancedlySearching = true
-            }
-        }
         .onChange(of: isPresented) { [oldValue = isPresented] isPresented in
+            logLookupKeyboardSearch(
+                "enhancedSearchable.isPresented",
+                autosaveName: autosaveName,
+                prompt: prompt,
+                result: "oldValue=\(oldValue); newValue=\(isPresented)"
+            )
             guard case .contentTop = placement else { return }
-            guard isPresented, oldValue != isPresented else { return }
+            guard oldValue != isPresented else { return }
+            guard isPresented else { return }
             Task { @MainActor in
-                focusedField = "search"
+                logLookupKeyboardSearch(
+                    "enhancedSearchable.focusRequest",
+                    autosaveName: autosaveName,
+                    prompt: prompt,
+                    result: "reason=iOS.onChange(isPresented); nextID=\(searchFieldFocusRequestID + 1)"
+                )
+                searchFieldFocusRequestID &+= 1
             }
         }
         .onChange(of: isEnhancedlySearching) { isEnhancedlySearching in
-            guard case .contentTop = placement else { return }
-            if isEnhancedlySearching {
-                focusedField = "search"
-            }
+            logLookupKeyboardSearch(
+                "enhancedSearchable.isEnhancedlySearching",
+                autosaveName: autosaveName,
+                prompt: prompt,
+                result: "value=\(isEnhancedlySearching); isSearchFieldEditing=\(isSearchFieldEditing)"
+            )
         }
 #endif
         .environment(\.isEnhancedlySearching, isEnhancedlySearching)
     }
-    
+
     private func updateSearchingStatus(forSearchText searchText: String) {
         let isTextEmpty = searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
 #if os(iOS)
         switch placement {
         case .contentTop:
-            isEnhancedlySearching = focusedField == "search" || !isTextEmpty
+            let nextIsEnhancedlySearching = isSearchFieldEditing || !isTextEmpty
+            if isEnhancedlySearching != nextIsEnhancedlySearching {
+                logLookupKeyboardSearch(
+                    "enhancedSearchable.updateSearchingStatus",
+                    autosaveName: autosaveName,
+                    prompt: prompt,
+                    result: "nextValue=\(nextIsEnhancedlySearching); isTextEmpty=\(isTextEmpty); isSearchFieldEditing=\(isSearchFieldEditing)"
+                )
+                isEnhancedlySearching = nextIsEnhancedlySearching
+            }
         case .native:
-            isEnhancedlySearching = !isTextEmpty || isPresented
+            let nextIsEnhancedlySearching = !isTextEmpty || isPresented
+            if isEnhancedlySearching != nextIsEnhancedlySearching {
+                logLookupKeyboardSearch(
+                    "enhancedSearchable.updateSearchingStatus",
+                    autosaveName: autosaveName,
+                    prompt: prompt,
+                    result: "nextValue=\(nextIsEnhancedlySearching); isTextEmpty=\(isTextEmpty); isPresented=\(isPresented); isSearchFieldEditing=\(isSearchFieldEditing)"
+                )
+                isEnhancedlySearching = nextIsEnhancedlySearching
+            }
         }
 #else
         isEnhancedlySearching = !isTextEmpty
 #endif
     }
-    
+
     private func onSearchTextChange(searchText: String) {
         searchTask?.cancel()
         searchTask = Task.detached {
@@ -278,7 +404,7 @@ private struct NativeSearchStateObserver: View {
 #if os(iOS)
 struct CustomSpacingLabel: LabelStyle {
     var spacing: Double = 0.0
-    
+
     func makeBody(configuration: Configuration) -> some View {
         HStack(spacing: spacing) {
             configuration.icon
