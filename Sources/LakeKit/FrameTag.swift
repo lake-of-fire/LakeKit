@@ -227,7 +227,7 @@ class WindowTagModel: ObservableObject {
     /// Store the frames of views (for excluding popover dismissal or source frames).
     @Published var frameTags: [AnyHashable: CGRect] = [:]
 
-    /// Access this with `UIResponder.frameTagged(_:)` if inside a `WindowReader`, or `Popover.Context.frameTagged(_:)` if inside a `PopoverReader.`
+    /// Access this with `UIResponder.frameTagged(_:)` when the tagged view lives in the current hosting window.
     func frame(tagged tag: AnyHashable) -> CGRect {
         let frame = frameTags[tag]
         return frame ?? .zero
