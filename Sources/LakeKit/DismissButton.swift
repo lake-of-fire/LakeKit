@@ -179,10 +179,10 @@ public struct BaseDismissButtonStyle: DismissButtonStyle {
                         Circle()
                             .fill(.ultraThinMaterial.opacity(0.92))
                     )
-//                    .overlay(
-//                        Circle()
-//                            .stroke(Color.white.opacity(fill ? 0 : 0.25), lineWidth: fill ? 0 : 1)
-//                    )
+                    .overlay(
+                        Circle()
+                            .stroke(Color.white.opacity(fill ? 0 : 0.25), lineWidth: fill ? 0 : 1)
+                    )
                 Image(systemName: systemImageName)
                     .font(.system(size: fontSize, weight: .bold, design: .rounded))
                     .foregroundStyle(Color.primary.opacity(configuration.isPressed ? 0.6 : 0.9))
