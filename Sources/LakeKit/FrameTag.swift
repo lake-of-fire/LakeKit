@@ -1,13 +1,7 @@
-//
-//  FrameTag.swift
-//  Popovers
-//
-//  Created by A. Zheng (github.com/aheze) on 12/23/21.
-//  Copyright © 2022 A. Zheng. All rights reserved.
-//
+// Forked local window/frame-tag utilities.
 
 #if os(macOS)
-// Forked from https://github.com/aheze/Popovers/blob/54728a9ca199ffbffe444d5b04a9354f6a02da7c/Sources/SwiftUI/FrameTag.swift#L81
+// Originally derived from a small open-source frame-tag helper and maintained locally.
 import SwiftUI
 import AppKit
 import SwiftUtilities
@@ -46,7 +40,7 @@ struct FrameTagModifier: ViewModifier {
 
 public extension View {
     /**
-     Tag a view and store its frame. Access using `Popovers.frameTagged(_:)`.
+     Tag a view and store its frame. Access using `frameTagged(_:)`.
 
      You can use this for supplying source frames or excluded frames. **Do not** use it anywhere else, due to State re-rendering issues.
 
@@ -90,7 +84,7 @@ public extension Optional where Wrapped: NSResponder {
 }
 
 /**
- Popovers supports multiple windows (iOS) by associating each `WindowTagModel` with a window.
+ WindowTagModels supports multiple windows by associating each `WindowTagModel` with a window.
  */
 
 /// A map of `WindowTagModel`s scoped to each window.
@@ -197,7 +191,7 @@ extension NSResponder {
             return viewController.view.windowTagModel
         }
 
-        print("[Popovers] - No `WindowTagModel` present in responder chain (\(self)) - has the source view been installed into a window? Please file a bug report (https://github.com/aheze/Popovers/issues).")
+        print("[WindowTagModel] - No `WindowTagModel` present in responder chain (\(self)) - has the source view been installed into a window?")
 
         return WindowTagModel()
     }
@@ -227,7 +221,7 @@ class WindowTagModel: ObservableObject {
     /// Store the frames of views (for excluding popover dismissal or source frames).
     @Published var frameTags: [AnyHashable: CGRect] = [:]
 
-    /// Access this with `UIResponder.frameTagged(_:)` if inside a `WindowReader`, or `Popover.Context.frameTagged(_:)` if inside a `PopoverReader.`
+    /// Access this with `UIResponder.frameTagged(_:)` when the tagged view lives in the current hosting window.
     func frame(tagged tag: AnyHashable) -> CGRect {
         let frame = frameTags[tag]
         return frame ?? .zero

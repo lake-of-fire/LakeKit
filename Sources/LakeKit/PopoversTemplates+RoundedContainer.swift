@@ -1,45 +1,46 @@
-// From: https://github.com/aheze/Popovers/blob/05e990e4f46dbcf51bc6b2937b3f9430e8e40164/Sources/Templates/Shapes.swift
-
 #if os(iOS)
 import SwiftUI
-import Popovers
+
+public enum Templates {}
 
 public extension Templates {
-    /**
-     A standard container for popovers, complete with arrow.
-     */
+    struct Shadow {
+        public var color: Color
+        public var radius: CGFloat
+        public var x: CGFloat
+        public var y: CGFloat
+
+        public init(
+            color: Color = Color.black.opacity(0.3),
+            radius: CGFloat = 16,
+            x: CGFloat = 0,
+            y: CGFloat = 8
+        ) {
+            self.color = color
+            self.radius = radius
+            self.x = x
+            self.y = y
+        }
+
+        public static var system: Shadow { Shadow() }
+    }
+
     struct RoundedContainer<Content: View>: View {
-        /// The container's corner radius.
         public var cornerRadius = CGFloat(24)
-        
-        /// The container's background/fill color.
-        public var backgroundColor = Color(.systemBackground)
-        
-        /// The shadow around the content view.
+        public var backgroundColor = Color(uiColor: .systemBackground)
         public var shadow: Shadow? = {
-            // See: https://github.com/aheze/Popovers/issues/36#issuecomment-1159931126
             var shadow = Templates.Shadow.system
-            shadow.color = Color(.black.withAlphaComponent(0.3))
+            shadow.color = Color.black.opacity(0.3)
             return shadow
         }()
-        
-        /// The padding around the content view.
         public var padding = CGFloat(16)
-        
-        /// The content view.
+
         @ViewBuilder public var view: Content
-        
-        /**
-         A standard container for popovers, complete with arrow.
-         - parameter arrowSide: Which side to place the arrow on.
-         - parameter cornerRadius: The container's corner radius.
-         - parameter padding: The padding around the content view.
-         - parameter view: The content view.
-         */
+
         public init(
-            cornerRadius: CGFloat = CGFloat(12),
+            cornerRadius: CGFloat = 12,
             shadow: Shadow? = nil,
-            padding: CGFloat = CGFloat(16),
+            padding: CGFloat = 16,
             @ViewBuilder view: () -> Content
         ) {
             self.cornerRadius = cornerRadius
@@ -47,69 +48,48 @@ public extension Templates {
             self.padding = padding
             self.view = view()
         }
-        
+
         public var body: some View {
-            PopoverReader { context in
-                view
-                    .padding(padding)
-                    .background(backgroundColor)
-                //                    .background(.thickMaterial)
-                //                    .background(.red.opacity(0.25))
-                //                        RoundedRectangle(cornerRadius: 16)
-                //                            .fill(.red)
-                //                        RoundedBackground(
-                //                            cornerRadius: cornerRadius
-                //                        )
-                //                        .fill(.red)
-                //                        .background(.ultraThickMaterial)
-                //                    )
-                    .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: cornerRadius)
-                            .stroke(Color.primary.opacity(0.15), lineWidth: 1.5)
-                    )
-                    .popoverShadowIfNeeded(shadow: shadow)
-                //                    .background {
-                //                        Color.clear
-                //                            .popoverShadowIfNeeded(shadow: shadow)
-                //                    }
-            }
+            view
+                .padding(padding)
+                .background(backgroundColor)
+                .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .stroke(Color.primary.opacity(0.15), lineWidth: 1.5)
+                )
+                .popoverShadowIfNeeded(shadow: shadow)
+        }
+    }
+
+    struct RoundedBackground: Shape {
+        public var cornerRadius: CGFloat
+        public static var width = CGFloat(48)
+        public static var height = CGFloat(12)
+
+        public func path(in rect: CGRect) -> Path {
+            var path = Path()
+            path.addRoundedRect(
+                in: rect,
+                cornerSize: CGSize(width: cornerRadius, height: cornerRadius)
+            )
+            return path
         }
     }
 }
 
-public extension Templates {
-    // MARK: - Background
-    
-    /**
-     A shape that has an arrow protruding.
-     */
-    struct RoundedBackground: Shape {
-        /// The shape's corner radius
-        public var cornerRadius: CGFloat
-        
-        /// The rectangle's width.
-        public static var width = CGFloat(48)
-        
-        /// The rectangle's height.
-        public static var height = CGFloat(12)
-        
-        /// Offset the arrow from the sides - otherwise it will overflow out of the corner radius.
-        /// This is multiplied by the `cornerRadius`.
-        /**
-         
-         /\
-         /_ \
-         ----------     <---- Avoid this gap.
-         \
-         rectangle  |
-         */
-        
-        /// Draw the shape.
-        public func path(in rect: CGRect) -> Path {
-            var path = Path()
-            path.addRoundedRect(in: rect, cornerSize: CGSize(width: cornerRadius, height: cornerRadius))
-            return path
+private extension View {
+    @ViewBuilder
+    func popoverShadowIfNeeded(shadow: Templates.Shadow?) -> some View {
+        if let shadow {
+            self.shadow(
+                color: shadow.color,
+                radius: shadow.radius,
+                x: shadow.x,
+                y: shadow.y
+            )
+        } else {
+            self
         }
     }
 }

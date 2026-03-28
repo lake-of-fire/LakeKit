@@ -94,6 +94,13 @@ public struct LocationBar: View, Equatable {
                 )
             }
         }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.white)
+        )
+        .shadow(color: .black.opacity(0.14), radius: 5)
         .focused($isFocused)
         .autocorrectionDisabled()
 #if os(iOS)
