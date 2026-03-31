@@ -80,6 +80,9 @@ fileprivate struct StoreViewForSheet: View {
                         Button("Cancel", role: .cancel) {
                             dismiss()
                         }
+                        .modifier {
+                            if #available(iOS 26, macOS 26, *) { $0.tint(.primary) } else { $0 }
+                        }
                     }
                 }
             }
@@ -236,6 +239,9 @@ fileprivate struct AddReferralCodeButton: View {
                     referralCodeToValidate = referralCodeInput.lowercased()
                 }
                 Button("Cancel", role: .cancel) { }
+                    .modifier {
+                        if #available(iOS 26, macOS 26, *) { $0.tint(.primary) } else { $0 }
+                    }
             } message: {
                 Text("Enter your referral code to apply it to your purchase.")
             }
