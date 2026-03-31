@@ -1,5 +1,5 @@
 {
-  "originHash" : "79d196090bd658f3342e6415cc8b1a764fe07f8e31d5c8d0180b4001000d5355",
+  "originHash" : "6c6cf124c9aba5ead82c8484902b5a831cce3386fbe5d08f5ab249613b3d9dc2",
   "pins" : [
     {
       "identity" : "bettersafariview2",
@@ -8,15 +8,6 @@
       "state" : {
         "branch" : "main",
         "revision" : "4e0f3af7787296e73e6b68499f7d78441b798649"
-      }
-    },
-    {
-      "identity" : "bigsynckit",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/lake-of-fire/BigSyncKit.git",
-      "state" : {
-        "branch" : "main",
-        "revision" : "f1ca80878114d855d3511cc0d2491b0758c92684"
       }
     },
     {
@@ -128,15 +119,6 @@
       }
     },
     {
-      "identity" : "popovers",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/lake-of-fire/Popovers.git",
-      "state" : {
-        "branch" : "main",
-        "revision" : "1e7cdf98b2c70f0846d763739c11da8568151dda"
-      }
-    },
-    {
       "identity" : "pow",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/EmergeTools/Pow.git",
@@ -222,8 +204,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-async-algorithms",
       "state" : {
-        "revision" : "2971dd5d9f6e0515664b01044826bcea16e59fac",
-        "version" : "1.1.2"
+        "revision" : "9d349bcc328ac3c31ce40e746b5882742a0d1272",
+        "version" : "1.1.3"
       }
     },
     {
@@ -357,17 +339,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/siteline/SwiftUI-Introspect.git",
       "state" : {
-        "branch" : "main",
-        "revision" : "69d97e5463727a67a5aef8db2986667d3bd83a83"
-      }
-    },
-    {
-      "identity" : "swiftui-webview",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/lake-of-fire/swiftui-webview.git",
-      "state" : {
-        "branch" : "main",
-        "revision" : "4b5fbcd289b0a790713914d3b3b4f5ba4ec5ee66"
+        "revision" : "26986a57e31c813f98262ddb62d4b07d40008535",
+        "version" : "26.0.1"
       }
     },
     {
