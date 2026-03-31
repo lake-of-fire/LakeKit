@@ -2,7 +2,7 @@ import SwiftUI
 
 public struct ClearBorderedButtonStyle: ButtonStyle {
     @Environment(\.controlSize) private var controlSize
-    
+
 #if os(iOS)
     private var miniMinWidth: CGFloat {
         smallMinWidth
@@ -14,24 +14,25 @@ public struct ClearBorderedButtonStyle: ButtonStyle {
     @ScaledMetric private var miniMinWidth: CGFloat = 28
     @ScaledMetric private var miniMinHeight: CGFloat = 28
 #endif
-    
+
     @ScaledMetric private var smallMinWidth: CGFloat = 30
     @ScaledMetric private var smallMinHeight: CGFloat = 30
-    
+
     @ScaledMetric private var regularMinWidth: CGFloat = 44
     @ScaledMetric private var regularMinHeight: CGFloat = 44
-    
+
     @ScaledMetric private var largeMinWidth: CGFloat = 52
     @ScaledMetric private var largeMinHeight: CGFloat = 52
-    
+
     @ScaledMetric private var extraLargeMinWidth: CGFloat = 60
     @ScaledMetric private var extraLargeMinHeight: CGFloat = 60
-    
+
 #if os(macOS)
     private let sizeFactor: CGFloat = 0.666
 #else
     private let sizeFactor: CGFloat = 1
 #endif
+
     private var minWidth: CGFloat {
         let width = {
             switch controlSize {
@@ -45,7 +46,7 @@ public struct ClearBorderedButtonStyle: ButtonStyle {
         }()
         return width * sizeFactor
     }
-    
+
     private var minHeight: CGFloat {
         let height = {
             switch controlSize {
@@ -59,7 +60,7 @@ public struct ClearBorderedButtonStyle: ButtonStyle {
         }()
         return height * sizeFactor
     }
-    
+
     public func makeBody(configuration: Configuration) -> some View {
         ClearBorderedButtonBody(
             configuration: configuration,
