@@ -25,7 +25,7 @@ let package = Package(
         .package(path: "../SwiftUtilities"),
         .package(url: "https://github.com/lake-of-fire/LakeImage.git", branch: "main"),
 //        .package(url: "https://github.com/NuPlay/ExpandableText.git", branch: "main"),
-        .package(url: "https://github.com/lake-of-fire/swiftui-webview.git", branch: "main"),
+        .package(path: "../swiftui-webview"),
 //        .package(url: "https://github.com/demharusnam/SwiftUIDrag.git", branch: "main"),
         .package(url: "https://github.com/apple/swift-collections.git", branch: "main"),
         .package(url: "https://github.com/lake-of-fire/BetterSafariView2.git", branch: "main"),
