@@ -17,6 +17,15 @@ public class SplitViewModel: NSObject, ObservableObject {
     @Published public var assistantLayout: LayoutHolder = .init(.horizontal)
     @Published internal var assistantHide: SideHolder = .init()
     private var hasSizedLayout = false
+
+    public var assistantHideHolder: SideHolder {
+        assistantHide
+    }
+
+    public var assistantHiddenSide: SplitSide? {
+        get { assistantHide.side }
+        set { assistantHide.side = newValue }
+    }
     
     public init(userDefaultsPrefix: String? = "main", assistantSide: SplitSide = .secondary, assistantFraction: CGFloat = 0.5) {
         self.assistantSide = assistantSide
@@ -31,7 +40,7 @@ public class SplitViewModel: NSObject, ObservableObject {
         self.refresh()
     }
     
-    internal func refreshAssistantFraction() {
+    public func refreshAssistantFraction() {
         if let userDefaultsPrefix = userDefaultsPrefix {
             assistantFraction = FractionHolder.usingUserDefaults(assistantFraction.value, key: "\(userDefaultsPrefix)-\(assistantLayout.isHorizontal)-SplitViewModel-assistantFraction")
         } else {
