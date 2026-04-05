@@ -17,6 +17,7 @@ extension Notification {
 @MainActor
 public class Session: ObservableObject {
     public var keychain: KeychainSwift
+    public nonisolated(unsafe) private(set) var fastUserID: Int = -1
     
     @Published public var isPresentingWebAuthentication = false
     
@@ -31,6 +32,7 @@ public class Session: ObservableObject {
         self.keychain = keychain
             if let userIDString = keychain.get("userID"), let userID = Int(userIDString) {
                 self.userID = userID
+                self.fastUserID = userID
                 Task { @MainActor in
                     updateAuthenticationState()
                 }
@@ -75,6 +77,7 @@ public class Session: ObservableObject {
         keychain.set(authToken, forKey: "authToken", withAccess: .accessibleAfterFirstUnlock)
         keychain.set(String(userID), forKey: "userID", withAccess: .accessibleAfterFirstUnlock)
         self.userID = userID
+        self.fastUserID = userID
         
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 500_000_000) // needed to not mess with swiftui sheets
@@ -103,6 +106,7 @@ public class Session: ObservableObject {
         keychain.delete("userID")
 //        Task { @MainActor in
             userID = -1
+            fastUserID = -1
             updateAuthenticationState()
 //        }
     }
