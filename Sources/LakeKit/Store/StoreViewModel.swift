@@ -92,6 +92,52 @@ public class StoreViewModel: NSObject, ObservableObject {
         self.isSubscribedFromElsewhereCallback = isSubscribedFromElsewhereCallback
         self.reserveReferralCodeForPurchase = reserveReferralCodeForPurchase
     }
+
+    public convenience init(
+        satisfyingPrerequisite: @escaping () async -> Bool = { true },
+        products: [StoreProductVersions],
+        studentProducts: [StoreProductVersions],
+        highlightedProductID: String,
+        headline: String,
+        subheadline: String,
+        productGroupHeading: String,
+        productGroupSubtitle: String?,
+        freeTierExplanation: String? = nil,
+        awardTitle: String?,
+        awardImage: Image?,
+        awardTestimonial: String,
+        awardLink: URL?,
+        benefits: [String],
+        termsOfService: URL,
+        privacyPolicy: URL,
+        chatURL: URL? = nil,
+        faqPairs: [(String, String)],
+        isSubscribedFromElsewhereCallback: ((StoreViewModel) async -> Bool)? = nil,
+        reserveReferralCodeForPurchase: @escaping (String, UUID) async throws -> Void = { _, _ in }
+    ) {
+        self.init(
+            satisfyingPrerequisite: satisfyingPrerequisite,
+            products: products,
+            studentProducts: studentProducts,
+            highlightedProductID: highlightedProductID,
+            headline: headline,
+            subheadline: subheadline,
+            productGroupHeading: productGroupHeading,
+            productGroupSubtitle: productGroupSubtitle,
+            freeTierExplanation: freeTierExplanation,
+            awardTitle: awardTitle,
+            awardImage: awardImage,
+            awardTestimonial: awardTestimonial,
+            awardLink: awardLink,
+            benefits: benefits,
+            termsOfService: termsOfService,
+            privacyPolicy: privacyPolicy,
+            chatURL: chatURL,
+            faq: OrderedDictionary(uniqueKeysWithValues: faqPairs),
+            isSubscribedFromElsewhereCallback: isSubscribedFromElsewhereCallback,
+            reserveReferralCodeForPurchase: reserveReferralCodeForPurchase
+        )
+    }
     
     /// Returns the app account token UUID, reading from UserDefaults or generating and storing a new one if not present.
     @MainActor
