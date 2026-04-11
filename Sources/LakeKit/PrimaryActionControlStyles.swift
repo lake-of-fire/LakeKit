@@ -140,7 +140,7 @@ public extension ControlGroupStyle where Self == PrimaryActionControlGroupStyle 
 }
 
 private struct PrimaryActionButtonHeightPreferenceKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
+    nonisolated(unsafe) static var defaultValue: CGFloat = 0
 
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         value = max(value, nextValue())
@@ -148,7 +148,7 @@ private struct PrimaryActionButtonHeightPreferenceKey: PreferenceKey {
 }
 
 private struct PrimaryActionButtonIconHeightPreferenceKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
+    nonisolated(unsafe) static var defaultValue: CGFloat = 0
 
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         value = max(value, nextValue())
@@ -156,11 +156,11 @@ private struct PrimaryActionButtonIconHeightPreferenceKey: PreferenceKey {
 }
 
 private struct PrimaryActionButtonMaxHeightKey: EnvironmentKey {
-    static var defaultValue: CGFloat = 0
+    nonisolated(unsafe) static var defaultValue: CGFloat = 0
 }
 
 private struct PrimaryActionButtonIconHeightKey: EnvironmentKey {
-    static var defaultValue: CGFloat = 0
+    nonisolated(unsafe) static var defaultValue: CGFloat = 0
 }
 
 private extension EnvironmentValues {

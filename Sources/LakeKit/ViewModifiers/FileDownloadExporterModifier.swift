@@ -5,7 +5,7 @@ private enum FileDownloadExporterError: Error {
     case unsupported
 }
 
-public struct FileDownloadExportRequest: Identifiable, Equatable {
+public struct FileDownloadExportRequest: Identifiable, Equatable, Sendable {
     public let id = UUID()
     public let url: URL
     public let defaultFilename: String
@@ -149,6 +149,7 @@ private struct FileDownloadExporterSheet: View {
     private func startDownloadIfNeeded() {
         guard downloadTask == nil, exporterDocument == nil else { return }
         errorMessage = nil
+        let request = self.request
         downloadTask = Task(priority: .userInitiated) {
             do {
                 let document = try await TemporaryDownloadedFileDocument.prepare(for: request)

@@ -48,7 +48,7 @@ fileprivate struct LocationBarIntrospection: ViewModifier {
     }
 }
 
-public struct LocationBar: View, Equatable {
+public struct LocationBar: View {
     let prompt: String
     @Binding var locationText: String
     @Binding var selection: Any? // TextSelection
@@ -146,10 +146,6 @@ public struct LocationBar: View, Equatable {
         self.prompt = prompt
         _selection = selection
         self.onSubmit = onSubmit
-    }
-    
-    public static func == (lhs: LocationBar, rhs: LocationBar) -> Bool {
-        return lhs.locationText == rhs.locationText && lhs.prompt == rhs.prompt
     }
 }
 

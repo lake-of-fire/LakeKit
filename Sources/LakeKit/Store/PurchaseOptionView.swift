@@ -154,6 +154,7 @@ fileprivate struct PurchaseOptionVersionView: View {
                 case .week: renewalString += "week"
                 case .month: renewalString += "month"
                 case .year: renewalString += "year"
+                @unknown default: renewalString += "period"
                 }
                 if renewalPeriod.value > 1 {
                     renewalString += "s"
@@ -521,13 +522,11 @@ fileprivate struct PurchaseOptionVersionView: View {
     }
     
     func submitAction() {
-        Task.detached {
+        Task {
             guard await storeViewModel.satisfyingPrerequisite() else { return }
-            Task { @MainActor in
-                isPresentingICloudIssue = (product.type == .consumable) && !isICloudSyncActive && iCloudSyncStateSummary != .notStarted && iCloudSyncStateSummary != .succeeded
-                if (product.type == .autoRenewable) || isICloudSyncActive {
-                    action(storeProduct, product)
-                }
+            isPresentingICloudIssue = (product.type == .consumable) && !isICloudSyncActive && iCloudSyncStateSummary != .notStarted && iCloudSyncStateSummary != .succeeded
+            if (product.type == .autoRenewable) || isICloudSyncActive {
+                action(storeProduct, product)
             }
         }
     }

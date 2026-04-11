@@ -174,11 +174,15 @@ public class StoreViewModel: NSObject, ObservableObject {
                 //                }
                 //            }
                 //            isSubscribed = false
-                let allSubscriptionProductIDs = storeHelper.productIds
-                
-                guard try await (storeHelper.productIds ?? []).async.contains(where: {
-                    try await storeHelper.isPurchased(productId: $0)
-                }) else {
+                var hasPurchasedSubscription = false
+                for productID in storeHelper.productIds ?? [] {
+                    if try await storeHelper.isPurchased(productId: productID) {
+                        hasPurchasedSubscription = true
+                        break
+                    }
+                }
+
+                guard hasPurchasedSubscription else {
                     try Task.checkCancellation()
                     if isSubscribed {
                         isSubscribed = false

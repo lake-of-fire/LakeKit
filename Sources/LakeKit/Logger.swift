@@ -29,7 +29,7 @@ fileprivate extension Logging.Logger.Level {
     }
 }
 
-fileprivate final class MutablePuppySink {
+fileprivate final class MutablePuppySink: @unchecked Sendable {
     private var puppy: Puppy
     private let lock = NSLock()
 
@@ -114,7 +114,7 @@ fileprivate struct MutablePuppyLogHandler: LogHandler {
     }
 }
 
-public class Logger/*: ObservableObject*/ {
+public final class Logger: @unchecked Sendable /*: ObservableObject*/ {
     public static let shared = Logger()
     public let logger: Logging.Logger
     private let puppySink: MutablePuppySink
@@ -344,8 +344,8 @@ public class LoggingViewModel: ObservableObject {
     public func load() async {
         loadTask?.cancel()
         
-        let newTask = Task.detached(priority: .utility) { [weak self] in
-            guard let self else { return }
+        let logger = self.logger
+        let newTask = Task(priority: .utility) {
             let logs = logger.getCurrentLogs().map { url in
                 TransferableLog(url: url, name: url.lastPathComponent)
             }

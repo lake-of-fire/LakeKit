@@ -81,6 +81,7 @@ public extension Optional where Wrapped: NSResponder {
      - parameter tag: The tag that you used for the frame.
      - Returns: The frame of a frame-tagged view, or `nil` if no view with the tag exists.
      */
+    @MainActor
     func frameTagged(_ tag: AnyHashable) -> CGRect {
         if let responder = self {
             return responder.frameTagged(tag)
@@ -94,6 +95,7 @@ public extension Optional where Wrapped: NSResponder {
  */
 
 /// A map of `WindowTagModel`s scoped to each window.
+@MainActor
 class WindowTagModels {
     /// The singleton `WindowTagModels` instance.
     static let shared = WindowTagModels()
@@ -218,7 +220,7 @@ extension EnvironmentValues {
     private struct WindowEnvironmentKey: EnvironmentKey {
         typealias Value = NSWindow?
 
-        static var defaultValue: NSWindow? = nil
+        nonisolated(unsafe) static var defaultValue: NSWindow? = nil
     }
 }
 

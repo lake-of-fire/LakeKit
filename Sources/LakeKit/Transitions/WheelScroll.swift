@@ -32,9 +32,10 @@ public struct WheelScroll<Content: View>: View {
             VStack(spacing: 0) {
                 content()
                     .scrollTransition(
-                        .interactive(timingCurve: .easeIn),
-                        transition: scrollTransitionRoll
-                    )
+                        .interactive(timingCurve: .easeIn)
+                    ) { effect, phase in
+                        scrollTransitionRoll(effect: effect, phase: phase)
+                    }
                     .scrollTransition(
                         .interactive(timingCurve: timingCurve).threshold(blurThreshold)
                     ) { effect, phase in
@@ -68,8 +69,10 @@ public struct WheelScroll<Content: View>: View {
 //        .clipShape(.rect)
     }
     
-    @Sendable
-    func scrollTransitionRoll(effect: EmptyVisualEffect, phase: ScrollTransitionPhase) -> some VisualEffect {
+    nonisolated private func scrollTransitionRoll(
+        effect: EmptyVisualEffect,
+        phase: ScrollTransitionPhase
+    ) -> some VisualEffect {
         effect
             .rotation3DEffect(
                 .degrees(phase.isIdentity ? 0 : 40),

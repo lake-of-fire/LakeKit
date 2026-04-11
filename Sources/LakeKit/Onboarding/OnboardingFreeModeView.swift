@@ -29,6 +29,7 @@ internal struct OnboardingFreeModeView: View {
                 case .week: renewalString += "week"
                 case .month: renewalString += "month"
                 case .year: renewalString += "year"
+                @unknown default: renewalString += "period"
                 }
                 if renewalPeriod.value > 1 {
                     renewalString += "s"

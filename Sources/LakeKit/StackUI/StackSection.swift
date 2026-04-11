@@ -413,7 +413,7 @@ fileprivate enum StackSectionTrailingButtonShape {
 }
 
 fileprivate struct AnyShape: Shape {
-    private let pathBuilder: (CGRect) -> Path
+    private let pathBuilder: @Sendable (CGRect) -> Path
 
     init<S: Shape>(_ shape: S) {
         pathBuilder = { rect in
@@ -629,7 +629,7 @@ fileprivate struct StackSectionCollapsibleContent<Content: View>: View {
 }
 
 fileprivate struct StackSectionMeasuredContentHeightPreferenceKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
+    nonisolated(unsafe) static var defaultValue: CGFloat = 0
 
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         value = max(value, nextValue())

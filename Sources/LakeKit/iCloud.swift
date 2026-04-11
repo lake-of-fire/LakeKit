@@ -1,5 +1,5 @@
 import SwiftUI
-import CloudKitSyncMonitor
+@preconcurrency import CloudKitSyncMonitor
 import CloudKit
 import BigSyncKit
 
@@ -21,7 +21,7 @@ private struct ICloudSyncActiveEnvironmentKey: EnvironmentKey {
     static let defaultValue: Bool = false
 }
 private struct ICloudSyncStateSummaryEnvironmentKey: EnvironmentKey {
-    static let defaultValue: SyncMonitor.SyncSummaryStatus = .unknown
+    nonisolated(unsafe) static var defaultValue: SyncMonitor.SyncSummaryStatus = .unknown
 }
 private struct ICloudSyncErrorEnvironmentKey: EnvironmentKey {
     static let defaultValue: Error? = nil

@@ -125,14 +125,14 @@ public extension ButtonStyle where Self == ClearBorderedButtonStyle {
 }
 
 private struct ClearBorderedButtonLabelSizeKey: PreferenceKey {
-    static var defaultValue: CGSize = .zero
+    nonisolated(unsafe) static var defaultValue: CGSize = .zero
     static func reduce(value: inout CGSize, nextValue: () -> CGSize) {
         value = nextValue()
     }
 }
 
 public struct ClearBorderedButtonHeightKey: PreferenceKey {
-    public static var defaultValue: CGFloat = 0
+    nonisolated(unsafe) public static var defaultValue: CGFloat = 0
     public static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         let next = nextValue()
         guard next > 0 else { return }
@@ -145,7 +145,7 @@ public struct ClearBorderedButtonHeightKey: PreferenceKey {
 }
 
 public struct ClearBorderedButtonTrailingPaddingKey: PreferenceKey {
-    public static var defaultValue: CGFloat = 0
+    nonisolated(unsafe) public static var defaultValue: CGFloat = 0
     public static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         value = nextValue()
     }

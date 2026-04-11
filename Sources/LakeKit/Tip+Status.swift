@@ -9,6 +9,8 @@ public extension Tip {
             return false
         case .invalidated(_):
             return true
+        @unknown default:
+            return false
         }
     }
 }

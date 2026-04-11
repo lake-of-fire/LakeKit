@@ -3,8 +3,6 @@ import SwiftUI
 import AppKit
 import Quartz
 
-var i = 0
-
 /// A simple class to go between the functional style of SwiftUI and the
 /// specific needs for #selectors in NSMenuItem.
 ///
@@ -84,10 +82,7 @@ private final class Cell<Content: View>: NSCollectionViewItem {
         
         // For debugging rendering, choose the text field:
         self.view = container
-        // self.view = NSTextField(labelWithString: "item \(i)")
-        
-        // print("Rendering item \(i)")
-        i += 1
+        // self.view = NSTextField(labelWithString: "item")
     }
     
     override func prepareForReuse() {
@@ -246,6 +241,7 @@ final class CenteredFlowLayout: NSCollectionViewFlowLayout {
 // NSObject is necessary to implement NSCollectionViewDataSource
 // TODO: ItemType extends identifiable?
 // TODO: Move the delegates to a coordinator.
+@MainActor
 public struct CollectionView<ItemType, Content: View>: /* NSObject, */ NSViewRepresentable /* NSCollectionViewDataSource, NSCollectionViewDelegateFlowLayout */ where ItemType: Equatable, ItemType: Identifiable  {
     var items: [ItemType]
     @Binding var selection: Set<ItemType.ID>
@@ -283,7 +279,8 @@ public struct CollectionView<ItemType, Content: View>: /* NSObject, */ NSViewRep
         self.renderer = renderer
     }
     
-    public final class Coordinator: NSObject, NSCollectionViewDelegate, QLPreviewPanelDelegate, QLPreviewPanelDataSource, NSCollectionViewDataSource {
+    @MainActor
+    public final class Coordinator: NSObject, NSCollectionViewDelegate, @preconcurrency QLPreviewPanelDelegate, @preconcurrency QLPreviewPanelDataSource, NSCollectionViewDataSource {
         var parent: CollectionView<ItemType, Content>
         var selection: Binding<Set<ItemType.ID>>
         

@@ -28,7 +28,7 @@ public struct EnhancedSearchableModifier: ViewModifier {
     let autosaveName: String?
     let prompt: String?
     let placement: EnhancedSearchPlacement
-    let searchAction: ((String) async throws -> Void)
+    let searchAction: @Sendable (String) async throws -> Void
     
 #if os(iOS)
     //    @State private var isIOSSearching = false
@@ -193,7 +193,8 @@ public struct EnhancedSearchableModifier: ViewModifier {
     
     private func onSearchTextChange(searchText: String) {
         searchTask?.cancel()
-        searchTask = Task.detached {
+        let searchAction = self.searchAction
+        searchTask = Task {
             do {
                 try Task.checkCancellation()
                 try await searchAction(searchText)

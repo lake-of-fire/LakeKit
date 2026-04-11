@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - StackList Style & Environment
 
-public struct StackListConfig: Equatable {
+public struct StackListConfig: Equatable, Sendable {
     public var interItemSpacing: CGFloat
     public var managesSeparators: Bool
     public var expandedBottomPadding: CGFloat
@@ -30,7 +30,7 @@ extension EnvironmentValues {
 }
 
 // MARK: - Appearance Environment (separate from layout config)
-public enum StackListAppearance: Equatable {
+public enum StackListAppearance: Equatable, Sendable {
     case automatic
     case plain
     case grouped
@@ -140,13 +140,13 @@ extension EnvironmentValues {
 }
 // Parent publishes a default per row; children (e.g., StackSection) may override dynamically.
 struct StackListRowSeparatorDefaultPreferenceKey: PreferenceKey {
-    static var defaultValue: [UUID: Visibility] = [:]
+    nonisolated(unsafe) static var defaultValue: [UUID: Visibility] = [:]
     static func reduce(value: inout [UUID: Visibility], nextValue: () -> [UUID: Visibility]) {
         value.merge(nextValue(), uniquingKeysWith: { _, new in new })
     }
 }
 struct StackListRowSeparatorOverridePreferenceKey: PreferenceKey {
-    static var defaultValue: [UUID: Visibility] = [:]
+    nonisolated(unsafe) static var defaultValue: [UUID: Visibility] = [:]
     static func reduce(value: inout [UUID: Visibility], nextValue: () -> [UUID: Visibility]) {
         value.merge(nextValue(), uniquingKeysWith: { _, new in new })
     }
@@ -154,7 +154,7 @@ struct StackListRowSeparatorOverridePreferenceKey: PreferenceKey {
 
 // Detect if a row renders as empty (zero-size)
 struct StackListRowEmptyPreferenceKey: PreferenceKey {
-    static var defaultValue: [UUID: Bool] = [:]
+    nonisolated(unsafe) static var defaultValue: [UUID: Bool] = [:]
     static func reduce(value: inout [UUID: Bool], nextValue: () -> [UUID: Bool]) {
         value.merge(nextValue(), uniquingKeysWith: { _, new in new })
     }
@@ -162,7 +162,7 @@ struct StackListRowEmptyPreferenceKey: PreferenceKey {
 
 // Publish measured height per row (animates any content-driven height change)
 struct StackListRowHeightPreferenceKey: PreferenceKey {
-    static var defaultValue: [UUID: CGFloat] = [:]
+    nonisolated(unsafe) static var defaultValue: [UUID: CGFloat] = [:]
     static func reduce(value: inout [UUID: CGFloat], nextValue: () -> [UUID: CGFloat]) {
         value.merge(nextValue(), uniquingKeysWith: { _, new in new })
     }
@@ -170,14 +170,14 @@ struct StackListRowHeightPreferenceKey: PreferenceKey {
 
 // Publish expansion state per row (used only to gate animations)
 struct StackListRowExpansionPreferenceKey: PreferenceKey {
-    static var defaultValue: [UUID: Bool] = [:]
+    nonisolated(unsafe) static var defaultValue: [UUID: Bool] = [:]
     static func reduce(value: inout [UUID: Bool], nextValue: () -> [UUID: Bool]) {
         value.merge(nextValue(), uniquingKeysWith: { _, new in new })
     }
 }
 
 // MARK: - Unified row preference payload (coalesce all row prefs into a single key)
-struct StackListRowPrefs: Equatable {
+struct StackListRowPrefs: Equatable, Sendable {
     var isEmpty: Bool?
     var height: CGFloat?
     var isExpanded: Bool?
@@ -185,7 +185,7 @@ struct StackListRowPrefs: Equatable {
 }
 
 struct StackListRowPrefsPreferenceKey: PreferenceKey {
-    static var defaultValue: [UUID: StackListRowPrefs] = [:]
+    nonisolated(unsafe) static var defaultValue: [UUID: StackListRowPrefs] = [:]
     static func reduce(value: inout [UUID: StackListRowPrefs], nextValue: () -> [UUID: StackListRowPrefs]) {
         for (k, v) in nextValue() {
             var current = value[k] ?? StackListRowPrefs()
