@@ -69,14 +69,7 @@ public struct EmptyStateBoxView<Trailing: View>: View {
                         }
                         trailingView
                             .labelStyle(.titleAndIcon)
-                            .buttonStyle(.borderedProminent)
-                            .controlSize(.small)
-                            .font(.footnote)
-                            .modifier {
-                                if #available(iOS 16, macOS 13, *) {
-                                    $0.fontWeight(.semibold)
-                                } else { $0 }
-                            }
+                            .modifier(EmptyStateActionButtonModifier())
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -88,6 +81,25 @@ public struct EmptyStateBoxView<Trailing: View>: View {
         .listRowInsets(.init())
         .fixedSize(horizontal: false, vertical: true)
         //.enableInjection()
+    }
+}
+
+private struct EmptyStateActionButtonModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .font(.footnote)
+//            .foregroundStyle(.accentColor)
+//            .padding(.horizontal, 2)
+//            .padding(.vertical, 1)
+            .modifier {
+                if #available(iOS 16, macOS 13, *) {
+                    $0
+                        .fontWeight(.semibold)
+                        .backgroundStyle(.secondary)
+                } else { $0 }
+            }
     }
 }
 
