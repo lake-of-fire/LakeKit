@@ -54,7 +54,7 @@ let package = Package(
         .package(url: "https://github.com/Tunous/DebouncedOnChange.git", branch: "main"),
         .package(url: "https://github.com/lake-of-fire/Puppy.git", branch: "main"),
         .package(url: "https://github.com/lake-of-fire/CloudKitSyncMonitor.git", branch: "main"),
-        .package(url: "https://github.com/johnpatrickmorgan/NavigationBackport.git", branch: "main"),
+        .package(url: "https://github.com/johnpatrickmorgan/NavigationBackport.git", revision: "540d823fdfbbe495cbbe0afc80c409d63c9995c0"),
         .package(url: "https://github.com/siteline/swiftui-introspect.git", from: "26.0.0"),
         //        .package(path: "../FramedScreenshotsTool"),
     ],
