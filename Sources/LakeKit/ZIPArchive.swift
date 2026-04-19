@@ -29,6 +29,10 @@ extension ZIPArchive: LakeKit.Shareable {
             return nil
         }
     }
+
+    public var sharingItem: Any {
+        itemProvider ?? content
+    }
 }
 #endif
 
