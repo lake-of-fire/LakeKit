@@ -6,6 +6,7 @@ import SwiftUI
 public protocol Shareable {
     var pathExtension: String { get }
     var itemProvider: NSItemProvider? { get }
+    var sharingItem: Any { get }
 }
 
 public struct ActivityItem<Data> where Data: RandomAccessCollection, Data.Element: Shareable {
@@ -29,11 +30,23 @@ extension String: Shareable {
             return nil
         }
     }
+
+    public var sharingItem: Any {
+        itemProvider ?? self
+    }
 }
 
 extension URL: Shareable {
+    public var pathExtension: String {
+        NSString(string: absoluteString).pathExtension
+    }
+
     public var itemProvider: NSItemProvider? {
         .init(contentsOf: self)
+    }
+
+    public var sharingItem: Any {
+        self
     }
 }
 

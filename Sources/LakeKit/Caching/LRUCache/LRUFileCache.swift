@@ -54,7 +54,9 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
         let versionFileURL = cacheRoot.appendingPathComponent("lru-cache-version-\(namespace).txt")
         var versionString = version.map(String.init) ?? Bundle.main.versionString
 #if DEBUG
-        versionString += debugBuildID.uuidString
+        if version == nil {
+            versionString += debugBuildID.uuidString
+        }
 #endif
         
         if let versionData = try? Data(contentsOf: versionFileURL) {
@@ -93,6 +95,27 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
         }
         
         return String(decoding: output, as: UTF8.self)
+    }
+
+    public func debugKeyHash(for key: I) -> String? {
+        cacheKeyHash(key)
+    }
+
+    public func debugDiskEntryURL(for key: I) -> URL? {
+        guard let keyHash = cacheKeyHash(key) else { return nil }
+        let baseURL = cacheDirectory.appendingPathComponent(keyHash)
+        let exts = ["lz4", "json-lz4", "json", "raw", "nil"]
+        for ext in exts {
+            let fileURL = baseURL.appendingPathExtension(ext)
+            if FileManager.default.fileExists(atPath: fileURL.path) {
+                return fileURL
+            }
+        }
+        return nil
+    }
+
+    public func hasDiskEntry(for key: I) -> Bool {
+        debugDiskEntryURL(for: key) != nil
     }
     
     public func removeValue(forKey key: I) {

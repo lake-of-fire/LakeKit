@@ -90,9 +90,7 @@ private struct EmptyStateActionButtonModifier: ViewModifier {
             .buttonStyle(.bordered)
             .controlSize(.small)
             .font(.footnote)
-//            .foregroundStyle(.accentColor)
-//            .padding(.horizontal, 2)
-//            .padding(.vertical, 1)
+            .foregroundStyle(Color.accentColor)
             .modifier {
                 if #available(iOS 16, macOS 13, *) {
                     $0
