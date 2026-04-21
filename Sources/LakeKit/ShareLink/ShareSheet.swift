@@ -26,7 +26,7 @@ private struct ShareSheet<Data>: NSViewRepresentable where Data: RandomAccessCol
         view.item = $item
     }
 
-    final class SourceView: NSView, NSSharingServicePickerDelegate, NSSharingServiceDelegate {
+    final class SourceView: NSView, @preconcurrency NSSharingServicePickerDelegate, @preconcurrency NSSharingServiceDelegate {
         var picker: NSSharingServicePicker?
 
         var item: Binding<ActivityItem<Data>?> {
