@@ -7,9 +7,13 @@ fileprivate actor LRUFileCacheActor {
     static let shared = LRUFileCacheActor()
 }
 
-#if DEBUG
-fileprivate let debugBuildID = UUID()
-#endif
+fileprivate func cacheVersionString(baseVersion version: String) -> String {
+    #if DEBUG
+    return version + "-debug-build-" + Bundle.main.appBuild
+    #else
+    return version
+    #endif
+}
 
 /// Large objects get stored on disk in the cache directory that Apple manages, which doesn't need LRU management.
 open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
@@ -52,10 +56,7 @@ open class LRUFileCache<I: Encodable, O: Codable>: ObservableObject {
         cache = LRUCache(totalCostLimit: totalBytesLimit, countLimit: countLimit)
         
         let versionFileURL = cacheRoot.appendingPathComponent("lru-cache-version-\(namespace).txt")
-        var versionString = version.map(String.init) ?? Bundle.main.versionString
-#if DEBUG
-        versionString += debugBuildID.uuidString
-#endif
+        let versionString = cacheVersionString(baseVersion: version.map(String.init) ?? Bundle.main.versionString)
         
         if let versionData = try? Data(contentsOf: versionFileURL) {
             if String(data: versionData, encoding: .utf8) != versionString {

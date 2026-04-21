@@ -4,9 +4,13 @@ import LRUCache
 import SwiftUtilities
 import SQLiteData
 
-#if DEBUG
-fileprivate let debugBuildID = UUID()
-#endif
+fileprivate func sqliteCacheVersionString(baseVersion version: String) -> String {
+    #if DEBUG
+    return version + "-debug-build-" + Bundle.main.appBuild
+    #else
+    return version
+    #endif
+}
 
 @Table("cache")
 fileprivate struct CacheEntry: Codable, Hashable, Sendable {
@@ -152,10 +156,7 @@ open class LRUSQLiteCache<I: Encodable, O: Codable>: ObservableObject {
         
         let versionFileURL = cacheDirectory.appendingPathComponent("lru_cache_version.txt")
         let bundleVersion = (Bundle.main.infoDictionary?["CFBundleVersion"] as? String) ?? "0"
-        var versionString = version.map(String.init) ?? bundleVersion
-#if DEBUG
-        versionString += debugBuildID.uuidString
-#endif
+        let versionString = sqliteCacheVersionString(baseVersion: version.map(String.init) ?? bundleVersion)
         
         let dbURL = cacheDirectory.appendingPathComponent("cache.sqlite")
         
