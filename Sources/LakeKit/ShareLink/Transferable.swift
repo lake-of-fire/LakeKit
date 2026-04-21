@@ -17,6 +17,13 @@ public struct ActivityItem<Data> where Data: RandomAccessCollection, Data.Elemen
     }
 }
 
+public extension URL {
+    /// Uses the serialized URL string to avoid collisions with `Shareable.pathExtension`.
+    var lakePathExtension: String {
+        NSString(string: absoluteString).pathExtension
+    }
+}
+
 extension String: Shareable {
     public var pathExtension: String { "txt" }
     public var itemProvider: NSItemProvider? {
@@ -38,7 +45,7 @@ extension String: Shareable {
 
 extension URL: Shareable {
     public var pathExtension: String {
-        NSString(string: absoluteString).pathExtension
+        lakePathExtension
     }
 
     public var itemProvider: NSItemProvider? {
