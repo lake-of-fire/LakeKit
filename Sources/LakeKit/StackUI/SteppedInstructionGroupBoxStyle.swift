@@ -9,7 +9,7 @@ public struct SteppedInstructionGroupBoxStyle: GroupBoxStyle {
 
     public func makeBody(configuration: Configuration) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Text("Step \(stepNumber)")
                     .font(.footnote.weight(.medium))
                     .textCase(.uppercase)
@@ -21,6 +21,7 @@ public struct SteppedInstructionGroupBoxStyle: GroupBoxStyle {
                             .fill(Color.primary)
                     )
                 configuration.label
+                    .font(.headline)
             }
             configuration.content
         }
@@ -37,4 +38,3 @@ public extension GroupBoxStyle where Self == SteppedInstructionGroupBoxStyle {
         Self(stepNumber: stepNumber)
     }
 }
-
