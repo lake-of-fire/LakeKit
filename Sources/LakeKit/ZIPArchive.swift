@@ -8,6 +8,19 @@ public enum TransferError: Error {
 public struct ZIPArchive: Codable {
     public let title: String
     public let content: Data
+    public var fileBaseName: String {
+        let illegalCharacters = CharacterSet(charactersIn: "/\\:")
+            .union(.newlines)
+            .union(.controlCharacters)
+        let sanitized = title
+            .components(separatedBy: illegalCharacters)
+            .joined(separator: "-")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return sanitized.isEmpty ? "Archive" : sanitized
+    }
+    public var fileName: String {
+        "\(fileBaseName).zip"
+    }
     
     public init(title: String, content: Data) {
         self.title = title
@@ -42,8 +55,7 @@ extension ZIPArchive: Transferable {
         FileRepresentation(contentType: .zip,
                            shouldAttemptToOpenInPlace: false) { zip in
             let resultURL = FileManager.default.temporaryDirectory
-                .appendingPathComponent(zip.title)
-                .appendingPathExtension("zip")
+                .appendingPathComponent(zip.fileName)
             if FileManager.default.fileExists(atPath: resultURL.path) {
                 try FileManager.default.removeItem(at: resultURL)
             }

@@ -120,7 +120,12 @@ public final class Logger: @unchecked Sendable /*: ObservableObject*/ {
     private let puppySink: MutablePuppySink
     
     private var fileLogger: FileRotationLogger?
-    private static let fileIOQueue = DispatchQueue(label: "LakeKit.Logger.FileIO", qos: .utility)
+    private static let fileIOQueueKey = DispatchSpecificKey<Void>()
+    private static let fileIOQueue: DispatchQueue = {
+        let queue = DispatchQueue(label: "LakeKit.Logger.FileIO", qos: .utility)
+        queue.setSpecific(key: fileIOQueueKey, value: ())
+        return queue
+    }()
     
     init() {
         let configured = Self.makeLogger()
@@ -144,6 +149,9 @@ public final class Logger: @unchecked Sendable /*: ObservableObject*/ {
     
     // MARK: Methods
     private static func performFileIO<T>(_ work: () throws -> T) rethrows -> T {
+        if DispatchQueue.getSpecific(key: fileIOQueueKey) != nil {
+            return try work()
+        }
         if Thread.isMainThread {
             return try fileIOQueue.sync {
                 try work()
@@ -155,12 +163,16 @@ public final class Logger: @unchecked Sendable /*: ObservableObject*/ {
     // This method throws in theory, but not in practice.
     static func logDirectoryURL() throws -> URL {
         try performFileIO {
-            // Derive the sandboxed app-support path without a .userDomainMask lookup.
-            let baseURL = URL(fileURLWithPath: NSHomeDirectory(), isDirectory: true)
-                .appendingPathComponent("Library", isDirectory: true)
-                .appendingPathComponent("Application Support", isDirectory: true)
-            return baseURL.appendingPathComponent("logs", isDirectory: true)
+            rawLogDirectoryURL()
         }
+    }
+
+    private static func rawLogDirectoryURL() -> URL {
+        // Derive the sandboxed app-support path without a .userDomainMask lookup.
+        let baseURL = URL(fileURLWithPath: NSHomeDirectory(), isDirectory: true)
+            .appendingPathComponent("Library", isDirectory: true)
+            .appendingPathComponent("Application Support", isDirectory: true)
+        return baseURL.appendingPathComponent("logs", isDirectory: true)
     }
     
     func createLogDirectory() throws {
@@ -219,7 +231,7 @@ public final class Logger: @unchecked Sendable /*: ObservableObject*/ {
     func getCurrentLogs() -> [URL] {
         do {
             return try Self.performFileIO {
-                let url = try Self.logDirectoryURL()
+                let url = Self.rawLogDirectoryURL()
                 let items = try FileManager.default.contentsOfDirectory(atPath: url.path)
                 return items.compactMap { url.appendingPathComponent($0) } .sorted(by: { $0.lastPathComponent > $1.lastPathComponent })
             }
@@ -320,6 +332,7 @@ public class LoggingViewModel: ObservableObject {
     //    @Published public var clippedReversedLogsText: String?
     @Published public var clippedLogsText: String?
     @Published public var logsZIPArchive: ZIPArchive?
+    @Published public var emailLogsZIPArchive: ZIPArchive?
     @Published private var loadTask: Task<Void, Error>? = nil
     
     private let logger: Logger
@@ -345,7 +358,7 @@ public class LoggingViewModel: ObservableObject {
         loadTask?.cancel()
         
         let logger = self.logger
-        let newTask = Task(priority: .utility) {
+        let newTask = Task.detached(priority: .utility) {
             let logs = logger.getCurrentLogs().map { url in
                 TransferableLog(url: url, name: url.lastPathComponent)
             }
@@ -384,46 +397,17 @@ public class LoggingViewModel: ObservableObject {
             }()
             
             do {
-                let archive = try await withCheckedThrowingContinuation { continuation in
-                    do {
-                        try Task.checkCancellation()
-                        let logsData = Data(logsText.utf8)
-                        guard let archive = Archive(accessMode: .create) else {
-                            throw NSError(domain: "LoggingViewModel", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to initialize in-memory ZIP archive."])
-                        }
-                        let progress = Progress(totalUnitCount: Int64(logsData.count))
-                        try archive.addEntry(
-                            with: "ManabiReaderLogs.txt",
-                            type: .file,
-                            uncompressedSize: Int64(logsData.count),
-                            modificationDate: Date(),
-                            permissions: nil,
-                            compressionMethod: .deflate,
-                            progress: progress
-                        ) { position, size -> Data in
-                            if Task.isCancelled {
-                                progress.cancel()
-                            }
-                            let start = Int(position)
-                            return logsData.subdata(in: start..<(start + size))
-                        }
-                        guard let zipData = archive.data else {
-                            throw NSError(domain: "LoggingViewModel", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to get archive data."])
-                        }
-                        continuation.resume(
-                            returning: ZIPArchive(
-                                title: "ManabiReaderLogs",
-                                content: zipData
-                            )
-                        )
-                    } catch {
-                        continuation.resume(throwing: error)
-                    }
-                }
+                try Task.checkCancellation()
+                let archive = try makeLogsZIPArchive(title: "ManabiReaderLogs", logsText: logsText)
+                let emailArchive = try makeLogsZIPArchive(
+                    title: "ManabiReaderLogs-Recent",
+                    logsText: recentLogsText(from: fileContents, byteLimit: 1_024 * 1_024)
+                )
                 try await { @MainActor [weak self] in
                     guard let self else { return }
                     try Task.checkCancellation()
                     self.logsZIPArchive = archive
+                    self.emailLogsZIPArchive = emailArchive
                 }()
             } catch {
                 Logger.shared.logger.error("LoggingViewModel error: \(error)")
@@ -434,6 +418,52 @@ public class LoggingViewModel: ObservableObject {
         try? await newTask.value
         loadTask = nil
     }
+}
+
+private func recentLogsText(from newestFirstLogContents: [String], byteLimit: Int) -> String {
+    let recentLogData = newestFirstLogContents.reduce(into: Data()) { result, logText in
+        guard result.count < byteLimit else { return }
+        let remainingByteCount = byteLimit - result.count
+        let logData = Data(logText.utf8)
+        result.append(logData.suffix(remainingByteCount))
+    }
+    guard !recentLogData.isEmpty else { return "" }
+    
+    var suffixData = recentLogData
+    while !suffixData.isEmpty {
+        if let text = String(data: suffixData, encoding: .utf8) {
+            return "Logs truncated to the most recent 1 MiB for email.\n\n\(text)"
+        }
+        suffixData.removeFirst()
+    }
+    return ""
+}
+
+private func makeLogsZIPArchive(title: String, logsText: String) throws -> ZIPArchive {
+    let logsData = Data(logsText.utf8)
+    guard let archive = Archive(accessMode: .create) else {
+        throw NSError(domain: "LoggingViewModel", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to initialize in-memory ZIP archive."])
+    }
+    let progress = Progress(totalUnitCount: Int64(logsData.count))
+    try archive.addEntry(
+        with: "ManabiReaderLogs.txt",
+        type: .file,
+        uncompressedSize: Int64(logsData.count),
+        modificationDate: Date(),
+        permissions: nil,
+        compressionMethod: .deflate,
+        progress: progress
+    ) { position, size -> Data in
+        if Task.isCancelled {
+            progress.cancel()
+        }
+        let start = Int(position)
+        return logsData.subdata(in: start..<(start + size))
+    }
+    guard let zipData = archive.data else {
+        throw NSError(domain: "LoggingViewModel", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to get archive data."])
+    }
+    return ZIPArchive(title: title, content: zipData)
 }
 
 public struct TransferableLog: Hashable, Transferable {
