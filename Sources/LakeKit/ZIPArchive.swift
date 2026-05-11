@@ -5,18 +5,27 @@ public enum TransferError: Error {
     case importFailed
 }
 
+public enum FileNameSanitizer {
+    public static func sanitizedBaseName(_ value: String, fallback: String = "File") -> String {
+        let illegalCharacters = CharacterSet(charactersIn: "/\\:")
+            .union(.newlines)
+            .union(.controlCharacters)
+        let sanitized = value
+            .components(separatedBy: illegalCharacters)
+            .joined(separator: "-")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "."))
+        let fallback = fallback.isEmpty ? "File" : fallback
+        let baseName = sanitized.isEmpty ? fallback : sanitized
+        return String(baseName.prefix(180))
+    }
+}
+
 public struct ZIPArchive: Codable {
     public let title: String
     public let content: Data
     public var fileBaseName: String {
-        let illegalCharacters = CharacterSet(charactersIn: "/\\:")
-            .union(.newlines)
-            .union(.controlCharacters)
-        let sanitized = title
-            .components(separatedBy: illegalCharacters)
-            .joined(separator: "-")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        return sanitized.isEmpty ? "Archive" : sanitized
+        FileNameSanitizer.sanitizedBaseName(title, fallback: "Archive")
     }
     public var fileName: String {
         "\(fileBaseName).zip"
