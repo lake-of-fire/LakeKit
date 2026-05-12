@@ -1,5 +1,16 @@
 import SwiftUI
 
+private struct EmptyStateBoxFillsAvailableHeightKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+public extension EnvironmentValues {
+    var emptyStateBoxFillsAvailableHeight: Bool {
+        get { self[EmptyStateBoxFillsAvailableHeightKey.self] }
+        set { self[EmptyStateBoxFillsAvailableHeightKey.self] = newValue }
+    }
+}
+
 /// A reusable empty-state view that matches the platform look & feel.
 /// - Uses a GroupBox with the system image as the label.
 /// - Places title + supporting text on the leading side.
@@ -10,10 +21,12 @@ public struct EmptyStateBoxView<Trailing: View>: View {
     public let systemImageName: String
     @ViewBuilder public var trailingView: Trailing
     public let groupBoxAppearance: StackListGroupBoxStyleOption
+    public let minimumContentHeight: CGFloat?
 
     @Environment(\.controlSize) private var controlSize
     @Environment(\.stackListStyle) private var stackListStyle
     @Environment(\.stackListIsGroupedContext) private var stackListGroupedContext
+    @Environment(\.emptyStateBoxFillsAvailableHeight) private var fillsAvailableHeight
     @ScaledMetric(relativeTo: .body) private var groupedMinHeight: CGFloat = 90
 
     private var hasTrailingContent: Bool {
@@ -29,27 +42,55 @@ public struct EmptyStateBoxView<Trailing: View>: View {
         text: Text,
         systemImageName: String,
         groupBoxAppearance: StackListGroupBoxStyleOption = .automatic,
+        minimumContentHeight: CGFloat? = nil,
         @ViewBuilder trailingView: () -> Trailing
     ) {
         self.title = title
         self.text = text
         self.systemImageName = systemImageName
         self.groupBoxAppearance = groupBoxAppearance
+        self.minimumContentHeight = minimumContentHeight
         self.trailingView = trailingView()
+    }
+
+    public init(
+        title: Text,
+        text: Text,
+        systemImageName: String,
+        groupBoxAppearance: StackListGroupBoxStyleOption = .automatic,
+        minimumContentHeight: CGFloat? = nil,
+        fixedHeight: CGFloat?,
+        @ViewBuilder trailingView: () -> Trailing
+    ) {
+        self.init(
+            title: title,
+            text: text,
+            systemImageName: systemImageName,
+            groupBoxAppearance: groupBoxAppearance,
+            minimumContentHeight: minimumContentHeight,
+            trailingView: trailingView
+        )
     }
     
     public var body: some View {
         GroupBox {
             VStack(alignment: .leading, spacing: 6) {
                 headerLabel
-                text
-                    .font(.footnote)
+                if !usesCompactControlSize {
+                    text
+                        .font(.footnote)
+                }
             }
             .environment(\._lineHeightMultiple, 0.9)
             .imageScale(.small)
             .foregroundStyle(.secondary)
             .padding(contentPadding)
-            .frame(maxWidth: .infinity, minHeight: preferredMinHeight, alignment: .bottomLeading)
+            .frame(
+                maxWidth: .infinity,
+                minHeight: preferredMinHeight,
+                maxHeight: fillsAvailableHeight ? .infinity : nil,
+                alignment: .bottomLeading
+            )
             .modifier {
                 if #available(iOS 16, macOS 13, *) {
                     $0.backgroundStyle(.secondary)
@@ -84,17 +125,57 @@ public struct EmptyStateBoxView<Trailing: View>: View {
         }
         .environment(\.stackListBackgroundColorOverride, preferredBackgroundColor)
         .applyStackListGroupBoxStyle(groupBoxAppearance, defaultIsGrouped: isGroupedAppearance)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(
+            maxWidth: .infinity,
+            minHeight: minimumContentHeight,
+            maxHeight: fillsAvailableHeight ? .infinity : nil,
+            alignment: .leading
+        )
         .listRowInsets(.init())
-        .fixedSize(horizontal: false, vertical: true)
+        .modifier {
+            if !fillsAvailableHeight && !usesCompactControlSize {
+                $0.fixedSize(horizontal: false, vertical: true)
+            } else {
+                $0
+            }
+        }
         //.enableInjection()
     }
 }
 
 // Convenience initializer when no trailing view is supplied.
 public extension EmptyStateBoxView where Trailing == EmptyView {
-    init(title: Text, text: Text, systemImageName: String, groupBoxAppearance: StackListGroupBoxStyleOption = .automatic) {
-        self.init(title: title, text: text, systemImageName: systemImageName, groupBoxAppearance: groupBoxAppearance) { EmptyView() }
+    init(
+        title: Text,
+        text: Text,
+        systemImageName: String,
+        groupBoxAppearance: StackListGroupBoxStyleOption = .automatic,
+        minimumContentHeight: CGFloat? = nil
+    ) {
+        self.init(
+            title: title,
+            text: text,
+            systemImageName: systemImageName,
+            groupBoxAppearance: groupBoxAppearance,
+            minimumContentHeight: minimumContentHeight
+        ) { EmptyView() }
+    }
+
+    init(
+        title: Text,
+        text: Text,
+        systemImageName: String,
+        groupBoxAppearance: StackListGroupBoxStyleOption = .automatic,
+        minimumContentHeight: CGFloat? = nil,
+        fixedHeight: CGFloat?
+    ) {
+        self.init(
+            title: title,
+            text: text,
+            systemImageName: systemImageName,
+            groupBoxAppearance: groupBoxAppearance,
+            minimumContentHeight: minimumContentHeight
+        )
     }
 }
 
@@ -117,34 +198,41 @@ private extension EmptyStateBoxView {
     }
 
     var preferredMinHeight: CGFloat? {
-        if controlSize == .small || controlSize == .mini { return nil }
+        if usesCompactControlSize { return minimumContentHeight }
+        let defaultMinHeight: CGFloat?
         switch groupBoxAppearance {
         case .clear:
-            return nil
+            defaultMinHeight = nil
         case .grouped:
-            return groupedMinHeight
+            defaultMinHeight = groupedMinHeight
         case .plain:
-            return nil
+            defaultMinHeight = nil
         case .automatic:
-            return isGroupedAppearance ? groupedMinHeight : nil
+            defaultMinHeight = isGroupedAppearance ? groupedMinHeight : nil
         }
+        guard let minimumContentHeight else { return defaultMinHeight }
+        guard let defaultMinHeight else { return minimumContentHeight }
+        return max(defaultMinHeight, minimumContentHeight)
     }
 
     var usesInlineHeader: Bool {
+        usesCompactControlSize
+    }
+
+    var usesCompactControlSize: Bool {
         controlSize == .small || controlSize == .mini
     }
 
     @ViewBuilder
     var headerLabel: some View {
         if usesInlineHeader {
-            Label {
-                title
-                    .font(.subheadline)
-                    .bold()
-            } icon: {
+            VStack(alignment: .leading, spacing: 6) {
                 Image(systemName: systemImageName)
                     .imageScale(.medium)
                     .foregroundStyle(.tertiary)
+                title
+                    .font(.subheadline)
+                    .bold()
             }
         } else {
             title
