@@ -28,7 +28,7 @@ public struct SteppedInstructionGroupBoxStyle: GroupBoxStyle {
         .padding(14)
         .background(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color.stackListCardBackgroundPlain)
+                .fill(Color.stackListCardBackgroundGrouped)
         )
     }
 }
