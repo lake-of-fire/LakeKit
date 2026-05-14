@@ -4,9 +4,7 @@ import Puppy
 import OSLog
 import ZIPFoundation
 
-fileprivate func bundleIdentifier() -> String {
-    return (Bundle(for: Logger.self).bundleIdentifier ?? "")
-}
+fileprivate let loggerSubsystemIdentifier = "io.manabi.ManabiReader"
 
 fileprivate extension Logging.Logger.Level {
     func toPuppyLogLevel() -> LogLevel {
@@ -207,7 +205,7 @@ public class Logger/*: ObservableObject*/ {
         }
         
         return (
-            logger: Logging.Logger(label: bundleIdentifier() + ".swiftlog"),
+            logger: Logging.Logger(label: loggerSubsystemIdentifier + ".swiftlog"),
             puppySink: puppySink
         )
     }
@@ -244,7 +242,7 @@ public class Logger/*: ObservableObject*/ {
     // MARK: Private Methods
 #if DEBUG
     static private func makeConsoleLogger() -> OSLogger {
-        OSLogger(bundleIdentifier() + ".console", logFormat: OSLogFormatter())
+        OSLogger(loggerSubsystemIdentifier + ".console", logFormat: OSLogFormatter())
     }
 #endif
     
@@ -263,7 +261,7 @@ public class Logger/*: ObservableObject*/ {
 #endif
         
         return try FileRotationLogger(
-            bundleIdentifier() + ".file",
+            loggerSubsystemIdentifier + ".file",
             logLevel: logLevel,
             logFormat: FileLogFormatter(),
             fileURL: fileURL,
@@ -295,7 +293,7 @@ public class Logger/*: ObservableObject*/ {
             let fileName = fileName(file)
             
             // swiftlint:disable:next line_length
-            return "\(date) \(bundleIdentifier())[\(threadID)] [\(level)] \(fileName)#L.\(line) \(function) \(message)"
+            return "\(date) \(loggerSubsystemIdentifier)[\(threadID)] [\(level)] \(fileName)#L.\(line) \(function) \(message)"
         }
     }
     
