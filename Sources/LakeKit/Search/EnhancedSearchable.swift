@@ -330,6 +330,15 @@ public struct EnhancedSearchableModifier: ViewModifier {
 
 private extension View {
     @ViewBuilder
+    func searchInputAutocapitalizationDisabled() -> some View {
+#if os(iOS)
+        self.textInputAutocapitalization(.never)
+#else
+        self
+#endif
+    }
+
+    @ViewBuilder
     func applyNativeSearchableIfNeeded(
         placement: EnhancedSearchPlacement,
         searchText: Binding<String>,
@@ -345,21 +354,27 @@ private extension View {
                 if canHide {
                     if let prompt {
                         self.searchable(text: searchText, isPresented: isPresented, placement: searchPlacement, prompt: prompt)
+                            .searchInputAutocapitalizationDisabled()
                     } else {
                         self.searchable(text: searchText, isPresented: isPresented, placement: searchPlacement)
+                            .searchInputAutocapitalizationDisabled()
                     }
                 } else {
                     if let prompt {
                         self.searchable(text: searchText, placement: searchPlacement, prompt: prompt)
+                            .searchInputAutocapitalizationDisabled()
                     } else {
                         self.searchable(text: searchText, placement: searchPlacement)
+                            .searchInputAutocapitalizationDisabled()
                     }
                 }
             } else {
                 if let prompt {
                     self.searchable(text: searchText, placement: searchPlacement, prompt: prompt)
+                        .searchInputAutocapitalizationDisabled()
                 } else {
                     self.searchable(text: searchText, placement: searchPlacement)
+                        .searchInputAutocapitalizationDisabled()
                 }
             }
         }
