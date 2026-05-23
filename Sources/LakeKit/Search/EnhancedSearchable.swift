@@ -59,6 +59,7 @@ public struct EnhancedSearchableModifier: ViewModifier {
 
     @State private var searchTask: Task<Void, Never>?
     @State private var shouldClear = false
+    @State private var searchChangeID = 0
 #if os(macOS)
     @FocusState private var focusedField: String?
 #endif
@@ -247,10 +248,11 @@ public struct EnhancedSearchableModifier: ViewModifier {
                 prompt: prompt,
                 result: "length=\(searchText.count)"
             )
+            searchChangeID &+= 1
             updateSearchingStatus(forSearchText: searchText)
         }
         .onChange(of: searchText, debounceTime: 0.18) { searchText in
-            onSearchTextChange(searchText: searchText)
+            onSearchTextChange(searchText: searchText, changeID: searchChangeID)
         }
 #if os(iOS)
         .onChange(of: isPresented) { [oldValue = isPresented] isPresented in
@@ -317,7 +319,16 @@ public struct EnhancedSearchableModifier: ViewModifier {
 #endif
     }
 
-    private func onSearchTextChange(searchText: String) {
+    private func onSearchTextChange(searchText: String, changeID: Int) {
+        guard changeID == searchChangeID, searchText == self.searchText else {
+            logLookupKeyboardSearch(
+                "enhancedSearchable.staleSearchTextIgnored",
+                autosaveName: autosaveName,
+                prompt: prompt,
+                result: "incomingLength=\(searchText.count); currentLength=\(self.searchText.count); incomingChangeID=\(changeID); currentChangeID=\(searchChangeID)"
+            )
+            return
+        }
         searchTask?.cancel()
         searchTask = Task.detached {
             do {
