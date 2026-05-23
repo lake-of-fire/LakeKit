@@ -42,6 +42,7 @@ public struct EnhancedSearchableModifier: ViewModifier {
     
     @State private var searchTask: Task<Void, Never>?
     @State private var shouldClear = false
+    @State private var searchChangeID = 0
     @FocusState private var focusedField: String?
     
     public func body(content: Content) -> some View {
@@ -148,10 +149,11 @@ public struct EnhancedSearchableModifier: ViewModifier {
             }
         }
         .onChange(of: searchText) { searchText in
+            searchChangeID &+= 1
             updateSearchingStatus(forSearchText: searchText)
         }
         .onChange(of: searchText, debounceTime: 0.18) { searchText in
-            onSearchTextChange(searchText: searchText)
+            onSearchTextChange(searchText: searchText, changeID: searchChangeID)
         }
 #if os(iOS)
         .onChange(of: focusedField) { focusedField in
@@ -191,7 +193,10 @@ public struct EnhancedSearchableModifier: ViewModifier {
 #endif
     }
     
-    private func onSearchTextChange(searchText: String) {
+    private func onSearchTextChange(searchText: String, changeID: Int) {
+        guard changeID == searchChangeID, searchText == self.searchText else {
+            return
+        }
         searchTask?.cancel()
         let searchAction = self.searchAction
         searchTask = Task {
