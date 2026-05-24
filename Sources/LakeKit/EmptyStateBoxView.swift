@@ -79,6 +79,7 @@ public struct EmptyStateBoxView<Trailing: View>: View {
                 if !usesCompactControlSize {
                     text
                         .font(.footnote)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
             .environment(\._lineHeightMultiple, 0.9)
@@ -139,7 +140,6 @@ public struct EmptyStateBoxView<Trailing: View>: View {
 private struct EmptyStateActionButtonModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
-            .buttonStyle(.bordered)
             .controlSize(.small)
             .font(.footnote)
             .foregroundStyle(Color.accentColor)
@@ -150,6 +150,9 @@ private struct EmptyStateActionButtonModifier: ViewModifier {
                         .backgroundStyle(.secondary)
                 } else { $0 }
             }
+#if os(macOS)
+            .buttonStyle(.bordered)
+#endif
     }
 }
 
@@ -243,11 +246,13 @@ private extension EmptyStateBoxView {
                 title
                     .font(.subheadline)
                     .bold()
+                    .fixedSize(horizontal: false, vertical: true)
             }
         } else {
             title
                 .font(.subheadline)
                 .bold()
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
