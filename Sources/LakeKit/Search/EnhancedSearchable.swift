@@ -187,9 +187,16 @@ public struct EnhancedSearchableModifier: ViewModifier {
                         }
                         if case .native = placement {
                             Task { @MainActor in
+                                let hasSearchText = !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+#if os(macOS)
+                                if isEnhancedlySearching != hasSearchText {
+                                    isEnhancedlySearching = hasSearchText
+                                }
+#else
                                 if isEnhancedlySearching == false {
                                     isEnhancedlySearching = true
                                 }
+#endif
                             }
                         }
                     } else {
@@ -219,7 +226,8 @@ public struct EnhancedSearchableModifier: ViewModifier {
         )
         .nativeSearchObserverIfNeeded(
             placement: placement,
-            isEnhancedlySearching: $isEnhancedlySearching
+            isEnhancedlySearching: $isEnhancedlySearching,
+            searchText: $searchText
         )
         .onDisappear {
 #if os(macOS)
@@ -394,19 +402,21 @@ private extension View {
     @ViewBuilder
     func nativeSearchObserverIfNeeded(
         placement: EnhancedSearchPlacement,
-        isEnhancedlySearching: Binding<Bool>
+        isEnhancedlySearching: Binding<Bool>,
+        searchText: Binding<String>
     ) -> some View {
         switch placement {
         case .contentTop:
             self
         case .native:
-            self.background(NativeSearchStateObserver(isEnhancedlySearching: isEnhancedlySearching))
+            self.background(NativeSearchStateObserver(isEnhancedlySearching: isEnhancedlySearching, searchText: searchText))
         }
     }
 }
 
 private struct NativeSearchStateObserver: View {
     @Binding var isEnhancedlySearching: Bool
+    @Binding var searchText: String
     @Environment(\.isSearching) private var isSearching
 
     var body: some View {
@@ -416,12 +426,21 @@ private struct NativeSearchStateObserver: View {
             .onChange(of: isSearching) { _ in
                 updateIfNeeded()
             }
+            .onChange(of: searchText) { _ in
+                updateIfNeeded()
+            }
     }
 
     private func updateIfNeeded() {
         Task { @MainActor in
-            if isEnhancedlySearching != isSearching {
-                isEnhancedlySearching = isSearching
+            let trimmedSearchText = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+#if os(macOS)
+            let nextIsEnhancedlySearching = !trimmedSearchText.isEmpty
+#else
+            let nextIsEnhancedlySearching = isSearching || !trimmedSearchText.isEmpty
+#endif
+            if isEnhancedlySearching != nextIsEnhancedlySearching {
+                isEnhancedlySearching = nextIsEnhancedlySearching
             }
         }
     }
