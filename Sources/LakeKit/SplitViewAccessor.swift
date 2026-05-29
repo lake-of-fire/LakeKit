@@ -38,6 +38,9 @@ public struct SplitViewAccessor: NSViewRepresentable {
             guard let sview = sview as? NSSplitView else { return }
             controller = sview.delegate as? NSSplitViewController
             if let sideBar = controller?.splitViewItems.first {
+                if let storedValue = sideCollapsed?.wrappedValue, sideBar.isCollapsed != storedValue {
+                    sideBar.isCollapsed = storedValue
+                }
                 observer = sideBar.observe(\.isCollapsed, options: [.new]) { [weak self] _, change in
                     if let value = change.newValue {
                         self?.sideCollapsed?.wrappedValue = value
@@ -83,7 +86,6 @@ public struct SplitViewAccessor: UIViewRepresentable {
                         self?.sideCollapsed?.wrappedValue = value
                     }
                 }
-                sideCollapsed?.wrappedValue = controller.isCollapsed
             }
         }
     }
