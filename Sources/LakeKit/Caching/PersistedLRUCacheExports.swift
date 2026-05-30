@@ -1,2 +1,1 @@
-@_exported import PersistedLRUFileCache
-@_exported import PersistedLRUSQLiteCache
+@_exported import PersistedLRUCache
