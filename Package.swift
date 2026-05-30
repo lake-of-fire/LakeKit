@@ -12,9 +12,6 @@ let package = Package(
             name: "LakeKit",
 //            type: .dynamic,
             targets: ["LakeKit"]),
-        .library(
-            name: "LakeKitSQLiteCache",
-            targets: ["LakeKitSQLiteCache"]),
     ],
     dependencies: [
 //        .package(url: "https://github.com/lake-of-fire/RealmBinary.git", branch: "main"),
@@ -44,18 +41,17 @@ let package = Package(
 //        .package(url: "https://github.com/danielsaidi/SwiftUIKit.git", branch: "master"),
         .package(url: "https://github.com/lake-of-fire/FilePicker.git", branch: "main"),
         .package(url: "https://github.com/weichsel/ZIPFoundation.git", branch: "development"),
-        .package(url: "https://github.com/nicklockwood/LRUCache.git", from: "1.1.2"),
 //        .package(url: "https://github.com/kean/Pulse.git", branch: "main"),
         .package(url: "https://github.com/stevengharris/SplitView.git", branch: "main"),
         .package(url: "https://github.com/lake-of-fire/VisionLiveText_SwiftUICompatible.git", branch: "main"),
         .package(url: "https://github.com/EmergeTools/Pow.git", branch: "main"),
         .package(url: "https://github.com/apple/swift-log.git", branch: "main"),
-        .package(url: "https://github.com/pointfreeco/sqlite-data.git", from: "1.6.0"),
         .package(url: "https://github.com/siteline/swiftui-introspect.git", from: "26.0.0"),
         .package(url: "https://github.com/Tunous/DebouncedOnChange.git", branch: "main"),
         .package(url: "https://github.com/lake-of-fire/Puppy.git", branch: "main"),
         .package(url: "https://github.com/lake-of-fire/CloudKitSyncMonitor.git", branch: "main"),
         .package(url: "https://github.com/johnpatrickmorgan/NavigationBackport.git", branch: "main"),
+        .package(url: "https://github.com/lake-of-fire/PersistedLRUCache.git", branch: "main"),
         //        .package(path: "../FramedScreenshotsTool"),
     ],
     targets: [
@@ -89,7 +85,6 @@ let package = Package(
                 ),
                 .product(name: "FilePicker", package: "FilePicker"),
                 .product(name: "SwiftUIDownloads", package: "SwiftUIDownloads"),
-                .product(name: "LRUCache", package: "LRUCache"),
 //                .product(name: "Pulse", package: "Pulse"),
 //                .product(name: "PulseUI", package: "Pulse"),
                 .product(name: "SwiftUtilities", package: "SwiftUtilities"),
@@ -102,9 +97,8 @@ let package = Package(
 //                .product(name: "Inferno", package: "Inferno"),
                 .product(name: "CloudKitSyncMonitor", package: "CloudKitSyncMonitor"),
                 .product(name: "NavigationBackport", package: "NavigationBackport"),
-            ],
-            exclude: [
-                "Caching/LRUCache/LRUSQLiteCache.swift",
+                .product(name: "PersistedLRUFileCache", package: "PersistedLRUCache"),
+                .product(name: "PersistedLRUSQLiteCache", package: "PersistedLRUCache"),
             ],
             resources: [
                 .process("Resources"),
@@ -126,20 +120,8 @@ let package = Package(
 //                    .when(configuration: .debug))
             ]
         ),
-        .target(
-            name: "LakeKitSQLiteCache",
-            dependencies: [
-                .product(name: "LRUCache", package: "LRUCache"),
-                .product(name: "SQLiteData", package: "sqlite-data"),
-                .product(name: "SwiftUtilities", package: "SwiftUtilities"),
-            ],
-            path: "Sources/LakeKit",
-            sources: [
-                "Caching/LRUCache/LRUSQLiteCache.swift",
-            ]
-        ),
         .testTarget(
             name: "LakeKitTests",
-            dependencies: ["LakeKit", "LakeKitSQLiteCache"]),
+            dependencies: ["LakeKit"]),
     ]
 )
