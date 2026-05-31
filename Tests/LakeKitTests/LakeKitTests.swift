@@ -2,6 +2,30 @@ import XCTest
 @testable import LakeKit
 
 final class LakeKitPersistedLRUCacheReexportTests: XCTestCase {
+    func testHybridCacheIsReexportedFromLakeKit() throws {
+        let root = try makeTemporaryRoot()
+        let namespace = "lakekit.reexport.\(UUID().uuidString)"
+
+        let cache = PersistedLRUCache<String, String>(
+            namespace: namespace,
+            inlineStorageThreshold: 8,
+            compressionThreshold: .max,
+            cacheRootURL: root
+        )
+        cache.setValue(String(repeating: "value", count: 8), forKey: "key")
+
+        XCTAssertEqual(cache.value(forKey: "key"), String(repeating: "value", count: 8))
+        XCTAssertEqual(
+            PersistedLRUCache<String, String>(
+                namespace: namespace,
+                inlineStorageThreshold: 8,
+                compressionThreshold: .max,
+                cacheRootURL: root
+            ).value(forKey: "key"),
+            String(repeating: "value", count: 8)
+        )
+    }
+
     func testSQLiteCacheIsReexportedFromLakeKit() throws {
         let root = try makeTemporaryRoot()
         let namespace = "lakekit.reexport.\(UUID().uuidString)"
