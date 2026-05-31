@@ -1,10 +1,11 @@
 import XCTest
+import PersistedLRUCache
 @testable import LakeKit
 
-final class LakeKitPersistedLRUCacheReexportTests: XCTestCase {
-    func testHybridCacheIsReexportedFromLakeKit() throws {
+final class LakeKitPersistedLRUCacheDependencyTests: XCTestCase {
+    func testPersistedCacheStoresAndReloadsValues() throws {
         let root = try makeTemporaryRoot()
-        let namespace = "lakekit.reexport.\(UUID().uuidString)"
+        let namespace = "lakekit.persisted.\(UUID().uuidString)"
 
         let cache = PersistedLRUCache<String, String>(
             namespace: namespace,
@@ -26,9 +27,9 @@ final class LakeKitPersistedLRUCacheReexportTests: XCTestCase {
         )
     }
 
-    func testSQLiteCacheIsReexportedFromLakeKit() throws {
+    func testSQLiteCacheStoresAndReloadsValues() throws {
         let root = try makeTemporaryRoot()
-        let namespace = "lakekit.reexport.\(UUID().uuidString)"
+        let namespace = "lakekit.sqlite.\(UUID().uuidString)"
 
         let cache = LRUSQLiteCache<String, String>(namespace: namespace, cacheRootURL: root)
         cache.setValue("value", forKey: "key")
@@ -40,9 +41,9 @@ final class LakeKitPersistedLRUCacheReexportTests: XCTestCase {
         )
     }
 
-    func testFileCacheIsReexportedFromLakeKit() throws {
+    func testFileCacheStoresAndReloadsValues() throws {
         let root = try makeTemporaryRoot()
-        let namespace = "lakekit.reexport.\(UUID().uuidString)"
+        let namespace = "lakekit.file.\(UUID().uuidString)"
 
         let cache = LRUFileCache<String, String>(namespace: namespace, cacheRootURL: root)
         cache.setValue("value", forKey: "key")
@@ -56,7 +57,7 @@ final class LakeKitPersistedLRUCacheReexportTests: XCTestCase {
 
     private func makeTemporaryRoot() throws -> URL {
         let root = FileManager.default.temporaryDirectory
-            .appendingPathComponent("LakeKitPersistedLRUCacheReexportTests")
+                .appendingPathComponent("LakeKitPersistedLRUCacheDependencyTests")
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         addTeardownBlock {
