@@ -489,13 +489,7 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
                     }
                     .scrollPosition(id: $scrolledID)
 //                    .scrollClipDisabled()
-                    .modifier { content in
-                        if scrolledID == nil {
-                            content
-                        } else {
-                            content.scrollTargetBehavior(.viewAligned(limitBehavior: .always)) // always needed for top alignment for some reason
-                        }
-                    }
+                    .scrollTargetBehavior(.viewAligned(limitBehavior: .always)) // always needed for top alignment for some reason
                     .onAppear {
                         scrolledID = cards.first?.id
                     }
@@ -829,9 +823,12 @@ struct OnboardingCardView<CardContent: View>: View {
     @ViewBuilder let cardContent: (OnboardingCard, Binding<Bool>, Bool) -> CardContent
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 #if os(iOS)
     @Environment(\.verticalSizeClass) private var verticalSizeClass
 #endif
+    @State private var entranceProgress: CGFloat = 1
+    @State private var lightWipeProgress: CGFloat = 1
     
     private var useVStack: Bool {
 #if os(iOS)
@@ -909,6 +906,57 @@ struct OnboardingCardView<CardContent: View>: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
+    private var entranceTiltDegrees: Double {
+        guard isTopVisible, !reduceMotion else { return 0 }
+        return -7 * Double(1 - entranceProgress)
+    }
+
+    private var lightWipeOffsetFactor: CGFloat {
+        1.08 - (1.78 * lightWipeProgress)
+    }
+
+    @ViewBuilder private var entranceLightWipe: some View {
+        if isTopVisible && !reduceMotion {
+            GeometryReader { geometry in
+                LinearGradient(
+                    stops: [
+                        .init(color: Color.white.opacity(0), location: 0),
+                        .init(color: Color.white.opacity(0.16), location: 0.36),
+                        .init(color: Color.white.opacity(0.36), location: 0.5),
+                        .init(color: Color.white.opacity(0.14), location: 0.64),
+                        .init(color: Color.white.opacity(0), location: 1),
+                    ],
+                    startPoint: .bottom,
+                    endPoint: .top
+                )
+                .frame(height: max(120, geometry.size.height * 0.46))
+                .blur(radius: 10)
+                .offset(y: geometry.size.height * lightWipeOffsetFactor)
+                .blendMode(.plusLighter)
+                .opacity(lightWipeProgress >= 0.995 ? 0 : 1)
+            }
+            .allowsHitTesting(false)
+        }
+    }
+
+    private func runEntranceEffect() {
+        guard isTopVisible, !reduceMotion else {
+            entranceProgress = 1
+            lightWipeProgress = 1
+            return
+        }
+
+        entranceProgress = 0
+        lightWipeProgress = 0
+
+        withAnimation(.spring(response: 0.48, dampingFraction: 0.84, blendDuration: 0.05)) {
+            entranceProgress = 1
+        }
+        withAnimation(.easeOut(duration: 0.64)) {
+            lightWipeProgress = 1
+        }
+    }
+
     var body: some View {
         Group {
             if card.breakoutCard {
@@ -942,10 +990,33 @@ struct OnboardingCardView<CardContent: View>: View {
                                 )
                         }
                     }
-                    .cornerRadius(16)
+                    .overlay {
+                        entranceLightWipe
+                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .rotation3DEffect(
+                        .degrees(entranceTiltDegrees),
+                        axis: (x: 1, y: 0, z: 0),
+                        anchor: .top,
+                        perspective: 0.55
+                    )
                     .scaleEffect(isTopVisible ? 1 : 0.92)
                     .shadow(radius: isTopVisible ? 16 : 8)
                     .animation(.easeInOut, value: isTopVisible)
+                    .onAppear {
+                        if isTopVisible {
+                            runEntranceEffect()
+                        }
+                    }
+                    .onChange(of: isTopVisible) { isTopVisible in
+                        if isTopVisible {
+                            runEntranceEffect()
+                        } else {
+                            entranceProgress = 1
+                            lightWipeProgress = 1
+                        }
+                    }
             }
         }
     }
