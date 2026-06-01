@@ -14,14 +14,36 @@ public struct OnboardingCard: Identifiable, Hashable {
     public let description: String
     public let imageName: String
     public let breakoutCard: Bool
+    public let requiredActionID: String?
+    public let requiredActionTitle: String?
+    public let requiredActionSystemImage: String?
+    public let usesTightVerticalSpacing: Bool
+    public let contentUsesFullWidth: Bool
 
-    public init(id: String, title: String, color: Color, description: String, imageName: String, breakoutCard: Bool = false) {
+    public init(
+        id: String,
+        title: String,
+        color: Color,
+        description: String,
+        imageName: String,
+        breakoutCard: Bool = false,
+        requiredActionID: String? = nil,
+        requiredActionTitle: String? = nil,
+        requiredActionSystemImage: String? = nil,
+        usesTightVerticalSpacing: Bool = false,
+        contentUsesFullWidth: Bool = false
+    ) {
         self.id = id
         self.title = title
         self.color = color
         self.description = description
         self.imageName = imageName
         self.breakoutCard = breakoutCard
+        self.requiredActionID = requiredActionID
+        self.requiredActionTitle = requiredActionTitle
+        self.requiredActionSystemImage = requiredActionSystemImage
+        self.usesTightVerticalSpacing = usesTightVerticalSpacing
+        self.contentUsesFullWidth = contentUsesFullWidth
     }
 }
 
@@ -46,7 +68,6 @@ internal struct OnboardingPrimaryButton: View {
         Group {
             if let systemImage = systemImage {
                 Label(title, systemImage: systemImage)
-                    .labelStyle(.iconOnly)
             } else {
                 Text(title)
             }
@@ -92,10 +113,31 @@ internal struct OnboardingPrimaryButton: View {
     }
 }
 
+private struct OnboardingCategoryPressScaleModifier: ViewModifier {
+    @GestureState private var isPressed = false
+
+    func body(content: Content) -> some View {
+        content
+            .scaleEffect(isPressed ? 0.98 : 1.0)
+            .brightness(isPressed ? -0.08 : 0)
+            .animation(.easeOut(duration: 0.05), value: isPressed)
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 0)
+                    .updating($isPressed) { _, state, _ in
+                        state = true
+                    }
+            )
+    }
+}
+
 struct OnboardingPrimaryButtons: View {
+    let currentCard: OnboardingCard?
     let isFinishedOnboarding: Bool
     let canAdvanceOnboarding: Bool
+    let hasCompletedRequiredAction: Bool
     let advanceOnboarding: () -> Void
+    let performRequiredAction: (@escaping () -> Void) -> Void
+    let skipRequiredAction: () -> Void
     @Binding var isPresentingSheet: Bool
     @Binding var isPresentingStoreSheet: Bool
     @Binding var navigationPath: [String]
@@ -145,6 +187,10 @@ struct OnboardingPrimaryButtons: View {
 #endif
     }
 
+    private var isWaitingForRequiredAction: Bool {
+        currentCard?.requiredActionID != nil && !hasCompletedRequiredAction
+    }
+
     @ViewBuilder
     private func subscriptionButton() -> some View {
         Button {
@@ -173,6 +219,45 @@ struct OnboardingPrimaryButtons: View {
     }
     
     @ViewBuilder
+    private func requiredActionButton() -> some View {
+        OnboardingPrimaryButton(
+            title: currentCard?.requiredActionTitle ?? "Continue",
+            systemImage: currentCard?.requiredActionSystemImage
+        ) {
+#if os(iOS)
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+#endif
+            performRequiredAction {}
+        }
+        .buttonStyle(.borderedProminent)
+        .tint(.accentColor)
+        .modifier(OnboardingCategoryPressScaleModifier())
+    }
+
+    @ViewBuilder
+    private func skipRequiredActionButton() -> some View {
+        Button {
+#if os(iOS)
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+#endif
+            skipRequiredAction()
+        } label: {
+            Text("Skip")
+                .font(.subheadline.weight(.semibold))
+                .padding(.horizontal, 10)
+        }
+        .controlSize(.regular)
+        .modifier { button in
+            if #available(iOS 26, macOS 26, *) {
+                button.buttonStyle(.glass(.clear))
+            } else {
+                button.buttonStyle(.bordered)
+            }
+        }
+        .buttonBorderShape(.capsule)
+    }
+
+    @ViewBuilder
     private func continueButton() -> some View {
         OnboardingPrimaryButton(title: "Continue", systemImage: nil) {
 #if os(iOS)
@@ -196,6 +281,7 @@ struct OnboardingPrimaryButtons: View {
         }
         .buttonStyle(.borderedProminent)
         .tint(.accentColor)
+        .modifier(OnboardingCategoryPressScaleModifier())
         .conditionalEffect(
             .repeat(
                 .shine.delay(0.75),
@@ -209,21 +295,22 @@ struct OnboardingPrimaryButtons: View {
     private func subsidizedOptionsButton() -> some View {
         OnboardingPrimaryButton(
             title: "Skip Upgrades",
-            systemImage: nil,
-            controlSize: .regular
+            systemImage: nil
         ) {
             navigationPath.removeLast(navigationPath.count)
             navigationPath.append("free-mode")
         }
-//        .buttonStyle(.bordered)
-        .buttonStyle(.borderless)
-        .tint(.secondary)
-        .buttonBorderShape(.roundedRectangle)
+        .modifier { button in
+            if #available(iOS 26, macOS 26, *) {
+                button.buttonStyle(.glass(.clear))
+            } else {
+                button.buttonStyle(.bordered)
+            }
+        }
         .background {
             Color.white.opacity(0.0000000001)
                 .edgesIgnoringSafeArea(.all)
         }
-        .padding(.vertical, 5)
     }
     
     @ViewBuilder
@@ -231,38 +318,59 @@ struct OnboardingPrimaryButtons: View {
 #if os(iOS)
         if verticalSizeClass == .compact {
             HStack {
-                continueButton()
+                if isWaitingForRequiredAction {
+                    requiredActionButton()
+                } else {
+                    continueButton()
+                }
             }
         } else {
             VStack {
-                continueButton()
+                if isWaitingForRequiredAction {
+                    requiredActionButton()
+                } else {
+                    continueButton()
+                }
             }
         }
 #else
         VStack {
-            continueButton()
+            if isWaitingForRequiredAction {
+                requiredActionButton()
+            } else {
+                continueButton()
+            }
         }
 #endif
     }
     
     var body: some View {
-        buttonsStack()
-        if shouldOfferFreeModePath {
-            subsidizedOptionsButton()
+        VStack(spacing: 8) {
+            if isWaitingForRequiredAction {
+                skipRequiredActionButton()
+            } else if shouldOfferFreeModePath {
+                subsidizedOptionsButton()
+            }
+            buttonsStack()
         }
     }
 }
 
-struct OnboardingCardsView<CardContent: View>: View {
+struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View {
     let cards: [OnboardingCard]
     @Binding var isPresentingSheet: Bool
     @Binding var isFinished: Bool
     @Binding var navigationPath: [String]
     @Binding var isPresentingStoreSheet: Bool
     let onSkipOnboarding: () -> Void
+    let onRequiredAction: (OnboardingCard, @escaping () -> Void) -> Void
+    @ViewBuilder let requiredActionContent: (OnboardingCard) -> RequiredActionContent
     @ViewBuilder let cardContent: (OnboardingCard, Binding<Bool>, Bool) -> CardContent
     
     @State private var scrolledID: String?
+    @State private var completedRequiredActionIDs: Set<String> = []
+    @State private var presentedRequiredActionCard: OnboardingCard?
+    @State private var pendingRequiredActionID: String?
 
     private var appName: String? {
         return Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String
@@ -381,7 +489,13 @@ struct OnboardingCardsView<CardContent: View>: View {
                     }
                     .scrollPosition(id: $scrolledID)
 //                    .scrollClipDisabled()
-                    .scrollTargetBehavior(.viewAligned(limitBehavior: .always)) // always needed for top alignment for some reason
+                    .modifier { content in
+                        if scrolledID == nil {
+                            content
+                        } else {
+                            content.scrollTargetBehavior(.viewAligned(limitBehavior: .always)) // always needed for top alignment for some reason
+                        }
+                    }
                     .onAppear {
                         scrolledID = cards.first?.id
                     }
@@ -449,9 +563,13 @@ struct OnboardingCardsView<CardContent: View>: View {
     @ViewBuilder private var callToActionView: some View {
         VStack {
             OnboardingPrimaryButtons(
+                currentCard: currentCard,
                 isFinishedOnboarding: scrolledID == cards.last?.id,
                 canAdvanceOnboarding: canAdvanceOnboarding,
+                hasCompletedRequiredAction: hasCompletedRequiredAction,
                 advanceOnboarding: advanceOnboarding,
+                performRequiredAction: performRequiredAction,
+                skipRequiredAction: skipRequiredAction,
                 isPresentingSheet: $isPresentingSheet,
                 isPresentingStoreSheet: $isPresentingStoreSheet,
                 navigationPath: $navigationPath
@@ -526,6 +644,9 @@ struct OnboardingCardsView<CardContent: View>: View {
         .onAppear {
             scrolledID = "welcome"
         }
+        .sheet(item: $presentedRequiredActionCard, onDismiss: completePresentedRequiredAction) { card in
+            requiredActionContent(card)
+        }
     }
 
     private var currentIndex: Int? {
@@ -538,11 +659,42 @@ struct OnboardingCardsView<CardContent: View>: View {
         return currentIndex < cards.count - 1
     }
 
+    private var hasCompletedRequiredAction: Bool {
+        guard let requiredActionID = currentCard?.requiredActionID else { return true }
+        return completedRequiredActionIDs.contains(requiredActionID)
+    }
+
     private func advanceOnboarding() {
         guard let currentIndex, currentIndex < cards.count - 1 else { return }
         withAnimation {
             scrolledID = cards[currentIndex + 1].id
         }
+    }
+
+    private func performRequiredAction(_ fallbackCompletion: @escaping () -> Void) {
+        guard let currentCard, let requiredActionID = currentCard.requiredActionID else {
+            fallbackCompletion()
+            return
+        }
+        onRequiredAction(currentCard) {
+            pendingRequiredActionID = requiredActionID
+            presentedRequiredActionCard = currentCard
+            fallbackCompletion()
+        }
+    }
+
+    private func completePresentedRequiredAction() {
+        if let pendingRequiredActionID {
+            completedRequiredActionIDs.insert(pendingRequiredActionID)
+            self.pendingRequiredActionID = nil
+        }
+    }
+
+    private func skipRequiredAction() {
+        if let requiredActionID = currentCard?.requiredActionID {
+            completedRequiredActionIDs.insert(requiredActionID)
+        }
+        advanceOnboarding()
     }
     
     init(
@@ -552,6 +704,8 @@ struct OnboardingCardsView<CardContent: View>: View {
         isPresentingStoreSheet: Binding<Bool>,
         navigationPath: Binding<[String]>,
         onSkipOnboarding: @escaping () -> Void,
+        onRequiredAction: @escaping (OnboardingCard, @escaping () -> Void) -> Void,
+        requiredActionContent: @escaping (OnboardingCard) -> RequiredActionContent,
         cardContent: @escaping (OnboardingCard, Binding<Bool>, Bool) -> CardContent
     ) {
         self.cards = cards
@@ -560,17 +714,21 @@ struct OnboardingCardsView<CardContent: View>: View {
         _isPresentingStoreSheet = isPresentingStoreSheet
         _navigationPath = navigationPath
         self.onSkipOnboarding = onSkipOnboarding
+        self.onRequiredAction = onRequiredAction
+        self.requiredActionContent = requiredActionContent
         self.cardContent = cardContent
     }
 }
 
 
-struct OnboardingView<CardContent: View>: View {
+struct OnboardingView<CardContent: View, RequiredActionContent: View>: View {
     let cards: [OnboardingCard]
     @Binding var isPresentingSheet: Bool
     @Binding var isFinished: Bool
     @Binding var isPresentingStoreSheet: Bool
     let onSkipOnboarding: () -> Void
+    let onRequiredAction: (OnboardingCard, @escaping () -> Void) -> Void
+    @ViewBuilder let requiredActionContent: (OnboardingCard) -> RequiredActionContent
     @ViewBuilder let cardContent: (OnboardingCard, Binding<Bool>, Bool) -> CardContent
     
     @EnvironmentObject private var storeViewModel: StoreViewModel
@@ -587,6 +745,8 @@ struct OnboardingView<CardContent: View>: View {
             isPresentingStoreSheet: $isPresentingStoreSheet,
             navigationPath: $navigationPath,
             onSkipOnboarding: onSkipOnboarding,
+            onRequiredAction: onRequiredAction,
+            requiredActionContent: requiredActionContent,
             cardContent: cardContent
         )
         .modifier {
@@ -647,6 +807,8 @@ struct OnboardingView<CardContent: View>: View {
         isFinished: Binding<Bool>,
         isPresentingStoreSheet: Binding<Bool>,
         onSkipOnboarding: @escaping () -> Void,
+        onRequiredAction: @escaping (OnboardingCard, @escaping () -> Void) -> Void,
+        requiredActionContent: @escaping (OnboardingCard) -> RequiredActionContent,
         cardContent: @escaping (OnboardingCard, Binding<Bool>, Bool) -> CardContent
     ) {
         self.cards = cards
@@ -654,6 +816,8 @@ struct OnboardingView<CardContent: View>: View {
         _isFinished = isFinished
         _isPresentingStoreSheet = isPresentingStoreSheet
         self.onSkipOnboarding = onSkipOnboarding
+        self.onRequiredAction = onRequiredAction
+        self.requiredActionContent = requiredActionContent
         self.cardContent = cardContent
     }
 }
@@ -713,12 +877,21 @@ struct OnboardingCardView<CardContent: View>: View {
     @ViewBuilder private var innerView: some View {
         Group {
             if useVStack {
-                VStack(spacing: 16) {
-                    headlineView
-                    Spacer(minLength: 8)
-                    cardContentView
-                    Spacer(minLength: 8)
-                    subheadlineView
+                if card.usesTightVerticalSpacing {
+                    VStack(spacing: 8) {
+                        headlineView
+                        cardContentView
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        subheadlineView
+                    }
+                } else {
+                    VStack(spacing: 16) {
+                        headlineView
+                        Spacer(minLength: 8)
+                        cardContentView
+                        Spacer(minLength: 8)
+                        subheadlineView
+                    }
                 }
             } else {
                 HStack(spacing: 16) {
@@ -743,7 +916,31 @@ struct OnboardingCardView<CardContent: View>: View {
             } else {
                 innerView
                     .background {
-                        Color.systemBackground.opacity(0.9)
+                        if colorScheme == .dark {
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [
+                                            Color.secondarySystemBackground,
+                                            Color.secondarySystemBackground.opacity(0.86),
+                                        ],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
+                                )
+                        } else {
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [
+                                            Color.systemBackground.opacity(0.9),
+                                            Color.systemBackground.opacity(0.76),
+                                        ],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
+                                )
+                        }
                     }
                     .cornerRadius(16)
                     .scaleEffect(isTopVisible ? 1 : 0.92)
@@ -863,10 +1060,12 @@ fileprivate struct PageNavigator: View {
     }
 }
 
-public struct OnboardingSheet<CardContent: View>: ViewModifier {
+public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: ViewModifier {
     let isActive: Bool
     @State var isPresentingStoreSheet = false
     let cards: [OnboardingCard]
+    let onRequiredAction: (OnboardingCard, @escaping () -> Void) -> Void
+    @ViewBuilder let requiredActionContent: (OnboardingCard) -> RequiredActionContent
     @ViewBuilder let cardContent: (OnboardingCard, Binding<Bool>, Bool) -> CardContent
 
     @AppStorage("hasSeenOnboarding") var hasSeenOnboarding = false
@@ -886,6 +1085,8 @@ public struct OnboardingSheet<CardContent: View>: ViewModifier {
             isFinished: $isFinished,
             isPresentingStoreSheet: $isPresentingStoreSheet,
             onSkipOnboarding: skipOnboarding,
+            onRequiredAction: onRequiredAction,
+            requiredActionContent: requiredActionContent,
             cardContent: cardContent
         )
 #if os(macOS)
@@ -966,14 +1167,32 @@ public extension View {
     func onboardingSheet(
         isActive: Bool,
         cards: [OnboardingCard],
+        onRequiredAction: @escaping (OnboardingCard, @escaping () -> Void) -> Void,
+        requiredActionContent: @escaping (OnboardingCard) -> some View,
         cardContent: @escaping (OnboardingCard, Binding<Bool>, Bool) -> some View
     ) -> some View {
         self.modifier(
             OnboardingSheet(
                 isActive: isActive,
                 cards: cards,
+                onRequiredAction: onRequiredAction,
+                requiredActionContent: requiredActionContent,
                 cardContent: cardContent
             )
+        )
+    }
+
+    func onboardingSheet(
+        isActive: Bool,
+        cards: [OnboardingCard],
+        cardContent: @escaping (OnboardingCard, Binding<Bool>, Bool) -> some View
+    ) -> some View {
+        onboardingSheet(
+            isActive: isActive,
+            cards: cards,
+            onRequiredAction: { _, complete in complete() },
+            requiredActionContent: { _ in EmptyView() },
+            cardContent: cardContent
         )
     }
 }
