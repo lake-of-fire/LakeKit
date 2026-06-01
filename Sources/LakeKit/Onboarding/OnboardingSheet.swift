@@ -94,14 +94,15 @@ internal struct OnboardingPrimaryButton: View {
 
 struct OnboardingPrimaryButtons: View {
     let isFinishedOnboarding: Bool
+    let canAdvanceOnboarding: Bool
+    let advanceOnboarding: () -> Void
     @Binding var isPresentingSheet: Bool
     @Binding var isPresentingStoreSheet: Bool
     @Binding var navigationPath: [String]
-    
+
     @State private var highlightedProduct: PrePurchaseSubscriptionInfo?
-    
     @AppStorage("hasSeenOnboarding") var hasSeenOnboarding = false
-    
+    @AppStorage("hasRespondedToOnboarding") var hasRespondedToOnboarding = false
     @EnvironmentObject private var storeViewModel: StoreViewModel
     @EnvironmentObject private var storeHelper: StoreHelper
     @ObservedObject private var adsViewModel = AdsViewModel.shared
@@ -109,7 +110,7 @@ struct OnboardingPrimaryButtons: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.verticalSizeClass) private var verticalSizeClass
 #endif
-    
+
     private var headlineText: String {
         if let highlightedProduct {
             let renewalPeriod = highlightedProduct.subscriptionPeriod
@@ -135,7 +136,15 @@ struct OnboardingPrimaryButtons: View {
         }
         return ""
     }
-    
+
+    private var shouldOfferFreeModePath: Bool {
+#if DEBUG
+        return !canAdvanceOnboarding
+#else
+        return !canAdvanceOnboarding && adsViewModel.showAds
+#endif
+    }
+
     @ViewBuilder
     private func subscriptionButton() -> some View {
         Button {
@@ -164,12 +173,26 @@ struct OnboardingPrimaryButtons: View {
     }
     
     @ViewBuilder
-    private func upgradeButton() -> some View {
-        OnboardingPrimaryButton(title: "View All Learning Upgrades", systemImage: nil) {
+    private func continueButton() -> some View {
+        OnboardingPrimaryButton(title: "Continue", systemImage: nil) {
 #if os(iOS)
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
 #endif
-            isPresentingStoreSheet.toggle()
+            if canAdvanceOnboarding {
+                advanceOnboarding()
+            } else {
+                hasSeenOnboarding = true
+                hasRespondedToOnboarding = true
+#if DEBUG
+                isPresentingStoreSheet = true
+#else
+                if adsViewModel.showAds {
+                    isPresentingStoreSheet = true
+                } else {
+                    isPresentingSheet = false
+                }
+#endif
+            }
         }
         .buttonStyle(.borderedProminent)
         .tint(.accentColor)
@@ -181,7 +204,7 @@ struct OnboardingPrimaryButtons: View {
             condition: isFinishedOnboarding
         )
     }
-    
+
     @ViewBuilder
     private func subsidizedOptionsButton() -> some View {
         OnboardingPrimaryButton(
@@ -208,33 +231,23 @@ struct OnboardingPrimaryButtons: View {
 #if os(iOS)
         if verticalSizeClass == .compact {
             HStack {
-//                subscriptionButton()
-                upgradeButton()
+                continueButton()
             }
         } else {
             VStack {
-//                subscriptionButton()
-                upgradeButton()
+                continueButton()
             }
         }
 #else
         VStack {
-            subscriptionButton()
-            upgradeButton()
+            continueButton()
         }
 #endif
     }
     
     var body: some View {
-        if !adsViewModel.showAds {
-            OnboardingPrimaryButton(title: isFinishedOnboarding ? "Continue" : "Skip Onboarding", systemImage: nil) {
-                hasSeenOnboarding = true
-                isPresentingSheet = false
-            }
-            .tint(isFinishedOnboarding ? .accentColor : .secondary)
-            .buttonStyle(.borderedProminent)
-        } else {
-            buttonsStack()
+        buttonsStack()
+        if shouldOfferFreeModePath {
             subsidizedOptionsButton()
         }
     }
@@ -246,19 +259,10 @@ struct OnboardingCardsView<CardContent: View>: View {
     @Binding var isFinished: Bool
     @Binding var navigationPath: [String]
     @Binding var isPresentingStoreSheet: Bool
+    let onSkipOnboarding: () -> Void
     @ViewBuilder let cardContent: (OnboardingCard, Binding<Bool>, Bool) -> CardContent
     
     @State private var scrolledID: String?
-
-//    private var cardMinHeight: CGFloat = 330
-    private var cardHeightFactor: CGFloat {
-#if os(iOS)
-        if isPortrait {
-            return 0.75
-        }
-#endif
-        return 0.85
-    }
 
     private var appName: String? {
         return Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String
@@ -276,13 +280,20 @@ struct OnboardingCardsView<CardContent: View>: View {
     @Environment(\.userInterfaceIdiom) private var userInterfaceIdiom
 #endif
     @ScaledMetric(relativeTo: .body) private var maxCardWidth: CGFloat = 500
-    @ScaledMetric(relativeTo: .body) private var maxCardHeight: CGFloat = 580
 
     private var isPortrait: Bool {
 #if os(iOS)
         return (horizontalSizeClass == .compact && verticalSizeClass == .regular) || userInterfaceIdiom != .phone
 #elseif os(macOS)
         return true
+#endif
+    }
+
+    private var isPhone: Bool {
+#if os(iOS)
+        return userInterfaceIdiom == .phone
+#elseif os(macOS)
+        return false
 #endif
     }
     
@@ -304,26 +315,15 @@ struct OnboardingCardsView<CardContent: View>: View {
     
     @ViewBuilder private func scrollViewInner(geometry: GeometryProxy) -> some View {
         ForEach(Array(cards.enumerated()), id: \.element.id) { index, card in
+            let frameHeight = cardFrameHeight(for: geometry.size)
             VStack {
-//                Text(" ")
-//                
-//                let frameHeight: CGFloat = (cardHeightFactor * geometry.insetAdjustedSize.height).rounded()
-//                let paddingVertical: CGFloat = (((1 - cardHeightFactor) / 2) * geometry.insetAdjustedSize.height).rounded()
-//                let frameHeight: CGFloat = (cardHeightFactor * geometry.size.height).rounded()
-                let paddingVertical: CGFloat = (((1 - cardHeightFactor) / 6) * geometry.size.height).rounded()
-                let frameHeight: CGFloat = geometry.size.height - (paddingVertical * 2)
                 OnboardingCardView(card: card, isFinished: $isFinished, isTopVisible: scrolledID == card.id, cardContent: cardContent)
-//                    .padding(.horizontal, 20)
-                    .frame(idealHeight: frameHeight)
-                    .frame(maxWidth: maxCardWidth, maxHeight: maxCardHeight)
-                    .padding(12)
-                    .padding(.top, paddingVertical)
-//                    .padding(.bottom, paddingVertical)
-//
-//                Text(" ")
+                    .frame(height: frameHeight)
+                    .frame(maxWidth: maxCardWidth)
+                    .padding(.horizontal, 12)
             }
-//            .frame(maxWidth: geometry.insetAdjustedSize.width)
-//            .frame(width: geometry.insetAdjustedSize.width)
+            .frame(maxWidth: .infinity)
+            .frame(height: geometry.size.height)
             .onSwipe { direction in
                 guard let currentIndex = cards.firstIndex(where: { $0.id == scrolledID }) else { return }
                 withAnimation {
@@ -345,8 +345,14 @@ struct OnboardingCardsView<CardContent: View>: View {
 //    @ViewBuilder private func scrollViewFooter(wheelGeometry: GeometryProxy) -> some View {
 //        Color.clear.frame(height: max(0, cardHeightFactor * wheelGeometry.size.height  - wheelGeometry.safeAreaInsets.top - wheelGeometry.safeAreaInsets.bottom))
 //    }
+
+    private func cardFrameHeight(for size: CGSize) -> CGFloat {
+        let verticalInset: CGFloat = 30
+        let minimumHeight = min(360, max(220, size.height - verticalInset * 2))
+        return max(minimumHeight, size.height - verticalInset * 2).rounded()
+    }
     
-    @ViewBuilder private var scrollView: some View {
+    @ViewBuilder private var scrollViewContent: some View {
         ZStack {
             ZStack {
                 ForEach(cards, id: \.id) { card in
@@ -397,14 +403,46 @@ struct OnboardingCardsView<CardContent: View>: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .safeAreaInset(edge: .bottom) {
-            if #available(iOS 17, macOS 14, *) {
-                VStack {
-                    PageNavigator(scrolledID: $scrolledID, cards: cards)
-                        .frame(maxWidth: .infinity)
-                        .padding(.bottom, 8)
+    }
+
+    @ViewBuilder private var topChrome: some View {
+        if #available(iOS 17, macOS 14, *) {
+            ZStack(alignment: .leading) {
+                PageNavigator(scrolledID: $scrolledID, cards: cards)
+                    .frame(maxWidth: .infinity)
+
+                if isPhone && scrolledID == cards.first?.id {
+                    Button {
+                        onSkipOnboarding()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 15, weight: .bold))
+                            .frame(width: 34, height: 34)
+                            .contentShape(Circle())
+                    }
+                    .accessibilityLabel("Dismiss onboarding")
+                    .buttonStyle(.borderless)
+                    .tint(.primary)
+                    .background(.regularMaterial, in: Circle())
+                    .padding(.leading, 16)
                 }
             }
+            .padding(.top, 6)
+            .padding(.bottom, 6)
+        }
+    }
+
+    @ViewBuilder private var scrollView: some View {
+        if #available(iOS 26, macOS 26, *) {
+            scrollViewContent
+                .safeAreaBar(edge: .top, spacing: 0) {
+                    topChrome
+                }
+        } else {
+            scrollViewContent
+                .safeAreaInset(edge: .top, spacing: 0) {
+                    topChrome
+                }
         }
     }
     
@@ -412,6 +450,8 @@ struct OnboardingCardsView<CardContent: View>: View {
         VStack {
             OnboardingPrimaryButtons(
                 isFinishedOnboarding: scrolledID == cards.last?.id,
+                canAdvanceOnboarding: canAdvanceOnboarding,
+                advanceOnboarding: advanceOnboarding,
                 isPresentingSheet: $isPresentingSheet,
                 isPresentingStoreSheet: $isPresentingStoreSheet,
                 navigationPath: $navigationPath
@@ -421,7 +461,6 @@ struct OnboardingCardsView<CardContent: View>: View {
         .padding(.vertical, 10)
         .frame(maxWidth: .infinity)
     }
-    
     var body: some View {
         ZStack {
             if let currentColor = currentCard?.color {
@@ -437,33 +476,72 @@ struct OnboardingCardsView<CardContent: View>: View {
             }
             
 #if os(macOS)
-            scrollView
-                .safeAreaInset(edge: .bottom, spacing: 0) {
-                    callToActionView
-                        .background(.regularMaterial)
-                }
-#elseif os(iOS)
-            GeometryReader { geometry in
-                HStack(spacing: 0) {
-                    if !isPortrait {
+            if #available(macOS 26, *) {
+                scrollView
+                    .safeAreaBar(edge: .bottom, spacing: 0) {
                         callToActionView
-                            .frame(maxHeight: .infinity)
-                            .background(.regularMaterial)
                     }
-                    scrollView
-                        .frame(width: !isPortrait ? 0.666 * geometry.insetAdjustedSize.width : nil)
-                }
+            } else {
+                scrollView
+                    .safeAreaInset(edge: .bottom, spacing: 0) {
+                        callToActionView
+                    }
             }
-            .safeAreaInset(edge: .bottom, spacing: 0) {
-                if isPortrait {
-                    callToActionView
-                        .background(.regularMaterial)
+#elseif os(iOS)
+            if #available(iOS 26, *) {
+                GeometryReader { geometry in
+                    HStack(spacing: 0) {
+                        if !isPortrait {
+                            callToActionView
+                                .frame(maxHeight: .infinity)
+                        }
+                        scrollView
+                            .frame(width: !isPortrait ? 0.666 * geometry.insetAdjustedSize.width : nil)
+                    }
+                }
+                .safeAreaBar(edge: .bottom, spacing: 0) {
+                    if isPortrait {
+                        callToActionView
+                    }
+                }
+            } else {
+                GeometryReader { geometry in
+                    HStack(spacing: 0) {
+                        if !isPortrait {
+                            callToActionView
+                                .frame(maxHeight: .infinity)
+                        }
+                        scrollView
+                            .frame(width: !isPortrait ? 0.666 * geometry.insetAdjustedSize.width : nil)
+                    }
+                }
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    if isPortrait {
+                        callToActionView
+                    }
                 }
             }
 #endif
         }
         .onAppear {
             scrolledID = "welcome"
+        }
+    }
+
+    private var currentIndex: Int? {
+        guard let scrolledID else { return nil }
+        return cards.firstIndex(where: { $0.id == scrolledID })
+    }
+
+    private var canAdvanceOnboarding: Bool {
+        guard let currentIndex else { return false }
+        return currentIndex < cards.count - 1
+    }
+
+    private func advanceOnboarding() {
+        guard let currentIndex, currentIndex < cards.count - 1 else { return }
+        withAnimation {
+            scrolledID = cards[currentIndex + 1].id
         }
     }
     
@@ -473,6 +551,7 @@ struct OnboardingCardsView<CardContent: View>: View {
         isFinished: Binding<Bool>,
         isPresentingStoreSheet: Binding<Bool>,
         navigationPath: Binding<[String]>,
+        onSkipOnboarding: @escaping () -> Void,
         cardContent: @escaping (OnboardingCard, Binding<Bool>, Bool) -> CardContent
     ) {
         self.cards = cards
@@ -480,6 +559,7 @@ struct OnboardingCardsView<CardContent: View>: View {
         _isFinished = isFinished
         _isPresentingStoreSheet = isPresentingStoreSheet
         _navigationPath = navigationPath
+        self.onSkipOnboarding = onSkipOnboarding
         self.cardContent = cardContent
     }
 }
@@ -490,6 +570,7 @@ struct OnboardingView<CardContent: View>: View {
     @Binding var isPresentingSheet: Bool
     @Binding var isFinished: Bool
     @Binding var isPresentingStoreSheet: Bool
+    let onSkipOnboarding: () -> Void
     @ViewBuilder let cardContent: (OnboardingCard, Binding<Bool>, Bool) -> CardContent
     
     @EnvironmentObject private var storeViewModel: StoreViewModel
@@ -505,6 +586,7 @@ struct OnboardingView<CardContent: View>: View {
             isFinished: $isFinished,
             isPresentingStoreSheet: $isPresentingStoreSheet,
             navigationPath: $navigationPath,
+            onSkipOnboarding: onSkipOnboarding,
             cardContent: cardContent
         )
         .modifier {
@@ -564,12 +646,14 @@ struct OnboardingView<CardContent: View>: View {
         isPresentingSheet: Binding<Bool>,
         isFinished: Binding<Bool>,
         isPresentingStoreSheet: Binding<Bool>,
+        onSkipOnboarding: @escaping () -> Void,
         cardContent: @escaping (OnboardingCard, Binding<Bool>, Bool) -> CardContent
     ) {
         self.cards = cards
         _isPresentingSheet = isPresentingSheet
         _isFinished = isFinished
         _isPresentingStoreSheet = isPresentingStoreSheet
+        self.onSkipOnboarding = onSkipOnboarding
         self.cardContent = cardContent
     }
 }
@@ -631,13 +715,16 @@ struct OnboardingCardView<CardContent: View>: View {
             if useVStack {
                 VStack(spacing: 16) {
                     headlineView
+                    Spacer(minLength: 8)
                     cardContentView
+                    Spacer(minLength: 8)
                     subheadlineView
                 }
             } else {
                 HStack(spacing: 16) {
                     VStack(spacing: 16) {
                         headlineView
+                        Spacer(minLength: 8)
                         subheadlineView
                     }
                     cardContentView
@@ -672,9 +759,6 @@ fileprivate struct PageNavigator: View {
     @Binding var scrolledID: String?
     let cards: [OnboardingCard]
     
-    @State var animateCount: Int = 0
-    
-    @ScaledMetric(relativeTo: .body) private var pageButtonTitleFontSize = 15
     @ScaledMetric(relativeTo: .body) private var pageButtonIconFontSize = 15
 #if os(iOS)
     @ScaledMetric(relativeTo: .body) private var pageButtonMinHeight = 22
@@ -691,11 +775,7 @@ fileprivate struct PageNavigator: View {
         return (currentIndex ?? -1) > 0
     }
     
-    private var canGoNext: Bool {
-        return ((currentIndex ?? cards.count) + 1) < cards.count
-    }
-
-    func scrollTo(index: Int) {
+    private func scrollTo(index: Int) {
         guard cards.indices.contains(index) else {
             scrolledID = nil
             return
@@ -705,48 +785,21 @@ fileprivate struct PageNavigator: View {
         }
     }
     
-    @ViewBuilder private func pageTurnButton(title: String, systemImage: String, isEnabled: Bool, isAnimated: Bool, action: @escaping () -> Void) -> some View {
+    @ViewBuilder private func pageTurnButton(title: String, systemImage: String, isEnabled: Bool, action: @escaping () -> Void) -> some View {
         Button {
             guard isEnabled else { return }
             action()
         } label: {
-            Group {
-                if #available(iOS 16.0, macOS 13, *) {
-                    Label {
-                        Text(title)
-                            .font(.system(size: pageButtonTitleFontSize))
-#if os(iOS)
-                            .bold()
-#endif
-                    } icon: {
-                        Image(systemName: systemImage)
-                            .font(.system(size: pageButtonIconFontSize))
-#if os(iOS)
-                            .bold()
-                            .modifier {
-                                if #available(iOS 16.1, macOS 13.1, *) {
-                                    $0
-                                        .bold()
-                                        .fontDesign(.rounded)
-                                } else { $0 }
-                            }
-#endif
-                    }
-//                    .symbolEffect(.bounce, value: isAnimated ? animateCount : 0)
-                } else {
-                    Label {
-                        Text(title)
-                            .font(.system(size: pageButtonTitleFontSize))
-#if os(iOS)
-                            .bold()
-#endif
-                    } icon: {
-                        Image(systemName: systemImage)
-                            .font(.system(size: pageButtonIconFontSize))
+            Image(systemName: systemImage)
+                .font(.system(size: pageButtonIconFontSize, weight: .bold))
+                .modifier {
+                    if #available(iOS 16.1, macOS 13.1, *) {
+                        $0.fontDesign(.rounded)
+                    } else {
+                        $0
                     }
                 }
-            }
-            
+                .accessibilityLabel(title)
 #if os(macOS)
             .padding(6)
 #endif
@@ -755,14 +808,10 @@ fileprivate struct PageNavigator: View {
             .padding(12)
 #endif
         }
-#if os(iOS)
         .buttonStyle(.borderless)
-#endif
-        .tint(.secondary)
-        .background(.regularMaterial)
-        .shadow(radius: 16)
+        .tint(.primary)
         .disabled(!isEnabled)
-        .opacity(isEnabled ? 1 : 0)
+        .opacity(isEnabled ? 1 : 0.0001)
         .allowsHitTesting(isEnabled)
     }
 
@@ -788,43 +837,29 @@ fileprivate struct PageNavigator: View {
     
     var body: some View {
         ZStack {
-            if let currentIndex, currentIndex > 0 {
+            if currentIndex != nil {
                 indicatorView
             }
 
             let canGoPrevious = canGoPrevious
-            let canGoNext = canGoNext
             HStack {
-                pageTurnButton(title: "Previous", systemImage: "chevron.backward", isEnabled: canGoPrevious, isAnimated: false) {
+                pageTurnButton(title: "Back", systemImage: "chevron.left", isEnabled: canGoPrevious) {
                     guard let currentIndex = currentIndex else { return }
                     scrollTo(index: currentIndex - 1)
                 }
-                .labelStyle(.iconOnly)
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(.primary)
                 .clipShape(.circle)
 
                 Spacer()
-                
-                pageTurnButton(title: "Next", systemImage: "chevron.forward", isEnabled: canGoNext, isAnimated: true) {
-                    guard let currentIndex = currentIndex else { return }
-                    scrollTo(index: currentIndex + 1)
-                }
-                .labelStyle(.titleAndIcon)
-                .foregroundStyle(Color.accentColor)
-                .clipShape(.capsule)
-                .animation(.default, value: canGoNext)
-                .conditionalEffect(
-                    .repeat(
-                        .glow(color: .systemBackground, radius: 30),
-                        every: 1.75
-                    ),
-                    condition: canGoNext && !canGoPrevious)
+
+                Color.clear
+                    .frame(width: pageButtonMinHeight, height: pageButtonMinHeight)
+#if os(iOS)
+                    .padding(12)
+#endif
             }
         }
         .padding(.horizontal)
-        .onAppear {
-            animateCount = 1
-        }
     }
 }
 
@@ -838,28 +873,52 @@ public struct OnboardingSheet<CardContent: View>: ViewModifier {
     @AppStorage("hasRespondedToOnboarding") var hasRespondedToOnboarding = false
     @State private var isPresented = false
     @State private var isFinished = false
+    @State private var didSkipOnboardingThisSession = false
+#if os(iOS)
+    @Environment(\.userInterfaceIdiom) private var userInterfaceIdiom
+#endif
+
+    @ViewBuilder
+    private var onboardingPresentationContent: some View {
+        OnboardingView(
+            cards: cards,
+            isPresentingSheet: $isPresented,
+            isFinished: $isFinished,
+            isPresentingStoreSheet: $isPresentingStoreSheet,
+            onSkipOnboarding: skipOnboarding,
+            cardContent: cardContent
+        )
+#if os(macOS)
+        .frame(idealWidth: 450, idealHeight: 600)
+#endif
+        .modifier {
+            if #available(iOS 18, macOS 15, *) {
+                $0
+                    .presentationSizing(.page)
+            } else { $0 }
+        }
+        .storeSheet(isPresented: $isPresentingStoreSheet)
+    }
 
     public func body(content: Content) -> some View {
         content
-            .sheet(isPresented: $isPresented.gatedBy(isActive)) {
-                OnboardingView(
-                    cards: cards,
-                    isPresentingSheet: $isPresented,
-                    isFinished: $isFinished,
-                    isPresentingStoreSheet: $isPresentingStoreSheet,
-                    cardContent: cardContent
-                )
-#if os(macOS)
-                    .frame(idealWidth: 450, idealHeight: 600)
-#endif
-                    .modifier {
-                        if #available(iOS 18, macOS 15, *) {
-                            $0
-                                .presentationSizing(.page)
-                        } else { $0 }
+            .modifier { content in
+#if os(iOS)
+                if userInterfaceIdiom == .phone {
+                    content.fullScreenCover(isPresented: $isPresented.gatedBy(isActive)) {
+                        onboardingPresentationContent
+                            .interactiveDismissDisabled()
                     }
-                    .storeSheet(isPresented: $isPresentingStoreSheet)
-                // TODO: track onDisappear (after tracking onAppear to make sure it was seen for long enough too) timestamp as last seen date in AppStorage to avoid re-showing onboarding within seconds or minute of last seeing it again. Avoids annoying the user.
+                } else {
+                    content.sheet(isPresented: $isPresented.gatedBy(isActive)) {
+                        onboardingPresentationContent
+                    }
+                }
+#elseif os(macOS)
+                content.sheet(isPresented: $isPresented.gatedBy(isActive)) {
+                    onboardingPresentationContent
+                }
+#endif
             }
             .onAppear {
                 refresh()
@@ -882,8 +941,24 @@ public struct OnboardingSheet<CardContent: View>: ViewModifier {
         let hasSeenOnboarding = hasSeenOnboarding ?? self.hasSeenOnboarding
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 250_000_000)
+            guard isActive else {
+                didSkipOnboardingThisSession = false
+                isPresented = false
+                return
+            }
+#if DEBUG
+            isPresented = !didSkipOnboardingThisSession
+#else
             isPresented = !(hasRespondedToOnboarding || hasSeenOnboarding)
+#endif
         }
+    }
+
+    private func skipOnboarding() {
+        didSkipOnboardingThisSession = true
+        hasSeenOnboarding = true
+        hasRespondedToOnboarding = true
+        isPresented = false
     }
 }
 
