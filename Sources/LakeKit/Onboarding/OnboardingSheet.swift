@@ -446,7 +446,7 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
                     }
                 }
             }
-//            .id(card.id)
+            .id(card.id)
         }
     }
         
@@ -487,7 +487,7 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
                     WheelScroll(axis: .vertical, contentSpacing: 40) {
                         scrollViewInner(geometry: wheelGeometry)
                     }
-                    .scrollPosition(id: $scrolledID)
+                    .scrollPosition(id: $scrolledID, anchor: .top)
 //                    .scrollClipDisabled()
                     .scrollTargetBehavior(.viewAligned(limitBehavior: .always)) // always needed for top alignment for some reason
                     .onAppear {
@@ -1141,6 +1141,7 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
 
     @AppStorage("hasSeenOnboarding") var hasSeenOnboarding = false
     @AppStorage("hasRespondedToOnboarding") var hasRespondedToOnboarding = false
+    @AppStorage("darkModeSetting") private var darkModeSetting = "system"
     @State private var isPresented = false
     @State private var isFinished = false
     @State private var didSkipOnboardingThisSession = false
@@ -1169,7 +1170,19 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
                     .presentationSizing(.page)
             } else { $0 }
         }
+        .preferredColorScheme(preferredColorScheme)
         .storeSheet(isPresented: $isPresentingStoreSheet)
+    }
+
+    private var preferredColorScheme: ColorScheme? {
+        switch darkModeSetting {
+        case "darkModeOverride":
+            return .dark
+        case "alwaysLightMode":
+            return .light
+        default:
+            return nil
+        }
     }
 
     public func body(content: Content) -> some View {
