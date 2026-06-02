@@ -29,33 +29,38 @@ public struct WheelScroll<Content: View>: View {
     
     public var body: some View {
         ScrollView(axis, showsIndicators: true) {
-            content()
-                .scrollTransition(
-                    .interactive(timingCurve: .easeIn)
-                ) { effect, phase in
-                    scrollTransitionRoll(effect: effect, phase: phase)
-                }
-                .scrollTransition(
-                    .interactive(timingCurve: timingCurve).threshold(blurThreshold)
-                ) { effect, phase in
-                    effect
-                        .blur(radius: phase.isIdentity ? 0 : 2.2)
-                        .scaleEffect(
-                            x: phase.isIdentity
-                            ? 1
-                            : axis.isVertical ? 0.875 : 1,
-                            y: phase.isIdentity
-                            ? 1
-                            : axis == .horizontal ? 0.925 : 1
-                        )
-                }
-                .scrollTransition(
-                    .interactive(timingCurve: timingCurve).threshold(opacityThreshold)
-                ) { effect, phase in
-                    effect.opacity(phase.isIdentity ? 1 : 0.333)
-                }
-                .embedInStack(axis, spacing: contentSpacing)
-                .scrollTargetLayout()
+            VStack(spacing: 0) {
+                content()
+                    .scrollTransition(
+                        .interactive(timingCurve: .easeIn)
+                    ) { effect, phase in
+                        scrollTransitionRoll(effect: effect, phase: phase)
+                    }
+                    .scrollTransition(
+                        .interactive(timingCurve: timingCurve).threshold(blurThreshold)
+                    ) { effect, phase in
+                        effect
+                            .blur(radius: phase.isIdentity ? 0 : 2.2)
+                            .scaleEffect(
+                                x: phase.isIdentity
+                                ? 1
+                                : axis.isVertical ? 0.875 : 1,
+                                y: phase.isIdentity
+                                ? 1
+                                : axis == .horizontal ? 0.925 : 1
+                            )
+                    }
+                    .scrollTransition(
+                        .interactive(timingCurve: timingCurve).threshold(opacityThreshold)
+                    ) { effect, phase in
+                        effect.opacity(phase.isIdentity ? 1 : 0.333)
+                    }
+                    .embedInStack(axis, spacing: contentSpacing)
+                    .scrollTargetLayout()
+
+                Text("") // scrollTargetLayout bug workaround
+                    .frame(width: 0, height: 0)
+            }
         }
 //        .scrollClipDisabled()
         .frame(maxWidth: .infinity)
@@ -108,17 +113,9 @@ fileprivate extension View {
     func embedInStack(_ axis: Axis.Set, spacing: CGFloat) -> some View {
         switch axis {
         case .horizontal:
-            LazyHStack(spacing: spacing) {
-                self
-                Text("") // scrollTargetLayout bug workaround
-                    .frame(width: 0, height: 0)
-            }
+            LazyHStack(spacing: spacing, content: { self })
         default:
-            LazyVStack(spacing: spacing) {
-                self
-                Text("") // scrollTargetLayout bug workaround
-                    .frame(width: 0, height: 0)
-            }
+            LazyVStack(spacing: spacing, content: { self })
         }
     }
 }

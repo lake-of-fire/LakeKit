@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 import StoreHelper
 import SwiftUtilities
@@ -6,6 +7,7 @@ import Pow
 #if os(iOS)
 import UIKit
 #endif
+import CoreGraphics
 
 public struct OnboardingCard: Identifiable, Hashable {
     public let id: String
@@ -44,6 +46,67 @@ public struct OnboardingCard: Identifiable, Hashable {
         self.requiredActionSystemImage = requiredActionSystemImage
         self.usesTightVerticalSpacing = usesTightVerticalSpacing
         self.contentUsesFullWidth = contentUsesFullWidth
+    }
+}
+
+private struct OnboardingGrainOverlay: View {
+    private static let grainImage: CGImage? = makeGrainImage(size: 160)
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var opacity: Double {
+        colorScheme == .dark ? 0.18 : 0.24
+    }
+
+    var body: some View {
+        if let grainImage = Self.grainImage {
+            Image(decorative: grainImage, scale: 1)
+                .resizable(resizingMode: .tile)
+                .blendMode(.softLight)
+                .opacity(opacity)
+                .allowsHitTesting(false)
+        }
+    }
+
+    private static func makeGrainImage(size: Int) -> CGImage? {
+        let bytesPerPixel = 4
+        let bytesPerRow = size * bytesPerPixel
+        var pixels = [UInt8](repeating: 0, count: size * bytesPerRow)
+
+        for y in 0..<size {
+            for x in 0..<size {
+                let coordsX = Double(x) / Double(size)
+                let coordsY = Double(y) / Double(size)
+                let source = (coordsX + 4) * (coordsY + 4) * 10
+                let grain = (fmod((fmod(source, 13) + 1) * (fmod(source, 123) + 1), 0.01) - 0.005) * 16
+                let alpha = UInt8(min(max(abs(grain) * 860, 0), 42))
+                let value: UInt8 = grain >= 0 ? 255 : 0
+                let premultipliedValue = UInt8((Int(value) * Int(alpha) + 127) / 255)
+                let index = (y * bytesPerRow) + (x * bytesPerPixel)
+
+                pixels[index] = premultipliedValue
+                pixels[index + 1] = premultipliedValue
+                pixels[index + 2] = premultipliedValue
+                pixels[index + 3] = alpha
+            }
+        }
+
+        let data = Data(pixels)
+        guard let dataProvider = CGDataProvider(data: data as CFData) else { return nil }
+
+        return CGImage(
+            width: size,
+            height: size,
+            bitsPerComponent: 8,
+            bitsPerPixel: 32,
+            bytesPerRow: bytesPerRow,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
+            provider: dataProvider,
+            decode: nil,
+            shouldInterpolate: false,
+            intent: .defaultIntent
+        )
     }
 }
 
@@ -244,6 +307,7 @@ struct OnboardingPrimaryButtons: View {
         } label: {
             Text("Skip")
                 .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
                 .padding(.horizontal, 10)
         }
         .controlSize(.regular)
@@ -282,6 +346,7 @@ struct OnboardingPrimaryButtons: View {
         .buttonStyle(.borderedProminent)
         .tint(.accentColor)
         .modifier(OnboardingCategoryPressScaleModifier())
+        .shadow(color: .black.opacity(0.26), radius: 18, x: 0, y: 10)
         .conditionalEffect(
             .repeat(
                 .shine.delay(0.75),
@@ -293,13 +358,15 @@ struct OnboardingPrimaryButtons: View {
 
     @ViewBuilder
     private func subsidizedOptionsButton() -> some View {
-        OnboardingPrimaryButton(
-            title: "Skip Upgrades",
-            systemImage: nil
-        ) {
+        Button {
             navigationPath.removeLast(navigationPath.count)
             navigationPath.append("free-mode")
+        } label: {
+            Text("Skip Upgrades")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
         }
+        .controlSize(.regular)
         .modifier { button in
             if #available(iOS 26, macOS 26, *) {
                 button.buttonStyle(.glass(.clear))
@@ -307,10 +374,7 @@ struct OnboardingPrimaryButtons: View {
                 button.buttonStyle(.bordered)
             }
         }
-        .background {
-            Color.white.opacity(0.0000000001)
-                .edgesIgnoringSafeArea(.all)
-        }
+        .buttonBorderShape(.capsule)
     }
     
     @ViewBuilder
@@ -345,7 +409,7 @@ struct OnboardingPrimaryButtons: View {
     }
     
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 13) {
             if isWaitingForRequiredAction {
                 skipRequiredActionButton()
             } else if shouldOfferFreeModePath {
@@ -362,15 +426,19 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
     @Binding var isFinished: Bool
     @Binding var navigationPath: [String]
     @Binding var isPresentingStoreSheet: Bool
+    @Binding var scrolledID: String?
     let onSkipOnboarding: () -> Void
     let onRequiredAction: (OnboardingCard, @escaping () -> Void) -> Void
     @ViewBuilder let requiredActionContent: (OnboardingCard) -> RequiredActionContent
     @ViewBuilder let cardContent: (OnboardingCard, Binding<Bool>, Bool) -> CardContent
     
-    @State private var scrolledID: String?
+    @State private var requestedScrollID: String?
+    @State private var protectedScrollID: String?
     @State private var completedRequiredActionIDs: Set<String> = []
     @State private var presentedRequiredActionCard: OnboardingCard?
     @State private var pendingRequiredActionID: String?
+    @State private var isConfirmingSkipPersonalization = false
+    @State private var isPresentingWidgetSkipAlert = false
 
     private var appName: String? {
         return Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String
@@ -446,7 +514,7 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
                     }
                 }
             }
-            .id(card.id)
+//            .id(card.id)
         }
     }
         
@@ -455,27 +523,36 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
 //    }
 
     private func cardFrameHeight(for size: CGSize) -> CGFloat {
-        let verticalInset: CGFloat = 30
+        let verticalInset: CGFloat = 55
         let minimumHeight = min(360, max(220, size.height - verticalInset * 2))
         return max(minimumHeight, size.height - verticalInset * 2).rounded()
+    }
+
+    @ViewBuilder private func backgroundLayer(for color: Color) -> some View {
+        if #available(iOS 16, macOS 13, *) {
+            Rectangle()
+                .fill(color.gradient.opacity(0.75))
+                .overlay {
+                    Rectangle()
+                        .fill(Color.black.gradient.opacity(0.6))
+                }
+                .overlay {
+                    OnboardingGrainOverlay()
+                }
+        } else {
+            color
+                .overlay {
+                    Color.black.opacity(0.45)
+                }
+        }
     }
     
     @ViewBuilder private var scrollViewContent: some View {
         ZStack {
             ZStack {
                 ForEach(cards, id: \.id) { card in
-                    Group {
-                        if #available(iOS 16, macOS 13, *) {
-                            Rectangle()
-                                .fill(card.color.gradient.opacity(0.75))
-                                .overlay {
-                                    Rectangle()
-                                        .fill(Color.black.gradient.opacity(0.2))
-                                }
-                        } else {
-                            card.color
-                        }
-                    }
+                    backgroundLayer(for: card.color)
+                    .compositingGroup()
                     .opacity(scrolledID == card.id ? 1 : 0)
                     .animation(.easeIn, value: scrolledID)
                 }
@@ -484,17 +561,45 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
             
             if #available(iOS 17, macOS 14, *) {
                 GeometryReader { wheelGeometry in
-                    WheelScroll(axis: .vertical, contentSpacing: 40) {
-                        scrollViewInner(geometry: wheelGeometry)
-                    }
-                    .scrollPosition(id: $scrolledID, anchor: .top)
+                    ScrollViewReader { proxy in
+                        WheelScroll(axis: .vertical, contentSpacing: 40) {
+                            scrollViewInner(geometry: wheelGeometry)
+                        }
+                        .scrollPosition(id: $scrolledID)
 //                    .scrollClipDisabled()
-                    .scrollTargetBehavior(.viewAligned(limitBehavior: .always)) // always needed for top alignment for some reason
-                    .onAppear {
-                        scrolledID = cards.first?.id
-                    }
-                    .onChange(of: scrolledID) { scrolledID in
-                        isFinished = scrolledID == cards.last?.id
+                        .scrollTargetBehavior(.viewAligned(limitBehavior: .always)) // always needed for top alignment for some reason
+                        .onAppear {
+                            prepareScrollPositionOnAppear()
+                        }
+                        .onChange(of: scrolledID) { scrolledID in
+                            print("# WHEEL scrolledID changed", scrolledID ?? "nil", "protected:", protectedScrollID ?? "nil", "requested:", requestedScrollID ?? "nil")
+                            if let protectedScrollID, scrolledID != protectedScrollID {
+                                print("# WHEEL restoring protected target", protectedScrollID, "from:", scrolledID ?? "nil")
+                                self.scrolledID = protectedScrollID
+                                requestedScrollID = protectedScrollID
+                                return
+                            }
+                            isFinished = scrolledID == cards.last?.id
+                        }
+                        .onChange(of: requestedScrollID) { requestedScrollID in
+                            guard let requestedScrollID else { return }
+                            print("# WHEEL scrollTo requested", requestedScrollID)
+                            withAnimation {
+                                proxy.scrollTo(requestedScrollID, anchor: .top)
+                            }
+                            DispatchQueue.main.async {
+                                if self.requestedScrollID == requestedScrollID {
+                                    print("# WHEEL clearing request", requestedScrollID)
+                                    self.requestedScrollID = nil
+                                }
+                            }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.65) {
+                                if self.protectedScrollID == requestedScrollID {
+                                    print("# WHEEL clearing protection", requestedScrollID)
+                                    self.protectedScrollID = nil
+                                }
+                            }
+                        }
                     }
                 }
             } else {
@@ -516,12 +621,16 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
     @ViewBuilder private var topChrome: some View {
         if #available(iOS 17, macOS 14, *) {
             ZStack(alignment: .leading) {
-                PageNavigator(scrolledID: $scrolledID, cards: cards)
-                    .frame(maxWidth: .infinity)
+                PageNavigator(scrolledID: $scrolledID, cards: cards) { id in
+                    print("# WHEEL navigator request", id)
+                    protectedScrollID = id
+                    requestedScrollID = id
+                }
+                .frame(maxWidth: .infinity)
 
                 if isPhone && scrolledID == cards.first?.id {
                     Button {
-                        onSkipOnboarding()
+                        isConfirmingSkipPersonalization = true
                     } label: {
                         Image(systemName: "xmark")
                             .font(.system(size: 15, weight: .bold))
@@ -536,7 +645,6 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
                 }
             }
             .padding(.top, 6)
-            .padding(.bottom, 6)
         }
     }
 
@@ -576,15 +684,8 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
     var body: some View {
         ZStack {
             if let currentColor = currentCard?.color {
-                Group {
-                    if #available(iOS 16, macOS 13, *) {
-                        Rectangle()
-                            .fill(currentColor.gradient)
-                    } else {
-                        currentColor
-                    }
-                }
-                .ignoresSafeArea()
+                backgroundLayer(for: currentColor)
+                    .ignoresSafeArea()
             }
             
 #if os(macOS)
@@ -636,10 +737,31 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
 #endif
         }
         .onAppear {
-            scrolledID = "welcome"
+            ensureInitialScrolledID()
         }
         .sheet(item: $presentedRequiredActionCard, onDismiss: completePresentedRequiredAction) { card in
             requiredActionContent(card)
+        }
+        .alert("Skip Personalization?", isPresented: $isConfirmingSkipPersonalization) {
+            Button("Cancel", role: .cancel) {}
+            Button("Skip", role: .destructive) {
+                onSkipOnboarding()
+            }
+        }
+        .alert("Adding Widgets Later", isPresented: $isPresentingWidgetSkipAlert) {
+            if #available(iOS 26, macOS 26, *) {
+                Button(role: .confirm) {
+                    completeSkippedRequiredAction()
+                } label: {
+                    Text("Got It")
+                }
+            } else {
+                Button("Got It") {
+                    completeSkippedRequiredAction()
+                }
+            }
+        } message: {
+            Text("You can view the widget gallery and instructions for adding widgets in the in-app Reader Settings.")
         }
     }
 
@@ -658,10 +780,38 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
         return completedRequiredActionIDs.contains(requiredActionID)
     }
 
+    private func ensureInitialScrolledID() {
+        if let scrolledID, cards.contains(where: { $0.id == scrolledID }) {
+            isFinished = scrolledID == cards.last?.id
+            print("# WHEEL keeping initial scroll ID", scrolledID)
+            return
+        }
+
+        scrolledID = cards.first?.id
+        isFinished = scrolledID == cards.last?.id
+        print("# WHEEL initializing scroll ID", scrolledID ?? "nil")
+    }
+
+    private func prepareScrollPositionOnAppear() {
+        let previousScrolledID = scrolledID
+        ensureInitialScrolledID()
+
+        guard let scrolledID else { return }
+        if previousScrolledID != nil {
+            protectedScrollID = scrolledID
+        }
+        requestedScrollID = scrolledID
+        print("# WHEEL prepare onAppear previous:", previousScrolledID ?? "nil", "target:", scrolledID)
+    }
+
     private func advanceOnboarding() {
         guard let currentIndex, currentIndex < cards.count - 1 else { return }
+        let nextID = cards[currentIndex + 1].id
+        print("# WHEEL advance", cards[currentIndex].id, "->", nextID)
+        protectedScrollID = nextID
+        requestedScrollID = nextID
         withAnimation {
-            scrolledID = cards[currentIndex + 1].id
+            scrolledID = nextID
         }
     }
 
@@ -685,6 +835,15 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
     }
 
     private func skipRequiredAction() {
+        if currentCard?.id == "widgets" {
+            isPresentingWidgetSkipAlert = true
+            return
+        }
+
+        completeSkippedRequiredAction()
+    }
+
+    private func completeSkippedRequiredAction() {
         if let requiredActionID = currentCard?.requiredActionID {
             completedRequiredActionIDs.insert(requiredActionID)
         }
@@ -697,6 +856,7 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
         isFinished: Binding<Bool>,
         isPresentingStoreSheet: Binding<Bool>,
         navigationPath: Binding<[String]>,
+        scrolledID: Binding<String?>,
         onSkipOnboarding: @escaping () -> Void,
         onRequiredAction: @escaping (OnboardingCard, @escaping () -> Void) -> Void,
         requiredActionContent: @escaping (OnboardingCard) -> RequiredActionContent,
@@ -707,6 +867,7 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
         _isFinished = isFinished
         _isPresentingStoreSheet = isPresentingStoreSheet
         _navigationPath = navigationPath
+        _scrolledID = scrolledID
         self.onSkipOnboarding = onSkipOnboarding
         self.onRequiredAction = onRequiredAction
         self.requiredActionContent = requiredActionContent
@@ -729,6 +890,7 @@ struct OnboardingView<CardContent: View, RequiredActionContent: View>: View {
     @EnvironmentObject private var storeHelper: StoreHelper
 
     @State private var navigationPath = [String]()
+    @State private var selectedCardID: String?
     @State private var highlightedProduct: PrePurchaseSubscriptionInfo?
 
     @ViewBuilder private var onboardingCardsView: some View {
@@ -738,6 +900,7 @@ struct OnboardingView<CardContent: View, RequiredActionContent: View>: View {
             isFinished: $isFinished,
             isPresentingStoreSheet: $isPresentingStoreSheet,
             navigationPath: $navigationPath,
+            scrolledID: $selectedCardID,
             onSkipOnboarding: onSkipOnboarding,
             onRequiredAction: onRequiredAction,
             requiredActionContent: requiredActionContent,
@@ -840,7 +1003,7 @@ struct OnboardingCardView<CardContent: View>: View {
 
     @ViewBuilder private var headlineText: some View {
         Text(card.title)
-            .font(.headline)
+            .font(.title3.bold())
             .lineLimit(9001)
             .fixedSize(horizontal: false, vertical: true)
     }
@@ -870,6 +1033,10 @@ struct OnboardingCardView<CardContent: View>: View {
 //                .padding(.horizontal)
         }
     }
+
+    private var hasDescription: Bool {
+        !card.description.isEmpty
+    }
     
     @ViewBuilder private var innerView: some View {
         Group {
@@ -886,8 +1053,10 @@ struct OnboardingCardView<CardContent: View>: View {
                         headlineView
                         Spacer(minLength: 8)
                         cardContentView
-                        Spacer(minLength: 8)
-                        subheadlineView
+                        if hasDescription {
+                            Spacer(minLength: 8)
+                            subheadlineView
+                        }
                     }
                 }
             } else {
@@ -895,15 +1064,25 @@ struct OnboardingCardView<CardContent: View>: View {
                     VStack(spacing: 16) {
                         headlineView
                         Spacer(minLength: 8)
-                        subheadlineView
+                        if hasDescription {
+                            subheadlineView
+                        }
                     }
                     cardContentView
                 }
             }
         }
         .multilineTextAlignment(.center)
-        .padding(card.breakoutCard ? 0 : 16)
+        .padding(cardPadding)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var cardPadding: EdgeInsets {
+        guard !card.breakoutCard else { return EdgeInsets() }
+        if card.contentUsesFullWidth {
+            return EdgeInsets(top: 16, leading: 16, bottom: 0, trailing: 16)
+        }
+        return EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16)
     }
 
     private var entranceTiltDegrees: Double {
@@ -969,8 +1148,8 @@ struct OnboardingCardView<CardContent: View>: View {
                                 .fill(
                                     LinearGradient(
                                         colors: [
-                                            Color.secondarySystemBackground,
-                                            Color.secondarySystemBackground.opacity(0.86),
+                                            Color.secondarySystemBackground.opacity(0.85),
+                                            Color.secondarySystemBackground.opacity(0.85),
                                         ],
                                         startPoint: .top,
                                         endPoint: .bottom
@@ -981,8 +1160,8 @@ struct OnboardingCardView<CardContent: View>: View {
                                 .fill(
                                     LinearGradient(
                                         colors: [
-                                            Color.systemBackground.opacity(0.9),
-                                            Color.systemBackground.opacity(0.76),
+                                            Color.systemBackground.opacity(0.85),
+                                            Color.systemBackground.opacity(0.85),
                                         ],
                                         startPoint: .top,
                                         endPoint: .bottom
@@ -1026,6 +1205,7 @@ struct OnboardingCardView<CardContent: View>: View {
 fileprivate struct PageNavigator: View {
     @Binding var scrolledID: String?
     let cards: [OnboardingCard]
+    let onScrollRequest: (String) -> Void
     
     @ScaledMetric(relativeTo: .body) private var pageButtonIconFontSize = 15
 #if os(iOS)
@@ -1048,9 +1228,11 @@ fileprivate struct PageNavigator: View {
             scrolledID = nil
             return
         }
+        let id = cards[index].id
         withAnimation {
-            scrolledID = cards[index].id
+            scrolledID = id
         }
+        onScrollRequest(id)
     }
     
     @ViewBuilder private func pageTurnButton(title: String, systemImage: String, isEnabled: Bool, action: @escaping () -> Void) -> some View {
