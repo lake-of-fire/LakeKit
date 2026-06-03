@@ -386,13 +386,6 @@ struct OnboardingPrimaryButtons: View {
         .tint(.accentColor)
         .modifier(OnboardingCategoryPressScaleModifier())
         .shadow(color: .black.opacity(0.26), radius: 18, x: 0, y: 10)
-        .conditionalEffect(
-            .repeat(
-                .shine.delay(0.75),
-                every: 4
-            ),
-            condition: isFinishedOnboarding
-        )
     }
 
     @ViewBuilder
@@ -596,7 +589,7 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
         .scrollTargetBehavior(.viewAligned)
         .scrollPosition(id: $scrolledID)
         .scrollIndicators(.hidden)
-        .scrollDisabled(false)
+        .scrollDisabled(true)
         .onSwipe { direction in
             switch direction {
             case .left:
@@ -613,9 +606,11 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
     nonisolated private func cardScrollTransition(_ content: EmptyVisualEffect, phase: ScrollTransitionPhase) -> some VisualEffect {
         let progress = min(abs(phase.value), 1)
         let scale = 1 + (0.075 * progress)
-        let opacity = 1 - (0.24 * progress)
+        let fadeInProgress = max(0, (0.82 - progress) / 0.82)
+        let opacity = fadeInProgress * fadeInProgress
         let blur = 0.75 * progress
         let tilt = -8 * phase.value
+        let exitOffset = phase.value * 160 * progress
 
         return content
             .rotation3DEffect(
@@ -626,6 +621,7 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
             )
             .scaleEffect(scale)
             .blur(radius: blur)
+            .offset(y: exitOffset)
             .opacity(opacity)
     }
 
@@ -853,7 +849,7 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
 
     private var introHeroContent: some View {
         VStack(alignment: .leading, spacing: 25) {
-            VStack(alignment: .leading, spacing: 5) {
+            VStack(alignment: .leading, spacing: 10) {
                 if let imageName = currentCard?.introHeroImageName {
                     introHeroIcon(imageName: imageName)
                 }
