@@ -43,6 +43,7 @@ public struct OnboardingCard: Identifiable, Hashable {
     public let introFeatures: [OnboardingIntroFeature]
     public let introHeroImageName: String?
     public let cardVerticalInset: CGFloat?
+    public let forcedColorScheme: ColorScheme?
 
     public init(
         id: String,
@@ -61,7 +62,8 @@ public struct OnboardingCard: Identifiable, Hashable {
         primaryActionTitle: String? = nil,
         introFeatures: [OnboardingIntroFeature] = [],
         introHeroImageName: String? = nil,
-        cardVerticalInset: CGFloat? = nil
+        cardVerticalInset: CGFloat? = nil,
+        forcedColorScheme: ColorScheme? = nil
     ) {
         self.id = id
         self.title = title
@@ -80,6 +82,7 @@ public struct OnboardingCard: Identifiable, Hashable {
         self.introFeatures = introFeatures
         self.introHeroImageName = introHeroImageName
         self.cardVerticalInset = cardVerticalInset
+        self.forcedColorScheme = forcedColorScheme
     }
 }
 
@@ -552,6 +555,14 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
         return false
 #endif
     }
+
+    private var shouldCenterIntroDescription: Bool {
+#if os(iOS)
+        horizontalSizeClass == .regular
+#elseif os(macOS)
+        false
+#endif
+    }
     
     @ViewBuilder private func cardPageView(geometry: GeometryProxy) -> some View {
         if #available(iOS 17, macOS 14, *) {
@@ -956,11 +967,11 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
             VStack(alignment: .center, spacing: isShowingFullScreenIntro ? 24 : 0) {
                 if isShowingFullScreenIntro, let description = currentCard?.description, !description.isEmpty {
                     Text(description)
-                        .frame(maxWidth: 560, alignment: .leading)
+                        .frame(maxWidth: 560, alignment: shouldCenterIntroDescription ? .center : .leading)
                         .padding(.horizontal, 8)
                         .font(.body.weight(.semibold))
                         .foregroundStyle(.white)
-                        .multilineTextAlignment(.leading)
+                        .multilineTextAlignment(shouldCenterIntroDescription ? .center : .leading)
                         .lineLimit(3)
                         .fixedSize(horizontal: false, vertical: true)
                         .shadow(color: .black.opacity(0.88), radius: 20, y: 5)
@@ -1345,8 +1356,12 @@ struct OnboardingCardView<CardContent: View>: View {
         !card.description.isEmpty
     }
 
+    private var effectiveColorScheme: ColorScheme {
+        card.forcedColorScheme ?? colorScheme
+    }
+
     private var fullBleedTitleGradientColor: Color {
-        colorScheme == .dark ? .black : .white
+        effectiveColorScheme == .dark ? .black : .white
     }
 
     private var fullBleedTitleGradient: some View {
@@ -1364,11 +1379,11 @@ struct OnboardingCardView<CardContent: View>: View {
     }
 
     private var fullBleedTitleForeground: Color {
-        colorScheme == .dark ? .white : .black
+        effectiveColorScheme == .dark ? .white : .black
     }
 
     private var fullBleedTitleShadow: Color {
-        colorScheme == .dark ? .black.opacity(0.45) : .white.opacity(0.5)
+        effectiveColorScheme == .dark ? .black.opacity(0.45) : .white.opacity(0.5)
     }
     
     @ViewBuilder private var innerView: some View {
@@ -1505,7 +1520,7 @@ struct OnboardingCardView<CardContent: View>: View {
             } else {
                 innerView
                     .background {
-                        if colorScheme == .dark {
+                        if effectiveColorScheme == .dark {
                             RoundedRectangle(cornerRadius: 16, style: .continuous)
                                 .fill(
                                     LinearGradient(
@@ -1560,6 +1575,7 @@ struct OnboardingCardView<CardContent: View>: View {
                     }
             }
         }
+        .environment(\.colorScheme, effectiveColorScheme)
     }
 }
 
@@ -1687,10 +1703,6 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
     @State private var isPresented = false
     @State private var isFinished = false
     @State private var didSkipOnboardingThisSession = false
-#if os(iOS)
-    @Environment(\.userInterfaceIdiom) private var userInterfaceIdiom
-#endif
-
     @ViewBuilder
     private var onboardingPresentationContent: some View {
         OnboardingView(
@@ -1703,15 +1715,6 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
             requiredActionContent: requiredActionContent,
             cardContent: cardContent
         )
-#if os(macOS)
-        .frame(idealWidth: 450, idealHeight: 600)
-#endif
-        .modifier {
-            if #available(iOS 18, macOS 15, *) {
-                $0
-                    .presentationSizing(.page)
-            } else { $0 }
-        }
         .preferredColorScheme(preferredColorScheme)
         .storeSheet(isPresented: $isPresentingStoreSheet)
     }
@@ -1728,25 +1731,7 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
     }
 
     public func body(content: Content) -> some View {
-        content
-            .modifier { content in
-#if os(iOS)
-                if userInterfaceIdiom == .phone {
-                    content.fullScreenCover(isPresented: $isPresented.gatedBy(isActive)) {
-                        onboardingPresentationContent
-                            .interactiveDismissDisabled()
-                    }
-                } else {
-                    content.sheet(isPresented: $isPresented.gatedBy(isActive)) {
-                        onboardingPresentationContent
-                    }
-                }
-#elseif os(macOS)
-                content.sheet(isPresented: $isPresented.gatedBy(isActive)) {
-                    onboardingPresentationContent
-                }
-#endif
-            }
+        presentedContent(content)
             .onAppear {
                 refresh()
             }
@@ -1761,6 +1746,23 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
                     hasSeenOnboarding = true
                 }
             }
+    }
+
+    @ViewBuilder
+    private func presentedContent(_ content: Content) -> some View {
+#if os(iOS)
+        content
+            .fullScreenCover(isPresented: $isPresented.gatedBy(isActive)) {
+                onboardingPresentationContent
+                    .interactiveDismissDisabled()
+            }
+#elseif os(macOS)
+        content
+            .sheet(isPresented: $isPresented.gatedBy(isActive)) {
+                onboardingPresentationContent
+                    .frame(idealWidth: 450, idealHeight: 600)
+            }
+#endif
     }
     
     private func refresh(hasRespondedToOnboarding: Bool? = nil, hasSeenOnboarding: Bool? = nil) {
