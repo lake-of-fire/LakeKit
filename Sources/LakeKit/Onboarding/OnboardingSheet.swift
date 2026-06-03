@@ -567,11 +567,12 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
             LazyVStack(spacing: 0) {
                 ForEach(wheelCards, id: \.id) { card in
                     let frameHeight = cardFrameHeight(for: geometry.size, card: card)
+                    let isCurrentPage = scrolledID == card.id
 
                     OnboardingCardView(
                         card: card,
                         isFinished: $isFinished,
-                        isTopVisible: true,
+                        isTopVisible: isCurrentPage,
                         cardContent: cardContent
                     )
                     .frame(height: frameHeight)
