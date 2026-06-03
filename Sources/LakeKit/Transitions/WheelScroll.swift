@@ -28,7 +28,7 @@ public struct WheelScroll<Content: View>: View {
     }
     
     public var body: some View {
-        ScrollView(axis, showsIndicators: true) {
+        ScrollView(axis, showsIndicators: false) {
             VStack(spacing: 0) {
                 content()
                     .scrollTransition(

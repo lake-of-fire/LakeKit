@@ -9,6 +9,22 @@ import UIKit
 #endif
 import CoreGraphics
 
+public struct OnboardingIntroFeature: Identifiable, Hashable {
+    public let systemImage: String
+    public let headline: String
+    public let subheadline: String
+
+    public var id: String {
+        systemImage + "|" + headline
+    }
+
+    public init(systemImage: String, headline: String, subheadline: String) {
+        self.systemImage = systemImage
+        self.headline = headline
+        self.subheadline = subheadline
+    }
+}
+
 public struct OnboardingCard: Identifiable, Hashable {
     public let id: String
     public let title: String
@@ -21,6 +37,11 @@ public struct OnboardingCard: Identifiable, Hashable {
     public let requiredActionSystemImage: String?
     public let usesTightVerticalSpacing: Bool
     public let contentUsesFullWidth: Bool
+    public let contentFillsCard: Bool
+    public let isFullScreenIntro: Bool
+    public let primaryActionTitle: String?
+    public let introFeatures: [OnboardingIntroFeature]
+    public let introHeroImageName: String?
 
     public init(
         id: String,
@@ -33,7 +54,12 @@ public struct OnboardingCard: Identifiable, Hashable {
         requiredActionTitle: String? = nil,
         requiredActionSystemImage: String? = nil,
         usesTightVerticalSpacing: Bool = false,
-        contentUsesFullWidth: Bool = false
+        contentUsesFullWidth: Bool = false,
+        contentFillsCard: Bool = false,
+        isFullScreenIntro: Bool = false,
+        primaryActionTitle: String? = nil,
+        introFeatures: [OnboardingIntroFeature] = [],
+        introHeroImageName: String? = nil
     ) {
         self.id = id
         self.title = title
@@ -46,6 +72,11 @@ public struct OnboardingCard: Identifiable, Hashable {
         self.requiredActionSystemImage = requiredActionSystemImage
         self.usesTightVerticalSpacing = usesTightVerticalSpacing
         self.contentUsesFullWidth = contentUsesFullWidth
+        self.contentFillsCard = contentFillsCard
+        self.isFullScreenIntro = isFullScreenIntro
+        self.primaryActionTitle = primaryActionTitle
+        self.introFeatures = introFeatures
+        self.introHeroImageName = introHeroImageName
     }
 }
 
@@ -254,6 +285,10 @@ struct OnboardingPrimaryButtons: View {
         currentCard?.requiredActionID != nil && !hasCompletedRequiredAction
     }
 
+    private var continueButtonTitle: String {
+        currentCard?.primaryActionTitle ?? "Continue"
+    }
+
     @ViewBuilder
     private func subscriptionButton() -> some View {
         Button {
@@ -319,11 +354,12 @@ struct OnboardingPrimaryButtons: View {
             }
         }
         .buttonBorderShape(.capsule)
+        .environment(\.colorScheme, .dark)
     }
 
     @ViewBuilder
     private func continueButton() -> some View {
-        OnboardingPrimaryButton(title: "Continue", systemImage: nil) {
+        OnboardingPrimaryButton(title: continueButtonTitle, systemImage: nil) {
 #if os(iOS)
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
 #endif
@@ -375,6 +411,7 @@ struct OnboardingPrimaryButtons: View {
             }
         }
         .buttonBorderShape(.capsule)
+        .environment(\.colorScheme, .dark)
     }
     
     @ViewBuilder
@@ -409,14 +446,41 @@ struct OnboardingPrimaryButtons: View {
     }
     
     var body: some View {
+        let shouldReserveRequiredActionSkip = currentCard?.requiredActionID != nil
+
         VStack(spacing: 13) {
-            if isWaitingForRequiredAction {
+            if shouldReserveRequiredActionSkip {
                 skipRequiredActionButton()
+                    .opacity(isWaitingForRequiredAction ? 1 : 0)
+                    .accessibilityHidden(!isWaitingForRequiredAction)
+                    .allowsHitTesting(isWaitingForRequiredAction)
             } else if shouldOfferFreeModePath {
                 subsidizedOptionsButton()
             }
             buttonsStack()
         }
+    }
+}
+
+private struct OnboardingCardPageTransitionModifier: ViewModifier {
+    let offsetY: CGFloat
+    let opacity: Double
+    let tiltDegrees: Double
+    let scale: CGFloat
+    let blurRadius: CGFloat
+
+    func body(content: Content) -> some View {
+        content
+            .rotation3DEffect(
+                .degrees(tiltDegrees),
+                axis: (x: 1, y: 0, z: 0),
+                anchor: offsetY >= 0 ? .top : .bottom,
+                perspective: offsetY >= 0 ? -0.3 : 0.3
+            )
+            .scaleEffect(scale)
+            .blur(radius: blurRadius)
+            .opacity(opacity)
+            .offset(y: offsetY)
     }
 }
 
@@ -432,24 +496,22 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
     @ViewBuilder let requiredActionContent: (OnboardingCard) -> RequiredActionContent
     @ViewBuilder let cardContent: (OnboardingCard, Binding<Bool>, Bool) -> CardContent
     
-    @State private var requestedScrollID: String?
-    @State private var protectedScrollID: String?
+    @State private var transitionDirection: Double = 1
     @State private var completedRequiredActionIDs: Set<String> = []
     @State private var presentedRequiredActionCard: OnboardingCard?
     @State private var pendingRequiredActionID: String?
     @State private var isConfirmingSkipPersonalization = false
     @State private var isPresentingWidgetSkipAlert = false
 
-    private var appName: String? {
-        return Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String
-    }
-        
     private var currentCard: OnboardingCard? {
         guard let scrolledID = scrolledID else { return nil }
         return cards.first(where: { $0.id == scrolledID })
     }
+
+    private var isShowingFullScreenIntro: Bool {
+        currentCard?.isFullScreenIntro == true
+    }
     
-    @Environment(\.colorScheme) private var colorScheme
 #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.verticalSizeClass) private var verticalSizeClass
@@ -473,54 +535,81 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
 #endif
     }
     
-    @ViewBuilder private func scrollViewHeader() -> some View {
-        Group {
-            if let appName = appName {
-                Text(
-            """
-            Welcome to
-            \(Text(appName).foregroundColor(.accentColor))
-            """
+    @ViewBuilder private func cardPageView(geometry: GeometryProxy) -> some View {
+        let frameHeight = cardFrameHeight(for: geometry.size)
+
+        ZStack {
+            ForEach(currentCard.map { [$0] } ?? [], id: \.id) { currentCard in
+                OnboardingCardView(
+                    card: currentCard,
+                    isFinished: $isFinished,
+                    isTopVisible: true,
+                    cardContent: cardContent
                 )
+                .frame(height: frameHeight)
+                .frame(maxWidth: maxCardWidth)
+                .padding(.horizontal, 12)
+                .id(currentCard.id)
+                .transition(cardPageTransition(for: geometry.size))
             }
         }
-        .font(.largeTitle.weight(.heavy))
-        .multilineTextAlignment(.center)
-        .padding()
-    }
-    
-    @ViewBuilder private func scrollViewInner(geometry: GeometryProxy) -> some View {
-        ForEach(Array(cards.enumerated()), id: \.element.id) { index, card in
-            let frameHeight = cardFrameHeight(for: geometry.size)
-            VStack {
-                OnboardingCardView(card: card, isFinished: $isFinished, isTopVisible: scrolledID == card.id, cardContent: cardContent)
-                    .frame(height: frameHeight)
-                    .frame(maxWidth: maxCardWidth)
-                    .padding(.horizontal, 12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onSwipe { direction in
+            switch direction {
+            case .left:
+                advanceOnboarding()
+            case .right:
+                selectPreviousCard()
+            default:
+                break
             }
-            .frame(maxWidth: .infinity)
-            .frame(height: geometry.size.height)
-            .onSwipe { direction in
-                guard let currentIndex = cards.firstIndex(where: { $0.id == scrolledID }) else { return }
-                withAnimation {
-                    switch direction {
-                    case .left:
-                        guard currentIndex < (cards.count - 1) else { return }
-                        scrolledID = cards[currentIndex + 1].id
-                    case .right:
-                        guard currentIndex > 0 else { return }
-                        scrolledID = cards[currentIndex - 1].id
-                    default: break
-                    }
-                }
-            }
-//            .id(card.id)
         }
     }
-        
-//    @ViewBuilder private func scrollViewFooter(wheelGeometry: GeometryProxy) -> some View {
-//        Color.clear.frame(height: max(0, cardHeightFactor * wheelGeometry.size.height  - wheelGeometry.safeAreaInsets.top - wheelGeometry.safeAreaInsets.bottom))
-//    }
+
+    private func cardPageTransition(for size: CGSize) -> AnyTransition {
+        let travel = max(240, size.height * 0.72)
+        let insertionOffset = transitionDirection >= 0 ? travel : -travel
+        let removalOffset = transitionDirection >= 0 ? -travel : travel
+        let activeOpacity = 0.333
+        let activeScale = 0.875
+        let activeBlur: CGFloat = 2.2
+        let activeTilt = 40.0
+
+        return .asymmetric(
+            insertion: .modifier(
+                active: OnboardingCardPageTransitionModifier(
+                    offsetY: insertionOffset,
+                    opacity: activeOpacity,
+                    tiltDegrees: activeTilt,
+                    scale: activeScale,
+                    blurRadius: activeBlur
+                ),
+                identity: OnboardingCardPageTransitionModifier(
+                    offsetY: 0,
+                    opacity: 1,
+                    tiltDegrees: 0,
+                    scale: 1,
+                    blurRadius: 0
+                )
+            ),
+            removal: .modifier(
+                active: OnboardingCardPageTransitionModifier(
+                    offsetY: removalOffset,
+                    opacity: activeOpacity,
+                    tiltDegrees: activeTilt,
+                    scale: activeScale,
+                    blurRadius: activeBlur
+                ),
+                identity: OnboardingCardPageTransitionModifier(
+                    offsetY: 0,
+                    opacity: 1,
+                    tiltDegrees: 0,
+                    scale: 1,
+                    blurRadius: 0
+                )
+            )
+        )
+    }
 
     private func cardFrameHeight(for size: CGSize) -> CGFloat {
         let verticalInset: CGFloat = 55
@@ -532,99 +621,70 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
         if #available(iOS 16, macOS 13, *) {
             Rectangle()
                 .fill(color.gradient.opacity(0.75))
+                .saturation(0.9)
                 .overlay {
                     Rectangle()
-                        .fill(Color.black.gradient.opacity(0.6))
+                        .fill(Color.black.gradient.opacity(0.55))
                 }
                 .overlay {
                     OnboardingGrainOverlay()
                 }
         } else {
             color
+                .saturation(0.9)
                 .overlay {
-                    Color.black.opacity(0.45)
+                    Color.black.opacity(0.4)
                 }
         }
     }
     
-    @ViewBuilder private var scrollViewContent: some View {
+    @ViewBuilder private var pagerContent: some View {
         ZStack {
-            ZStack {
-                ForEach(cards, id: \.id) { card in
-                    backgroundLayer(for: card.color)
-                    .compositingGroup()
-                    .opacity(scrolledID == card.id ? 1 : 0)
-                    .animation(.easeIn, value: scrolledID)
-                }
-            }
-            .ignoresSafeArea()
-            
-            if #available(iOS 17, macOS 14, *) {
-                GeometryReader { wheelGeometry in
-                    ScrollViewReader { proxy in
-                        WheelScroll(axis: .vertical, contentSpacing: 40) {
-                            scrollViewInner(geometry: wheelGeometry)
-                        }
-                        .scrollPosition(id: $scrolledID)
-//                    .scrollClipDisabled()
-                        .scrollTargetBehavior(.viewAligned(limitBehavior: .always)) // always needed for top alignment for some reason
-                        .onAppear {
-                            prepareScrollPositionOnAppear()
-                        }
-                        .onChange(of: scrolledID) { scrolledID in
-                            print("# WHEEL scrolledID changed", scrolledID ?? "nil", "protected:", protectedScrollID ?? "nil", "requested:", requestedScrollID ?? "nil")
-                            if let protectedScrollID, scrolledID != protectedScrollID {
-                                print("# WHEEL restoring protected target", protectedScrollID, "from:", scrolledID ?? "nil")
-                                self.scrolledID = protectedScrollID
-                                requestedScrollID = protectedScrollID
-                                return
-                            }
-                            isFinished = scrolledID == cards.last?.id
-                        }
-                        .onChange(of: requestedScrollID) { requestedScrollID in
-                            guard let requestedScrollID else { return }
-                            print("# WHEEL scrollTo requested", requestedScrollID)
-                            withAnimation {
-                                proxy.scrollTo(requestedScrollID, anchor: .top)
-                            }
-                            DispatchQueue.main.async {
-                                if self.requestedScrollID == requestedScrollID {
-                                    print("# WHEEL clearing request", requestedScrollID)
-                                    self.requestedScrollID = nil
-                                }
-                            }
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.65) {
-                                if self.protectedScrollID == requestedScrollID {
-                                    print("# WHEEL clearing protection", requestedScrollID)
-                                    self.protectedScrollID = nil
-                                }
-                            }
-                        }
+            if isShowingFullScreenIntro, let currentCard {
+                cardContent(currentCard, $isFinished, true)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .ignoresSafeArea()
+
+                GeometryReader { geometry in
+                    VStack(spacing: 0) {
+                        Spacer(minLength: geometry.safeAreaInsets.top + 50)
+
+                        introHeroContent
+
+                        Spacer(minLength: geometry.safeAreaInsets.bottom + 176)
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
+                .ignoresSafeArea()
             } else {
-                GeometryReader { wheelGeometry in
-                    ScrollView {
-                        VStack {
-                            scrollViewInner(geometry: wheelGeometry)
-                        }
-                        .padding(.horizontal)
-                        .frame(maxWidth: .infinity)
+                ZStack {
+                    ForEach(cards, id: \.id) { card in
+                        backgroundLayer(for: card.color)
+                        .compositingGroup()
+                        .opacity(scrolledID == card.id ? 1 : 0)
+                        .animation(.easeIn, value: scrolledID)
                     }
-                    .frame(maxWidth: .infinity)
+                }
+                .ignoresSafeArea()
+
+                GeometryReader { wheelGeometry in
+                    cardPageView(geometry: wheelGeometry)
                 }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onChange(of: scrolledID) { scrolledID in
+            isFinished = scrolledID == cards.last?.id
+        }
     }
 
     @ViewBuilder private var topChrome: some View {
-        if #available(iOS 17, macOS 14, *) {
+        if isShowingFullScreenIntro {
+            introTopChrome
+        } else if #available(iOS 17, macOS 14, *) {
             ZStack(alignment: .leading) {
                 PageNavigator(scrolledID: $scrolledID, cards: cards) { id in
-                    print("# WHEEL navigator request", id)
-                    protectedScrollID = id
-                    requestedScrollID = id
+                    selectCard(id)
                 }
                 .frame(maxWidth: .infinity)
 
@@ -648,14 +708,112 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
         }
     }
 
-    @ViewBuilder private var scrollView: some View {
+    private var introTopChrome: some View {
+        ZStack(alignment: .leading) {
+            Button {
+                isConfirmingSkipPersonalization = true
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 15, weight: .bold))
+                    .frame(width: 34, height: 34)
+                    .contentShape(Circle())
+            }
+            .accessibilityLabel("Dismiss onboarding")
+            .buttonStyle(.borderless)
+            .tint(.white)
+            .background(.black.opacity(0.34), in: Circle())
+            .padding(.leading, 16)
+        }
+        .frame(maxWidth: .infinity, minHeight: 34, alignment: .leading)
+        .padding(.top, 6)
+        .padding(.bottom, 8)
+    }
+
+    private var introHeroContent: some View {
+        VStack(alignment: .leading, spacing: 25) {
+            if let imageName = currentCard?.introHeroImageName {
+                introHeroIcon(imageName: imageName)
+            }
+
+            Text(currentCard?.title ?? "")
+                .font(.system(size: 40, weight: .heavy))
+                .foregroundStyle(.white)
+                .multilineTextAlignment(.leading)
+                .lineSpacing(-8)
+                .shadow(color: .black.opacity(1), radius: 26, y: 6)
+                .shadow(color: .black.opacity(0.72), radius: 6, y: 3)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            if !(currentCard?.introFeatures ?? []).isEmpty {
+                introFeatureList
+                    .shadow(color: .black.opacity(0.74), radius: 18, y: 5)
+            }
+        }
+        .frame(maxWidth: 560, alignment: .leading)
+        .padding(.horizontal, 24)
+    }
+
+    private var introFeatureList: some View {
+        Grid(alignment: .leading, horizontalSpacing: 0, verticalSpacing: 14) {
+            ForEach(currentCard?.introFeatures ?? []) { feature in
+                GridRow {
+                    HStack(alignment: .center, spacing: 12) {
+                        introFeatureIcon(systemImage: feature.systemImage)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(feature.headline)
+                                .font(.callout.weight(.bold))
+
+                            Text(feature.subheadline)
+                                .font(.footnote.weight(.medium))
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .multilineTextAlignment(.leading)
+                    }
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .modifier { row in
+                        if #available(iOS 26, macOS 26, *) {
+                            row.glassEffect(.regular.tint(.darkGray), in: Capsule())
+                        } else {
+                            row.background(.regularMaterial, in: Capsule())
+                        }
+                    }
+                }
+            }
+        }
+        .environment(\.colorScheme, .dark)
+        .fixedSize(horizontal: true, vertical: false)
+        .frame(maxWidth: 560, alignment: .leading)
+    }
+
+    private func introFeatureIcon(systemImage: String) -> some View {
+        Image(systemName: systemImage)
+            .font(.body.weight(.bold))
+            .imageScale(.large)
+            .foregroundStyle(Color.accentColor)
+            .frame(width: 28, height: 28)
+            .padding(6)
+    }
+
+    private func introHeroIcon(imageName: String) -> some View {
+        Image(imageName)
+            .resizable()
+            .aspectRatio(contentMode: .fit)
+            .frame(width: 56, height: 56)
+            .clipShape(Circle())
+            .shadow(color: .black.opacity(0.4), radius: 8)
+    }
+
+    @ViewBuilder private var pagerView: some View {
         if #available(iOS 26, macOS 26, *) {
-            scrollViewContent
+            pagerContent
                 .safeAreaBar(edge: .top, spacing: 0) {
                     topChrome
                 }
         } else {
-            scrollViewContent
+            pagerContent
                 .safeAreaInset(edge: .top, spacing: 0) {
                     topChrome
                 }
@@ -663,7 +821,20 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
     }
     
     @ViewBuilder private var callToActionView: some View {
-        VStack {
+        VStack(alignment: .center, spacing: isShowingFullScreenIntro ? 24 : 0) {
+            if isShowingFullScreenIntro, let description = currentCard?.description, !description.isEmpty {
+                Text(description)
+                    .frame(maxWidth: 560, alignment: .leading)
+                    .padding(.horizontal, 8)
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .multilineTextAlignment(.leading)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .shadow(color: .black.opacity(0.88), radius: 20, y: 5)
+                    .shadow(color: .black.opacity(0.5), radius: 5, y: 2)
+            }
+
             OnboardingPrimaryButtons(
                 currentCard: currentCard,
                 isFinishedOnboarding: scrolledID == cards.last?.id,
@@ -680,6 +851,23 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
         .padding(.horizontal)
         .padding(.vertical, 10)
         .frame(maxWidth: .infinity)
+        .background(alignment: .bottom) {
+            if isShowingFullScreenIntro {
+                LinearGradient(
+                    colors: [
+                        .clear,
+                        .black.opacity(0.58),
+                        .black.opacity(0.7),
+                        .black.opacity(0.8),
+                        .black.opacity(0.9),
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .padding(.top, -96)
+                .ignoresSafeArea()
+            }
+        }
     }
     var body: some View {
         ZStack {
@@ -690,12 +878,12 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
             
 #if os(macOS)
             if #available(macOS 26, *) {
-                scrollView
+                pagerView
                     .safeAreaBar(edge: .bottom, spacing: 0) {
                         callToActionView
                     }
             } else {
-                scrollView
+                pagerView
                     .safeAreaInset(edge: .bottom, spacing: 0) {
                         callToActionView
                     }
@@ -704,32 +892,32 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
             if #available(iOS 26, *) {
                 GeometryReader { geometry in
                     HStack(spacing: 0) {
-                        if !isPortrait {
+                        if !isPortrait && !isShowingFullScreenIntro {
                             callToActionView
                                 .frame(maxHeight: .infinity)
                         }
-                        scrollView
-                            .frame(width: !isPortrait ? 0.666 * geometry.insetAdjustedSize.width : nil)
+                        pagerView
+                            .frame(width: (!isPortrait && !isShowingFullScreenIntro) ? 0.666 * geometry.insetAdjustedSize.width : nil)
                     }
                 }
                 .safeAreaBar(edge: .bottom, spacing: 0) {
-                    if isPortrait {
+                    if isPortrait || isShowingFullScreenIntro {
                         callToActionView
                     }
                 }
             } else {
                 GeometryReader { geometry in
                     HStack(spacing: 0) {
-                        if !isPortrait {
+                        if !isPortrait && !isShowingFullScreenIntro {
                             callToActionView
                                 .frame(maxHeight: .infinity)
                         }
-                        scrollView
-                            .frame(width: !isPortrait ? 0.666 * geometry.insetAdjustedSize.width : nil)
+                        pagerView
+                            .frame(width: (!isPortrait && !isShowingFullScreenIntro) ? 0.666 * geometry.insetAdjustedSize.width : nil)
                     }
                 }
                 .safeAreaInset(edge: .bottom, spacing: 0) {
-                    if isPortrait {
+                    if isPortrait || isShowingFullScreenIntro {
                         callToActionView
                     }
                 }
@@ -783,36 +971,33 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
     private func ensureInitialScrolledID() {
         if let scrolledID, cards.contains(where: { $0.id == scrolledID }) {
             isFinished = scrolledID == cards.last?.id
-            print("# WHEEL keeping initial scroll ID", scrolledID)
             return
         }
 
         scrolledID = cards.first?.id
         isFinished = scrolledID == cards.last?.id
-        print("# WHEEL initializing scroll ID", scrolledID ?? "nil")
     }
 
-    private func prepareScrollPositionOnAppear() {
-        let previousScrolledID = scrolledID
-        ensureInitialScrolledID()
+    private func selectCard(_ id: String) {
+        guard cards.contains(where: { $0.id == id }) else { return }
+        let currentIndex = currentIndex ?? cards.startIndex
+        let nextIndex = cards.firstIndex(where: { $0.id == id }) ?? currentIndex
+        transitionDirection = nextIndex >= currentIndex ? 1 : -1
 
-        guard let scrolledID else { return }
-        if previousScrolledID != nil {
-            protectedScrollID = scrolledID
+        withAnimation(.spring(response: 0.46, dampingFraction: 0.86, blendDuration: 0.04)) {
+            scrolledID = id
         }
-        requestedScrollID = scrolledID
-        print("# WHEEL prepare onAppear previous:", previousScrolledID ?? "nil", "target:", scrolledID)
+    }
+
+    private func selectPreviousCard() {
+        guard let currentIndex, currentIndex > cards.startIndex else { return }
+        selectCard(cards[currentIndex - 1].id)
     }
 
     private func advanceOnboarding() {
         guard let currentIndex, currentIndex < cards.count - 1 else { return }
         let nextID = cards[currentIndex + 1].id
-        print("# WHEEL advance", cards[currentIndex].id, "->", nextID)
-        protectedScrollID = nextID
-        requestedScrollID = nextID
-        withAnimation {
-            scrolledID = nextID
-        }
+        selectCard(nextID)
     }
 
     private func performRequiredAction(_ fallbackCompletion: @escaping () -> Void) {
@@ -1037,10 +1222,62 @@ struct OnboardingCardView<CardContent: View>: View {
     private var hasDescription: Bool {
         !card.description.isEmpty
     }
+
+    private var fullBleedTitleGradientColor: Color {
+        colorScheme == .dark ? .black : .white
+    }
+
+    private var fullBleedTitleGradient: some View {
+        LinearGradient(
+            stops: [
+                .init(color: fullBleedTitleGradientColor.opacity(0.62), location: 0),
+                .init(color: fullBleedTitleGradientColor.opacity(0.48), location: 0.45),
+                .init(color: fullBleedTitleGradientColor.opacity(0), location: 1),
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        .frame(height: 150)
+        .allowsHitTesting(false)
+    }
+
+    private var fullBleedTitleForeground: Color {
+        colorScheme == .dark ? .white : .black
+    }
+
+    private var fullBleedTitleShadow: Color {
+        colorScheme == .dark ? .black.opacity(0.45) : .white.opacity(0.5)
+    }
     
     @ViewBuilder private var innerView: some View {
         Group {
-            if useVStack {
+            if card.contentFillsCard {
+                ZStack(alignment: .top) {
+                    cardContentView
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .clipped()
+
+                    fullBleedTitleGradient
+
+                    VStack(spacing: 0) {
+                        headlineView
+                            .foregroundStyle(fullBleedTitleForeground)
+                            .shadow(color: fullBleedTitleShadow, radius: 8, y: 2)
+                            .padding(.horizontal, 16)
+                            .padding(.top, 16)
+
+                        Spacer(minLength: 0)
+
+                        if hasDescription {
+                            subheadlineView
+                                .foregroundStyle(fullBleedTitleForeground)
+                                .shadow(color: fullBleedTitleShadow, radius: 8, y: 2)
+                                .padding(.horizontal, 16)
+                                .padding(.bottom, 16)
+                        }
+                    }
+                }
+            } else if useVStack {
                 if card.usesTightVerticalSpacing {
                     VStack(spacing: 8) {
                         headlineView
@@ -1079,6 +1316,9 @@ struct OnboardingCardView<CardContent: View>: View {
 
     private var cardPadding: EdgeInsets {
         guard !card.breakoutCard else { return EdgeInsets() }
+        if card.contentFillsCard {
+            return EdgeInsets()
+        }
         if card.contentUsesFullWidth {
             return EdgeInsets(top: 16, leading: 16, bottom: 0, trailing: 16)
         }
@@ -1229,9 +1469,6 @@ fileprivate struct PageNavigator: View {
             return
         }
         let id = cards[index].id
-        withAnimation {
-            scrolledID = id
-        }
         onScrollRequest(id)
     }
     
@@ -1242,6 +1479,7 @@ fileprivate struct PageNavigator: View {
         } label: {
             Image(systemName: systemImage)
                 .font(.system(size: pageButtonIconFontSize, weight: .bold))
+                .imageScale(.large)
                 .modifier {
                     if #available(iOS 16.1, macOS 13.1, *) {
                         $0.fontDesign(.rounded)
@@ -1259,7 +1497,7 @@ fileprivate struct PageNavigator: View {
 #endif
         }
         .buttonStyle(.borderless)
-        .tint(.primary)
+        .tint(.secondary)
         .disabled(!isEnabled)
         .opacity(isEnabled ? 1 : 0.0001)
         .allowsHitTesting(isEnabled)
@@ -1297,7 +1535,7 @@ fileprivate struct PageNavigator: View {
                     guard let currentIndex = currentIndex else { return }
                     scrollTo(index: currentIndex - 1)
                 }
-                .foregroundStyle(.primary)
+                .foregroundStyle(.secondary)
                 .clipShape(.circle)
 
                 Spacer()
