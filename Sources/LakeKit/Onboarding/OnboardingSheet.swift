@@ -1762,6 +1762,8 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
                 onboardingPresentationContent
                     .frame(idealWidth: 450, idealHeight: 600)
             }
+#else
+        content
 #endif
     }
     
@@ -1775,11 +1777,7 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
                 isPresented = false
                 return
             }
-#if DEBUG
-            isPresented = !didSkipOnboardingThisSession
-#else
             isPresented = !(hasRespondedToOnboarding || hasSeenOnboarding)
-#endif
         }
     }
 
