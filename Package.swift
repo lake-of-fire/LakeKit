@@ -51,7 +51,7 @@ let package = Package(
         .package(url: "https://github.com/lake-of-fire/Puppy.git", branch: "main"),
         .package(url: "https://github.com/lake-of-fire/CloudKitSyncMonitor.git", branch: "main"),
         .package(url: "https://github.com/johnpatrickmorgan/NavigationBackport.git", branch: "main"),
-        .package(url: "https://github.com/lake-of-fire/PersistedLRUCache.git", revision: "b86f15682d134978962eb0f7d88f9b9d23edff0a"),
+        .package(url: "https://github.com/lake-of-fire/PersistedLRUCache.git", branch: "main"),
         //        .package(path: "../FramedScreenshotsTool"),
     ],
     targets: [
