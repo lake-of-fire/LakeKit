@@ -484,7 +484,7 @@ private struct OnboardingCardPageTransitionModifier: ViewModifier {
 }
 
 private struct IntroFeatureRowWidthPreferenceKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
+    static let defaultValue: CGFloat = 0
 
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         value = max(value, nextValue())
@@ -887,7 +887,7 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
 
     private var introFeatureList: some View {
         VStack(alignment: .leading, spacing: 14) {
-            ForEach(currentCard?.introFeatures ?? []) { feature in
+            ForEach(currentIntroFeatures) { feature in
                 HStack(alignment: .center, spacing: 12) {
                     introFeatureIcon(systemImage: feature.systemImage)
 
@@ -914,7 +914,7 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
                 .frame(width: introFeatureRowWidth > 0 ? introFeatureRowWidth : nil, alignment: .leading)
                 .modifier { row in
                     if #available(iOS 26, macOS 26, *) {
-                        row.glassEffect(.regular.tint(.darkGray), in: Capsule())
+                        row.glassEffect(.regular.tint(Color(white: 0.25)), in: Capsule())
                     } else {
                         row.background(.regularMaterial, in: Capsule())
                     }
@@ -958,6 +958,10 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
                     topChrome
                 }
         }
+    }
+
+    private var currentIntroFeatures: [OnboardingIntroFeature] {
+        currentCard?.introFeatures ?? []
     }
     
     @ViewBuilder private var callToActionView: some View {
