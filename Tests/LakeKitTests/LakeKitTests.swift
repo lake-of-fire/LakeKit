@@ -1,5 +1,5 @@
 import XCTest
-import PersistedLRUCacheHybrid
+import PersistedLRUCache
 @testable import LakeKit
 
 final class LakeKitPersistedLRUCacheDependencyTests: XCTestCase {

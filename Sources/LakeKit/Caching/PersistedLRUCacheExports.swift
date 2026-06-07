@@ -1,1 +1,1 @@
-@_exported import PersistedLRUCacheHybrid
+@_exported import PersistedLRUCache
