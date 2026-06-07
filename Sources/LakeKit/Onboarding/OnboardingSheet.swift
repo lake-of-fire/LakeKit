@@ -914,7 +914,7 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
                 .frame(width: introFeatureRowWidth > 0 ? introFeatureRowWidth : nil, alignment: .leading)
                 .modifier { row in
                     if #available(iOS 26, macOS 26, *) {
-                        row.glassEffect(.regular.tint(Color(white: 0.25)), in: Capsule())
+                        row.glassEffect(.regular.tint(Color.gray.opacity(0.5)), in: Capsule())
                     } else {
                         row.background(.regularMaterial, in: Capsule())
                     }
