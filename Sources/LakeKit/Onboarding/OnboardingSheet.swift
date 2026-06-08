@@ -958,6 +958,7 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
         .onPreferenceChange(IntroFeatureRowWidthPreferenceKey.self) { width in
             introFeatureRowWidth = min(width.rounded(.up), 560)
         }
+        .animation(.movingParts.easeInExponential(duration: 0.64), value: visibleIntroFeatureCount)
         .frame(maxWidth: 560, alignment: .leading)
     }
 
@@ -968,8 +969,8 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
             .foregroundStyle(Color.accentColor)
             .frame(width: 28, height: 28)
             .padding(6)
-            .shadow(color: .black.opacity(0.35), radius: 2, x: 0, y: 1)
-            .shadow(color: Color.accentColor.opacity(0.45), radius: 8)
+            .shadow(color: .black.opacity(0.46), radius: 8, x: 0, y: 4)
+            .shadow(color: Color.accentColor.opacity(0.34), radius: 10, x: 0, y: 0)
     }
 
     private func introHeroIcon(imageName: String) -> some View {
@@ -1124,7 +1125,7 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
             isIntroDescriptionVisible = false
             isIntroPrimaryButtonVisible = false
             isIntroPrimaryButtonGlowing = false
-            visibleIntroFeatureCount = 0
+            visibleIntroFeatureCount = isShowingFullScreenIntro ? 0 : currentIntroFeatures.count
             isFullScreenIntroVideoReady = !isShowingFullScreenIntro
             scheduleIntroFeatureAnimationIfNeeded()
         }
@@ -1226,7 +1227,6 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
         isIntroPrimaryButtonVisible = false
         isIntroPrimaryButtonGlowing = false
         guard featureCount > 0 else { return }
-
         introFeatureAnimationTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: 2_300_000_000)
             guard !Task.isCancelled else { return }
