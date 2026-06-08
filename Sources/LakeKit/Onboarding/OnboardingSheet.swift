@@ -6,6 +6,8 @@ import NavigationBackport
 import Pow
 #if os(iOS)
 import UIKit
+#elseif os(macOS)
+import AppKit
 #endif
 import CoreGraphics
 
@@ -245,6 +247,9 @@ struct OnboardingPrimaryButtons: View {
     @Binding var navigationPath: [String]
     var glowsPrimaryAction = false
     var showsPrimaryAction = true
+    var primaryActionOpacity = 1.0
+    var primaryActionIsEnabled = true
+    var primaryActionTransition: AnyTransition = .move(edge: .bottom).combined(with: .opacity)
 
     @State private var highlightedProduct: PrePurchaseSubscriptionInfo?
     @AppStorage("hasSeenOnboarding") var hasSeenOnboarding = false
@@ -295,6 +300,14 @@ struct OnboardingPrimaryButtons: View {
         currentCard?.requiredActionID != nil && !hasCompletedRequiredAction
     }
 
+    private var isCompletedWidgetRequiredAction: Bool {
+        currentCard?.requiredActionID == "add-widget" && hasCompletedRequiredAction
+    }
+
+    private var shouldShowRequiredActionSkip: Bool {
+        isWaitingForRequiredAction || isCompletedWidgetRequiredAction
+    }
+
     private var continueButtonTitle: String {
         currentCard?.primaryActionTitle ?? "Continue"
     }
@@ -340,6 +353,20 @@ struct OnboardingPrimaryButtons: View {
         .buttonStyle(.borderedProminent)
         .tint(.accentColor)
         .modifier(OnboardingCategoryPressScaleModifier())
+    }
+
+    @ViewBuilder
+    private func completedWidgetRequiredActionButton() -> some View {
+        OnboardingPrimaryButton(title: "Finished Adding Widget", systemImage: nil) {
+#if os(iOS)
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+#endif
+            advanceOnboarding()
+        }
+        .buttonStyle(.borderedProminent)
+        .tint(.accentColor)
+        .modifier(OnboardingCategoryPressScaleModifier(glows: glowsPrimaryAction))
+        .shadow(color: .black.opacity(0.26), radius: 18, x: 0, y: 10)
     }
 
     @ViewBuilder
@@ -424,6 +451,8 @@ struct OnboardingPrimaryButtons: View {
             HStack {
                 if isWaitingForRequiredAction {
                     requiredActionButton()
+                } else if isCompletedWidgetRequiredAction {
+                    completedWidgetRequiredActionButton()
                 } else {
                     continueButton()
                 }
@@ -432,6 +461,8 @@ struct OnboardingPrimaryButtons: View {
             VStack {
                 if isWaitingForRequiredAction {
                     requiredActionButton()
+                } else if isCompletedWidgetRequiredAction {
+                    completedWidgetRequiredActionButton()
                 } else {
                     continueButton()
                 }
@@ -441,6 +472,8 @@ struct OnboardingPrimaryButtons: View {
         VStack {
             if isWaitingForRequiredAction {
                 requiredActionButton()
+            } else if isCompletedWidgetRequiredAction {
+                completedWidgetRequiredActionButton()
             } else {
                 continueButton()
             }
@@ -454,15 +487,19 @@ struct OnboardingPrimaryButtons: View {
         VStack(spacing: 13) {
             if shouldReserveRequiredActionSkip {
                 skipRequiredActionButton()
-                    .opacity(isWaitingForRequiredAction ? 1 : 0)
-                    .accessibilityHidden(!isWaitingForRequiredAction)
-                    .allowsHitTesting(isWaitingForRequiredAction)
+                    .opacity(shouldShowRequiredActionSkip ? 1 : 0)
+                    .accessibilityHidden(!shouldShowRequiredActionSkip)
+                    .allowsHitTesting(shouldShowRequiredActionSkip)
             } else if shouldOfferFreeModePath {
                 subsidizedOptionsButton()
             }
             if showsPrimaryAction {
                 buttonsStack()
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .opacity(primaryActionOpacity)
+                    .accessibilityHidden(primaryActionOpacity == 0)
+                    .allowsHitTesting(primaryActionIsEnabled)
+                    .animation(.easeInOut(duration: 1.4), value: primaryActionOpacity)
+                    .transition(primaryActionTransition)
             }
         }
     }
@@ -524,6 +561,7 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
     @State private var isFullScreenIntroVideoReady = false
     @State private var visibleIntroFeatureCount = 0
     @State private var isIntroHeroHeaderVisible = false
+    @State private var isIntroBottomGradientVisible = false
     @State private var isIntroDescriptionVisible = false
     @State private var isIntroPrimaryButtonVisible = false
     @State private var isIntroPrimaryButtonGlowing = false
@@ -774,6 +812,7 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
 
                     Group {
                         introBottomVideoGradient
+                            .opacity(isIntroBottomGradientVisible ? 1 : 0)
 
                         GeometryReader { geometry in
                             let topBoundary = geometry.safeAreaInsets.top + 50
@@ -854,6 +893,10 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
             .buttonStyle(.borderless)
             .tint(.white)
             .background(.black.opacity(0.34), in: Circle())
+            .opacity(isIntroDescriptionVisible ? 1 : 0)
+            .animation(.easeInOut(duration: 1.4), value: isIntroDescriptionVisible)
+            .accessibilityHidden(!isIntroDescriptionVisible)
+            .allowsHitTesting(isIntroDescriptionVisible)
             .padding(.leading, 16)
         }
         .frame(maxWidth: .infinity, minHeight: 34, alignment: .leading)
@@ -887,6 +930,7 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
                 if let imageName = currentCard?.introHeroImageName {
                     introHeroIcon(imageName: imageName)
                         .opacity(isIntroHeroHeaderVisible ? 1 : 0)
+                        .animation(.easeInOut(duration: 1.0), value: isIntroHeroHeaderVisible)
                 }
 
                 Text(currentCard?.title ?? "")
@@ -906,6 +950,7 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .opacity(isIntroHeroHeaderVisible ? 1 : 0)
+                    .animation(.easeInOut(duration: 1.0), value: isIntroHeroHeaderVisible)
             }
 
             if !(currentCard?.introFeatures ?? []).isEmpty {
@@ -974,19 +1019,13 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
     }
 
     private func introHeroIcon(imageName: String) -> some View {
-        ZStack {
-            Circle()
-                .fill(.black.opacity(0.001))
-                .shadow(color: .black.opacity(0.48), radius: 18, x: 0, y: 10)
-                .shadow(color: .black.opacity(0.2), radius: 6, x: 0, y: 3)
-
-            Image(imageName)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 70, height: 70)
-                .clipShape(Circle())
-        }
-        .frame(width: 70, height: 70)
+        Image(imageName)
+            .resizable()
+            .aspectRatio(contentMode: .fit)
+            .frame(width: 70, height: 70)
+            .clipShape(Circle())
+            .shadow(color: .black.opacity(0.48), radius: 18, x: 0, y: 10)
+            .shadow(color: .black.opacity(0.2), radius: 6, x: 0, y: 3)
     }
 
     @ViewBuilder private var pagerView: some View {
@@ -1012,6 +1051,23 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
             EmptyView()
         } else {
             VStack(alignment: .center, spacing: isShowingFullScreenIntro ? 10 : 0) {
+                if isShowingFullScreenIntro,
+                   isIntroDescriptionVisible,
+                   let description = currentCard?.description,
+                   !description.isEmpty {
+                    Text(description)
+                        .frame(maxWidth: 560, alignment: shouldCenterIntroDescription ? .center : .leading)
+                        .padding(.horizontal, 8)
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .multilineTextAlignment(shouldCenterIntroDescription ? .center : .leading)
+                        .lineLimit(3)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .shadow(color: .black.opacity(0.88), radius: 20, y: 5)
+                        .shadow(color: .black.opacity(0.5), radius: 5, y: 2)
+                        .transition(.opacity)
+                }
+
                 OnboardingPrimaryButtons(
                     currentCard: currentCard,
                     isFinishedOnboarding: scrolledID == cards.last?.id,
@@ -1024,30 +1080,14 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
                     isPresentingStoreSheet: $isPresentingStoreSheet,
                     navigationPath: $navigationPath,
                     glowsPrimaryAction: isShowingFullScreenIntro && isIntroPrimaryButtonGlowing,
-                    showsPrimaryAction: !isShowingFullScreenIntro || isIntroPrimaryButtonVisible
+                    showsPrimaryAction: true,
+                    primaryActionOpacity: isShowingFullScreenIntro && !isIntroPrimaryButtonVisible ? 0 : 1,
+                    primaryActionIsEnabled: !isShowingFullScreenIntro || isIntroPrimaryButtonVisible,
+                    primaryActionTransition: isShowingFullScreenIntro ? .opacity : .move(edge: .bottom).combined(with: .opacity)
                 )
-                .overlay(alignment: .top) {
-                    if isShowingFullScreenIntro,
-                       isIntroDescriptionVisible,
-                       let description = currentCard?.description,
-                       !description.isEmpty {
-                        Text(description)
-                            .frame(maxWidth: 560, alignment: shouldCenterIntroDescription ? .center : .leading)
-                            .padding(.horizontal, 8)
-                            .font(.body.weight(.semibold))
-                            .foregroundStyle(.white)
-                            .multilineTextAlignment(shouldCenterIntroDescription ? .center : .leading)
-                            .lineLimit(3)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .shadow(color: .black.opacity(0.88), radius: 20, y: 5)
-                            .shadow(color: .black.opacity(0.5), radius: 5, y: 2)
-                            .offset(y: -46)
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
-                    }
-                }
             }
             .padding(.horizontal)
-            .padding(.vertical, isShowingFullScreenIntro ? 0 : 10)
+            .padding(.vertical, 10)
             .frame(maxWidth: .infinity)
         }
     }
@@ -1111,8 +1151,8 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
             scheduleIntroFeatureAnimationIfNeeded()
         }
         .onReceive(NotificationCenter.default.publisher(for: .onboardingFullScreenIntroVideoReady)) { _ in
-            withAnimation(.default) {
-                isFullScreenIntroVideoReady = true
+            isFullScreenIntroVideoReady = true
+            withAnimation(.easeInOut(duration: 1.0)) {
                 isIntroHeroHeaderVisible = true
             }
             scheduleIntroFeatureAnimationIfNeeded()
@@ -1122,6 +1162,7 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
             introFeatureAnimationTask = nil
             hasPlayedFullScreenIntroAnimation = false
             isIntroHeroHeaderVisible = !isShowingFullScreenIntro
+            isIntroBottomGradientVisible = false
             isIntroDescriptionVisible = false
             isIntroPrimaryButtonVisible = false
             isIntroPrimaryButtonGlowing = false
@@ -1191,6 +1232,7 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
             introFeatureAnimationTask = nil
             visibleIntroFeatureCount = featureCount
             isIntroHeroHeaderVisible = true
+            isIntroBottomGradientVisible = false
             isIntroDescriptionVisible = false
             isIntroPrimaryButtonVisible = true
             isIntroPrimaryButtonGlowing = false
@@ -1202,6 +1244,7 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
             introFeatureAnimationTask = nil
             visibleIntroFeatureCount = 0
             isIntroHeroHeaderVisible = false
+            isIntroBottomGradientVisible = false
             isIntroDescriptionVisible = false
             isIntroPrimaryButtonVisible = false
             isIntroPrimaryButtonGlowing = false
@@ -1215,6 +1258,7 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
         guard !hasPlayedFullScreenIntroAnimation else {
             visibleIntroFeatureCount = currentIntroFeatures.count
             isIntroHeroHeaderVisible = true
+            isIntroBottomGradientVisible = true
             isIntroDescriptionVisible = true
             isIntroPrimaryButtonVisible = true
             return
@@ -1222,13 +1266,18 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
 
         hasPlayedFullScreenIntroAnimation = true
         visibleIntroFeatureCount = 0
-        isIntroHeroHeaderVisible = true
+        if !isIntroHeroHeaderVisible {
+            withAnimation(.easeInOut(duration: 1.0)) {
+                isIntroHeroHeaderVisible = true
+            }
+        }
+        isIntroBottomGradientVisible = false
         isIntroDescriptionVisible = false
         isIntroPrimaryButtonVisible = false
         isIntroPrimaryButtonGlowing = false
         guard featureCount > 0 else { return }
         introFeatureAnimationTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 2_300_000_000)
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
             guard !Task.isCancelled else { return }
 
             for count in 1...featureCount {
@@ -1242,15 +1291,11 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
                 }
             }
 
-            try? await Task.sleep(nanoseconds: 950_000_000)
+            try? await Task.sleep(nanoseconds: 800_000_000)
             guard !Task.isCancelled else { return }
             withAnimation(.easeInOut(duration: 1.4)) {
+                isIntroBottomGradientVisible = true
                 isIntroDescriptionVisible = true
-            }
-
-            try? await Task.sleep(nanoseconds: 1_400_000_000)
-            guard !Task.isCancelled else { return }
-            withAnimation(.easeInOut(duration: 1.4)) {
                 isIntroPrimaryButtonVisible = true
             }
 
@@ -1302,7 +1347,7 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
     }
 
     private func skipRequiredAction() {
-        if currentCard?.id == "widgets" {
+        if currentCard?.id == "widgets", !hasCompletedRequiredAction {
             isPresentingWidgetSkipAlert = true
             return
         }
@@ -1894,6 +1939,21 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
         }
     }
 
+    private var shouldBlankUnderlyingContent: Bool {
+        isActive && !didSkipOnboardingThisSession && !(hasRespondedToOnboarding || hasSeenOnboarding)
+    }
+
+    @ViewBuilder
+    private var onboardingDecisionBlankBackground: some View {
+#if os(iOS)
+        Color(uiColor: .systemBackground)
+#elseif os(macOS)
+        Color(nsColor: .windowBackgroundColor)
+#else
+        Color.clear
+#endif
+    }
+
     public func body(content: Content) -> some View {
         presentedContent(content)
             .onAppear {
@@ -1915,13 +1975,33 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
     @ViewBuilder
     private func presentedContent(_ content: Content) -> some View {
 #if os(iOS)
-        content
+        ZStack {
+            if shouldBlankUnderlyingContent {
+                onboardingDecisionBlankBackground
+                    .ignoresSafeArea()
+            }
+
+            content
+                .opacity(shouldBlankUnderlyingContent ? 0 : 1)
+                .accessibilityHidden(shouldBlankUnderlyingContent)
+                .allowsHitTesting(!shouldBlankUnderlyingContent)
+        }
             .fullScreenCover(isPresented: $isPresented.gatedBy(isActive)) {
                 onboardingPresentationContent
                     .interactiveDismissDisabled()
             }
 #elseif os(macOS)
-        content
+        ZStack {
+            if shouldBlankUnderlyingContent {
+                onboardingDecisionBlankBackground
+                    .ignoresSafeArea()
+            }
+
+            content
+                .opacity(shouldBlankUnderlyingContent ? 0 : 1)
+                .accessibilityHidden(shouldBlankUnderlyingContent)
+                .allowsHitTesting(!shouldBlankUnderlyingContent)
+        }
             .sheet(isPresented: $isPresented.gatedBy(isActive)) {
                 onboardingPresentationContent
                     .frame(idealWidth: 450, idealHeight: 600)
