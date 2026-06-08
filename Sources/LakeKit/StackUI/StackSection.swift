@@ -17,6 +17,7 @@ public struct StackSection<Header: View, Content: View, NavigationValue: Hashabl
     @ViewBuilder private let header: () -> Header
     @ViewBuilder private let content: () -> Content
     @ViewBuilder private let trailingHeader: () -> AnyView
+    private let usesMeasuredCollapseHeight: Bool
     @Environment(\.stackListRowID) private var stackListRowID
     
     // Default per-row separator policy for StackList builder
@@ -32,6 +33,7 @@ public struct StackSection<Header: View, Content: View, NavigationValue: Hashabl
     public init(
         navigationValue: NavigationValue? = nil,
         isExpanded: Binding<Bool>,
+        usesMeasuredCollapseHeight: Bool = true,
         @ViewBuilder trailingHeader: @escaping () -> some View = { EmptyView() },
         @ViewBuilder header: @escaping () -> Header,
         @ViewBuilder content: @escaping () -> Content
@@ -41,18 +43,21 @@ public struct StackSection<Header: View, Content: View, NavigationValue: Hashabl
         self.header = header
         self.content = content
         self.trailingHeader = { AnyView(trailingHeader()) }
+        self.usesMeasuredCollapseHeight = usesMeasuredCollapseHeight
     }
     
     public init(
         _ titleKey: LocalizedStringKey,
         navigationValue: NavigationValue? = nil,
         isExpanded: Binding<Bool>,
+        usesMeasuredCollapseHeight: Bool = true,
         @ViewBuilder trailingHeader: @escaping () -> some View = { EmptyView() },
         @ViewBuilder content: @escaping () -> Content
     ) where Header == Text {
         self.init(
             navigationValue: navigationValue,
             isExpanded: isExpanded,
+            usesMeasuredCollapseHeight: usesMeasuredCollapseHeight,
             trailingHeader: trailingHeader,
             header: { Text(titleKey) },
             content: content)
@@ -69,6 +74,7 @@ public struct StackSection<Header: View, Content: View, NavigationValue: Hashabl
         self.header = header
         self.trailingHeader = { AnyView(trailingHeader()) }
         self.content = content
+        self.usesMeasuredCollapseHeight = true
     }
     
     public init(
@@ -166,7 +172,8 @@ public struct StackSection<Header: View, Content: View, NavigationValue: Hashabl
             .modifier {
                 if #available(iOS 16, macOS 13, *) {
                     $0.disclosureGroupStyle(StackSectionDisclosureGroupStyle(
-                        trailingHeader: trailingHeader
+                        trailingHeader: trailingHeader,
+                        usesMeasuredCollapseHeight: usesMeasuredCollapseHeight
                     ))
                 } else { $0 }
             }
@@ -177,6 +184,7 @@ public struct StackSection<Header: View, Content: View, NavigationValue: Hashabl
 public extension StackSection where NavigationValue == Never {
     init(
         isExpanded: Binding<Bool>,
+        usesMeasuredCollapseHeight: Bool = true,
         @ViewBuilder trailingHeader: @escaping () -> some View = { EmptyView() },
         @ViewBuilder header: @escaping () -> Header,
         @ViewBuilder content: @escaping () -> Content
@@ -184,6 +192,7 @@ public extension StackSection where NavigationValue == Never {
         self.init(
             navigationValue: nil,
             isExpanded: isExpanded,
+            usesMeasuredCollapseHeight: usesMeasuredCollapseHeight,
             trailingHeader: trailingHeader,
             header: header,
             content: content
@@ -193,12 +202,14 @@ public extension StackSection where NavigationValue == Never {
     init(
         _ titleKey: LocalizedStringKey,
         isExpanded: Binding<Bool>,
+        usesMeasuredCollapseHeight: Bool = true,
         @ViewBuilder trailingHeader: @escaping () -> some View = { EmptyView() },
         @ViewBuilder content: @escaping () -> Content
     ) where Header == Text {
         self.init(
             navigationValue: nil,
             isExpanded: isExpanded,
+            usesMeasuredCollapseHeight: usesMeasuredCollapseHeight,
             trailingHeader: trailingHeader,
             header: { Text(titleKey) },
             content: content
@@ -457,6 +468,7 @@ fileprivate struct StackSectionTrailingHeaderFontWeightModifier: ViewModifier {
 @available(iOS 16, macOS 13, *)
 fileprivate struct StackSectionDisclosureGroupStyle: DisclosureGroupStyle {
     @ViewBuilder let trailingHeader: () -> AnyView
+    let usesMeasuredCollapseHeight: Bool
     @Environment(\.stackListConfig) private var config
     
     func makeBody(configuration: Configuration) -> some View {
@@ -495,6 +507,7 @@ fileprivate struct StackSectionDisclosureGroupStyle: DisclosureGroupStyle {
             StackSectionCollapsibleContent(
                 isExpanded: configuration.isExpanded,
                 bottomPadding: config.expandedBottomPadding,
+                usesMeasuredHeight: usesMeasuredCollapseHeight,
                 content: configuration.content
             )
             .mask {
@@ -508,6 +521,7 @@ fileprivate struct StackSectionDisclosureGroupStyle: DisclosureGroupStyle {
 fileprivate struct StackSectionCollapsibleContent<Content: View>: View {
     let isExpanded: Bool
     let bottomPadding: CGFloat
+    let usesMeasuredHeight: Bool
     let content: Content
 
     @State private var measuredHeight: CGFloat = 0
@@ -521,10 +535,12 @@ fileprivate struct StackSectionCollapsibleContent<Content: View>: View {
     init(
         isExpanded: Bool,
         bottomPadding: CGFloat,
+        usesMeasuredHeight: Bool,
         content: Content
     ) {
         self.isExpanded = isExpanded
         self.bottomPadding = bottomPadding
+        self.usesMeasuredHeight = usesMeasuredHeight
         self.content = content
         _isContentMounted = State(initialValue: isExpanded)
         _visibleHeight = State(initialValue: isExpanded ? nil : 0)
@@ -550,8 +566,8 @@ fileprivate struct StackSectionCollapsibleContent<Content: View>: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .frame(height: visibleHeight, alignment: .top)
-        .clipped()
+        .frame(height: resolvedVisibleHeight, alignment: .top)
+        .modifier(StackSectionConditionalClippedModifier(isClipped: shouldClipContent))
         .opacity(visibleOpacity)
         .offset(y: visibleOffset)
         .allowsHitTesting(isExpanded)
@@ -564,23 +580,54 @@ fileprivate struct StackSectionCollapsibleContent<Content: View>: View {
         }
         .onPreferenceChange(StackSectionMeasuredContentHeightPreferenceKey.self) { height in
             guard height > 0 else { return }
+            if abs(measuredHeight - height) > 0.5 {
+                print(
+                    "# STACK measuredHeight",
+                    "old=\(String(format: "%.1f", measuredHeight))",
+                    "new=\(String(format: "%.1f", height))",
+                    "expanded=\(isExpanded)",
+                    "usesMeasured=\(usesMeasuredHeight)",
+                    "visible=\(visibleHeight.map { String(format: "%.1f", $0) } ?? "nil")"
+                )
+            }
             measuredHeight = height
             guard isExpanded else { return }
-            withAnimation(.easeInOut(duration: StackSectionCollapsibleContentMetrics.duration)) {
-                visibleHeight = height
+            if usesMeasuredHeight {
+                withAnimation(.easeInOut(duration: StackSectionCollapsibleContentMetrics.duration)) {
+                    visibleHeight = height
+                    visibleOpacity = 1
+                    visibleOffset = 0
+                }
+            } else {
+                visibleHeight = nil
                 visibleOpacity = 1
                 visibleOffset = 0
             }
         }
     }
 
+    private var resolvedVisibleHeight: CGFloat? {
+        if usesMeasuredHeight { return visibleHeight }
+        return isExpanded ? nil : visibleHeight
+    }
+
+    private var shouldClipContent: Bool {
+        usesMeasuredHeight || !isExpanded
+    }
+
     private func syncInitialState() {
         collapseTask?.cancel()
+        print(
+            "# STACK syncInitial",
+            "expanded=\(isExpanded)",
+            "measured=\(String(format: "%.1f", measuredHeight))",
+            "usesMeasured=\(usesMeasuredHeight)"
+        )
         if isExpanded {
             isContentMounted = true
             visibleOpacity = 1
             visibleOffset = 0
-            visibleHeight = measuredHeight > 0 ? measuredHeight : nil
+            visibleHeight = usesMeasuredHeight && measuredHeight > 0 ? measuredHeight : nil
         } else {
             isContentMounted = false
             visibleOpacity = 0
@@ -593,15 +640,22 @@ fileprivate struct StackSectionCollapsibleContent<Content: View>: View {
         transitionRequestID &+= 1
         let requestID = transitionRequestID
         collapseTask?.cancel()
+        print(
+            "# STACK expansionChange",
+            "expanded=\(expanded)",
+            "request=\(requestID)",
+            "measured=\(String(format: "%.1f", measuredHeight))",
+            "usesMeasured=\(usesMeasuredHeight)"
+        )
 
         if expanded {
             withTransaction(Transaction(animation: nil)) {
                 isContentMounted = true
-                visibleHeight = 0
+                visibleHeight = usesMeasuredHeight ? 0 : nil
                 visibleOpacity = 0
                 visibleOffset = 0
             }
-            if measuredHeight > 0 {
+            if usesMeasuredHeight && measuredHeight > 0 {
                 let targetHeight = measuredHeight
                 DispatchQueue.main.async {
                     guard transitionRequestID == requestID else { return }
@@ -609,6 +663,14 @@ fileprivate struct StackSectionCollapsibleContent<Content: View>: View {
                         visibleOpacity = 1
                         visibleOffset = 0
                         visibleHeight = targetHeight
+                    }
+                }
+            } else if !usesMeasuredHeight {
+                DispatchQueue.main.async {
+                    guard transitionRequestID == requestID else { return }
+                    withAnimation(.easeInOut(duration: StackSectionCollapsibleContentMetrics.duration)) {
+                        visibleOpacity = 1
+                        visibleOffset = 0
                     }
                 }
             }
@@ -635,6 +697,19 @@ fileprivate struct StackSectionMeasuredContentHeightPreferenceKey: PreferenceKey
 
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         value = max(value, nextValue())
+    }
+}
+
+fileprivate struct StackSectionConditionalClippedModifier: ViewModifier {
+    let isClipped: Bool
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if isClipped {
+            content.clipped()
+        } else {
+            content
+        }
     }
 }
 
