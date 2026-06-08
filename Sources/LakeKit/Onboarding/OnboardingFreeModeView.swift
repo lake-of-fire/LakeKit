@@ -79,6 +79,7 @@ internal struct OnboardingFreeModeView: View {
                             .font(.title2)
                             .bold()
                         Text("Equal access in education is a valuable principle that Manabi aspires toward. If you're a student or if you just can't afford the full price, please consider the discounted plan. It's available for as low as \(purchasePrice) for full access.")
+                        Text("We raise prices periodically because Manabi has to keep up with inflation and rising operational costs. So far, we have never raised prices for existing subscribers, and we have no plans to. If the current price works for you, this is a good time to lock it in before pricing inevitably has to rise.")
                     }
                     
                     // Editor's Note
