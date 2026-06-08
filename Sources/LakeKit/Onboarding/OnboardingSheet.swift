@@ -830,7 +830,7 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
                             .contentShape(Circle())
                     }
                     .accessibilityLabel("Dismiss onboarding")
-                    .modifier(OnboardingChromeButtonStyleModifier())
+                    .buttonStyle(.borderless)
                     .tint(.primary)
                     .background(.regularMaterial, in: Circle())
                     .padding(.leading, 16)
@@ -851,7 +851,7 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
                     .contentShape(Circle())
             }
             .accessibilityLabel("Dismiss onboarding")
-            .modifier(OnboardingChromeButtonStyleModifier())
+            .buttonStyle(.borderless)
             .tint(.white)
             .background(.black.opacity(0.34), in: Circle())
             .padding(.leading, 16)
@@ -1764,24 +1764,29 @@ fileprivate struct PageNavigator: View {
             guard isEnabled else { return }
             action()
         } label: {
-            Image(systemName: systemImage)
-                .font(.system(size: pageButtonIconFontSize, weight: .bold))
-                .imageScale(.large)
-                .modifier {
-                    if #available(iOS 16.1, macOS 13.1, *) {
-                        $0.fontDesign(.rounded)
-                    } else {
-                        $0
+            if #available(iOS 26, macOS 26, *) {
+                Image(systemName: systemImage)
+                    .accessibilityLabel(title)
+            } else {
+                Image(systemName: systemImage)
+                    .font(.system(size: pageButtonIconFontSize, weight: .bold))
+                    .imageScale(.large)
+                    .modifier {
+                        if #available(iOS 16.1, macOS 13.1, *) {
+                            $0.fontDesign(.rounded)
+                        } else {
+                            $0
+                        }
                     }
-                }
-                .accessibilityLabel(title)
+                    .accessibilityLabel(title)
 #if os(macOS)
-            .padding(6)
+                    .padding(6)
 #endif
-            .frame(minWidth: pageButtonMinHeight, minHeight: pageButtonMinHeight)
+                    .frame(minWidth: pageButtonMinHeight, minHeight: pageButtonMinHeight)
 #if os(iOS)
-            .padding(12)
+                    .padding(12)
 #endif
+            }
         }
         .modifier(OnboardingChromeButtonStyleModifier())
         .tint(.secondary)
