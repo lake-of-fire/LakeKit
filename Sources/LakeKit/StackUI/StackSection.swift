@@ -32,7 +32,7 @@ public struct StackSection<Header: View, Content: View, NavigationValue: Hashabl
     public init(
         navigationValue: NavigationValue? = nil,
         isExpanded: Binding<Bool>,
-        trailingHeader: @escaping () -> some View = { EmptyView() },
+        @ViewBuilder trailingHeader: @escaping () -> some View = { EmptyView() },
         @ViewBuilder header: @escaping () -> Header,
         @ViewBuilder content: @escaping () -> Content
     ) {
@@ -47,7 +47,7 @@ public struct StackSection<Header: View, Content: View, NavigationValue: Hashabl
         _ titleKey: LocalizedStringKey,
         navigationValue: NavigationValue? = nil,
         isExpanded: Binding<Bool>,
-        trailingHeader: @escaping () -> some View = { EmptyView() },
+        @ViewBuilder trailingHeader: @escaping () -> some View = { EmptyView() },
         @ViewBuilder content: @escaping () -> Content
     ) where Header == Text {
         self.init(
@@ -61,7 +61,7 @@ public struct StackSection<Header: View, Content: View, NavigationValue: Hashabl
     public init(
         navigationValue: NavigationValue? = nil,
         @ViewBuilder header: @escaping () -> Header,
-        trailingHeader: @escaping () -> some View = { EmptyView() },
+        @ViewBuilder trailingHeader: @escaping () -> some View = { EmptyView() },
         @ViewBuilder content: @escaping () -> Content
     ) {
         self.expansion = .alwaysExpanded
@@ -74,7 +74,7 @@ public struct StackSection<Header: View, Content: View, NavigationValue: Hashabl
     public init(
         _ titleKey: LocalizedStringKey,
         navigationValue: NavigationValue? = nil,
-        trailingHeader: @escaping () -> some View = { EmptyView() },
+        @ViewBuilder trailingHeader: @escaping () -> some View = { EmptyView() },
         @ViewBuilder content: @escaping () -> Content
     ) where Header == Text {
         self.init(
@@ -112,10 +112,9 @@ public struct StackSection<Header: View, Content: View, NavigationValue: Hashabl
     @ViewBuilder
     private func headerChevron() -> some View {
         switch expansion {
-        case .toggleable(let isExpanded):
+        case .toggleable:
             if navigationValue != nil,
-               (Header.self == Text.self),
-               isExpanded.wrappedValue {
+               Header.self == Text.self {
                 Image(systemName: "chevron.right")
                     .foregroundStyle(.secondary)
                     .transition(.opacity)
@@ -178,7 +177,7 @@ public struct StackSection<Header: View, Content: View, NavigationValue: Hashabl
 public extension StackSection where NavigationValue == Never {
     init(
         isExpanded: Binding<Bool>,
-        trailingHeader: @escaping () -> some View = { EmptyView() },
+        @ViewBuilder trailingHeader: @escaping () -> some View = { EmptyView() },
         @ViewBuilder header: @escaping () -> Header,
         @ViewBuilder content: @escaping () -> Content
     ) {
@@ -194,7 +193,7 @@ public extension StackSection where NavigationValue == Never {
     init(
         _ titleKey: LocalizedStringKey,
         isExpanded: Binding<Bool>,
-        trailingHeader: @escaping () -> some View = { EmptyView() },
+        @ViewBuilder trailingHeader: @escaping () -> some View = { EmptyView() },
         @ViewBuilder content: @escaping () -> Content
     ) where Header == Text {
         self.init(
@@ -208,7 +207,7 @@ public extension StackSection where NavigationValue == Never {
 
     init(
         @ViewBuilder header: @escaping () -> Header,
-        trailingHeader: @escaping () -> some View = { EmptyView() },
+        @ViewBuilder trailingHeader: @escaping () -> some View = { EmptyView() },
         @ViewBuilder content: @escaping () -> Content
     ) {
         self.init(
@@ -221,7 +220,7 @@ public extension StackSection where NavigationValue == Never {
 
     init(
         _ titleKey: LocalizedStringKey,
-        trailingHeader: @escaping () -> some View = { EmptyView() },
+        @ViewBuilder trailingHeader: @escaping () -> some View = { EmptyView() },
         @ViewBuilder content: @escaping () -> Content
     ) where Header == Text {
         self.init(
@@ -354,10 +353,14 @@ public extension View {
 }
 
 fileprivate struct SectionHeaderModifier: ViewModifier {
+    @ScaledMetric(relativeTo: .headline) private var sectionTitleVerticalPadding: CGFloat = 7
+
     func body(content: Content) -> some View {
         content
-            .font(.title2.weight(.bold))
+            .font(.title3.weight(.semibold))
             .foregroundStyle(.primary)
+            .padding(.vertical, sectionTitleVerticalPadding)
+            .padding(.trailing, 4)
     }
 }
 
@@ -533,7 +536,6 @@ fileprivate struct StackSectionCollapsibleContent<Content: View>: View {
         Group {
             if isContentMounted {
                 content
-                    .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, StackSectionMetrics.contentTopSpacing)
                     .padding(.bottom, bottomPadding)
                     .background(

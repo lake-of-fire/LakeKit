@@ -163,15 +163,18 @@ public struct StackSectionList: View {
     private let rows: [StackSectionListRow]
     private let rowSpacing: CGFloat
     private let dividerInsets: EdgeInsets
+    private let showsLastDivider: Bool
     @Environment(\.stackSectionListContainedInGroupBox) private var isContainedInGroupBox
     public init(
         rowSpacing: CGFloat = 0,
         dividerInsets: EdgeInsets = EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 0),
+        showsLastDivider: Bool = false,
         @StackSectionListBuilder content: () -> [StackSectionListRow]
     ) {
         self.rows = content()
         self.rowSpacing = rowSpacing
         self.dividerInsets = dividerInsets
+        self.showsLastDivider = showsLastDivider
     }
     
     public var body: some View {
@@ -203,7 +206,9 @@ public struct StackSectionList: View {
     }
     
     private func shouldShowDivider(after index: Int) -> Bool {
-        guard index < rows.count - 1 else { return false }
+        guard index < rows.count - 1 else {
+            return showsLastDivider && allowsDivider(rows[index].separatorVisibility)
+        }
         let currentVisibility = rows[index].separatorVisibility
         let nextVisibility = rows[index + 1].separatorVisibility
         return allowsDivider(currentVisibility) && allowsDivider(nextVisibility)
