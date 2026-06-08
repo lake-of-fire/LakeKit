@@ -247,8 +247,6 @@ struct OnboardingPrimaryButtons: View {
     @Binding var navigationPath: [String]
     var glowsPrimaryAction = false
     var showsPrimaryAction = true
-    var primaryActionOpacity = 1.0
-    var primaryActionIsEnabled = true
     var primaryActionTransition: AnyTransition = .move(edge: .bottom).combined(with: .opacity)
 
     @State private var highlightedProduct: PrePurchaseSubscriptionInfo?
@@ -495,10 +493,6 @@ struct OnboardingPrimaryButtons: View {
             }
             if showsPrimaryAction {
                 buttonsStack()
-                    .opacity(primaryActionOpacity)
-                    .accessibilityHidden(primaryActionOpacity == 0)
-                    .allowsHitTesting(primaryActionIsEnabled)
-                    .animation(.easeInOut(duration: 1.4), value: primaryActionOpacity)
                     .transition(primaryActionTransition)
             }
         }
@@ -561,7 +555,6 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
     @State private var isFullScreenIntroVideoReady = false
     @State private var visibleIntroFeatureCount = 0
     @State private var isIntroHeroHeaderVisible = false
-    @State private var isIntroBottomGradientVisible = false
     @State private var isIntroDescriptionVisible = false
     @State private var isIntroPrimaryButtonVisible = false
     @State private var isIntroPrimaryButtonGlowing = false
@@ -584,7 +577,7 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
     private var shouldGateFullScreenIntro: Bool {
         isShowingFullScreenIntro && !isFullScreenIntroVideoReady
     }
-    
+
 #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.verticalSizeClass) private var verticalSizeClass
@@ -810,20 +803,15 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .ignoresSafeArea()
 
-                    Group {
-                        introBottomVideoGradient
-                            .opacity(isIntroBottomGradientVisible ? 1 : 0)
+                    GeometryReader { geometry in
+                        let topBoundary = geometry.safeAreaInsets.top + 50
+                        let bottomBoundary = geometry.safeAreaInsets.bottom + 176
+                        let centeredY = topBoundary + max(0, geometry.size.height - topBoundary - bottomBoundary) / 2
 
-                        GeometryReader { geometry in
-                            let topBoundary = geometry.safeAreaInsets.top + 50
-                            let bottomBoundary = geometry.safeAreaInsets.bottom + 176
-                            let centeredY = topBoundary + max(0, geometry.size.height - topBoundary - bottomBoundary) / 2
-
-                            introHeroContent
-                                .position(x: geometry.size.width / 2, y: centeredY)
-                        }
-                        .ignoresSafeArea()
+                        introHeroContent
+                            .position(x: geometry.size.width / 2, y: centeredY)
                     }
+                    .ignoresSafeArea()
                 }
             } else {
                 ZStack {
@@ -840,6 +828,7 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
                     cardPageView(geometry: wheelGeometry)
                 }
             }
+
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onChange(of: scrolledID) { scrolledID in
@@ -902,26 +891,6 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
         .frame(maxWidth: .infinity, minHeight: 34, alignment: .leading)
         .padding(.top, 6)
         .padding(.bottom, 8)
-    }
-
-    private var introBottomVideoGradient: some View {
-        VStack(spacing: 0) {
-            Spacer(minLength: 0)
-
-            LinearGradient(
-                colors: [
-                    .clear,
-                    .black.opacity(0.58),
-                    .black.opacity(0.74),
-                    .black.opacity(0.88),
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .frame(height: 180)
-        }
-        .ignoresSafeArea()
-        .allowsHitTesting(false)
     }
 
     private var introHeroContent: some View {
@@ -1045,6 +1014,24 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
     private var currentIntroFeatures: [OnboardingIntroFeature] {
         currentCard?.introFeatures ?? []
     }
+
+    @ViewBuilder
+    private func primaryButtonsView(primaryActionTransition: AnyTransition) -> some View {
+        OnboardingPrimaryButtons(
+            currentCard: currentCard,
+            isFinishedOnboarding: scrolledID == cards.last?.id,
+            canAdvanceOnboarding: canAdvanceOnboarding,
+            hasCompletedRequiredAction: hasCompletedRequiredAction,
+            advanceOnboarding: advanceOnboarding,
+            performRequiredAction: performRequiredAction,
+            skipRequiredAction: skipRequiredAction,
+            isPresentingSheet: $isPresentingSheet,
+            isPresentingStoreSheet: $isPresentingStoreSheet,
+            navigationPath: $navigationPath,
+            glowsPrimaryAction: isShowingFullScreenIntro && isIntroPrimaryButtonGlowing,
+            primaryActionTransition: primaryActionTransition
+        )
+    }
     
     @ViewBuilder private var callToActionView: some View {
         if shouldGateFullScreenIntro {
@@ -1052,7 +1039,6 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
         } else {
             VStack(alignment: .center, spacing: isShowingFullScreenIntro ? 10 : 0) {
                 if isShowingFullScreenIntro,
-                   isIntroDescriptionVisible,
                    let description = currentCard?.description,
                    !description.isEmpty {
                     Text(description)
@@ -1065,26 +1051,20 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
                         .fixedSize(horizontal: false, vertical: true)
                         .shadow(color: .black.opacity(0.88), radius: 20, y: 5)
                         .shadow(color: .black.opacity(0.5), radius: 5, y: 2)
-                        .transition(.opacity)
+                        .opacity(isIntroDescriptionVisible ? 1 : 0)
+                        .animation(.easeInOut(duration: 1.4), value: isIntroDescriptionVisible)
+                        .accessibilityHidden(!isIntroDescriptionVisible)
                 }
 
-                OnboardingPrimaryButtons(
-                    currentCard: currentCard,
-                    isFinishedOnboarding: scrolledID == cards.last?.id,
-                    canAdvanceOnboarding: canAdvanceOnboarding,
-                    hasCompletedRequiredAction: hasCompletedRequiredAction,
-                    advanceOnboarding: advanceOnboarding,
-                    performRequiredAction: performRequiredAction,
-                    skipRequiredAction: skipRequiredAction,
-                    isPresentingSheet: $isPresentingSheet,
-                    isPresentingStoreSheet: $isPresentingStoreSheet,
-                    navigationPath: $navigationPath,
-                    glowsPrimaryAction: isShowingFullScreenIntro && isIntroPrimaryButtonGlowing,
-                    showsPrimaryAction: true,
-                    primaryActionOpacity: isShowingFullScreenIntro && !isIntroPrimaryButtonVisible ? 0 : 1,
-                    primaryActionIsEnabled: !isShowingFullScreenIntro || isIntroPrimaryButtonVisible,
-                    primaryActionTransition: isShowingFullScreenIntro ? .opacity : .move(edge: .bottom).combined(with: .opacity)
-                )
+                if isShowingFullScreenIntro {
+                    primaryButtonsView(primaryActionTransition: .opacity)
+                        .opacity(isIntroPrimaryButtonVisible ? 1 : 0)
+                        .animation(.easeInOut(duration: 1.4), value: isIntroPrimaryButtonVisible)
+                        .accessibilityHidden(!isIntroPrimaryButtonVisible)
+                        .allowsHitTesting(isIntroPrimaryButtonVisible)
+                } else {
+                    primaryButtonsView(primaryActionTransition: .move(edge: .bottom).combined(with: .opacity))
+                }
             }
             .padding(.horizontal)
             .padding(.vertical, 10)
@@ -1162,7 +1142,6 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
             introFeatureAnimationTask = nil
             hasPlayedFullScreenIntroAnimation = false
             isIntroHeroHeaderVisible = !isShowingFullScreenIntro
-            isIntroBottomGradientVisible = false
             isIntroDescriptionVisible = false
             isIntroPrimaryButtonVisible = false
             isIntroPrimaryButtonGlowing = false
@@ -1232,7 +1211,6 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
             introFeatureAnimationTask = nil
             visibleIntroFeatureCount = featureCount
             isIntroHeroHeaderVisible = true
-            isIntroBottomGradientVisible = false
             isIntroDescriptionVisible = false
             isIntroPrimaryButtonVisible = true
             isIntroPrimaryButtonGlowing = false
@@ -1244,7 +1222,6 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
             introFeatureAnimationTask = nil
             visibleIntroFeatureCount = 0
             isIntroHeroHeaderVisible = false
-            isIntroBottomGradientVisible = false
             isIntroDescriptionVisible = false
             isIntroPrimaryButtonVisible = false
             isIntroPrimaryButtonGlowing = false
@@ -1258,7 +1235,6 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
         guard !hasPlayedFullScreenIntroAnimation else {
             visibleIntroFeatureCount = currentIntroFeatures.count
             isIntroHeroHeaderVisible = true
-            isIntroBottomGradientVisible = true
             isIntroDescriptionVisible = true
             isIntroPrimaryButtonVisible = true
             return
@@ -1271,7 +1247,6 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
                 isIntroHeroHeaderVisible = true
             }
         }
-        isIntroBottomGradientVisible = false
         isIntroDescriptionVisible = false
         isIntroPrimaryButtonVisible = false
         isIntroPrimaryButtonGlowing = false
@@ -1294,7 +1269,6 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
             try? await Task.sleep(nanoseconds: 800_000_000)
             guard !Task.isCancelled else { return }
             withAnimation(.easeInOut(duration: 1.4)) {
-                isIntroBottomGradientVisible = true
                 isIntroDescriptionVisible = true
                 isIntroPrimaryButtonVisible = true
             }
