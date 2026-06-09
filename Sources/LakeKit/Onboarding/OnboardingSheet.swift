@@ -403,20 +403,15 @@ struct OnboardingPrimaryButtons: View {
             if canAdvanceOnboarding {
                 advanceOnboarding()
             } else {
-#if DEBUG
-                isPresentingStoreSheet = true
-                print("# SHEET continueButton.presentStore debug currentCard=\(currentCard?.id ?? "<nil>") nowPresenting=\(isPresentingStoreSheet)")
-#else
                 if adsViewModel.showAds {
                     isPresentingStoreSheet = true
-                    print("# SHEET continueButton.presentStore release currentCard=\(currentCard?.id ?? "<nil>") nowPresenting=\(isPresentingStoreSheet)")
+                    print("# SHEET continueButton.presentStore currentCard=\(currentCard?.id ?? "<nil>") nowPresenting=\(isPresentingStoreSheet)")
                 } else {
                     hasSeenOnboarding = true
                     hasRespondedToOnboarding = true
                     isPresentingSheet = false
                     print("# SHEET continueButton.finishWithoutStore currentCard=\(currentCard?.id ?? "<nil>")")
                 }
-#endif
             }
         }
         .buttonStyle(.borderedProminent)
@@ -626,21 +621,24 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
     @available(iOS 17, macOS 14, *)
     @ViewBuilder private func cardScrollPageView(geometry: GeometryProxy) -> some View {
         ScrollView(.vertical, showsIndicators: false) {
-            LazyVStack(spacing: 0) {
+            VStack(spacing: 0) {
                 ForEach(wheelCards, id: \.id) { card in
                     let frameHeight = cardFrameHeight(for: geometry.size, card: card)
                     let isCurrentPage = scrolledID == card.id
 
-                    OnboardingCardView(
-                        card: card,
-                        isFinished: $isFinished,
-                        isTopVisible: isCurrentPage,
-                        cardContent: cardContent
-                    )
-                    .frame(height: frameHeight)
-                    .frame(maxWidth: maxCardWidth)
-                    .padding(.horizontal, 12)
+                    ZStack {
+                        OnboardingCardView(
+                            card: card,
+                            isFinished: $isFinished,
+                            isTopVisible: isCurrentPage,
+                            cardContent: cardContent
+                        )
+                        .frame(height: frameHeight)
+                        .frame(maxWidth: maxCardWidth)
+                        .padding(.horizontal, 12)
+                    }
                     .frame(width: geometry.size.width, height: geometry.size.height)
+                    .contentShape(Rectangle())
                     .id(card.id)
                     .scrollTransition(.interactive(timingCurve: .easeInOut), axis: .vertical) { content, phase in
                         cardScrollTransition(content, phase: phase)
@@ -1986,19 +1984,21 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
     @State private var isPresented = false
     @State private var isFinished = false
     @State private var didSkipOnboardingThisSession = false
+    @State private var isPresentingOnboardingStoreSheet = false
     @ViewBuilder
     private var onboardingPresentationContent: some View {
         OnboardingView(
             cards: cards,
             isPresentingSheet: $isPresented,
             isFinished: $isFinished,
-            isPresentingStoreSheet: $isPresentingStoreSheet,
+            isPresentingStoreSheet: $isPresentingOnboardingStoreSheet,
             onSkipOnboarding: skipOnboarding,
             onRequiredAction: onRequiredAction,
             requiredActionContent: requiredActionContent,
             cardContent: cardContent
         )
         .preferredColorScheme(preferredColorScheme)
+        .storeSheet(isPresented: $isPresentingOnboardingStoreSheet)
     }
 
     private var preferredColorScheme: ColorScheme? {
@@ -2030,7 +2030,7 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
     public func body(content: Content) -> some View {
         presentedContent(content)
             .onAppear {
-                print("# SHEET modifier.onAppear isActive=\(isActive) isPresented=\(isPresented) hasSeen=\(hasSeenOnboarding) hasResponded=\(hasRespondedToOnboarding) store=\(isPresentingStoreSheet)")
+                print("# SHEET modifier.onAppear isActive=\(isActive) isPresented=\(isPresented) hasSeen=\(hasSeenOnboarding) hasResponded=\(hasRespondedToOnboarding) store=\(isPresentingOnboardingStoreSheet) globalStore=\(isPresentingStoreSheet)")
                 refresh()
             }
             .onChange(of: hasSeenOnboarding) { hasSeenOnboarding in
@@ -2042,13 +2042,16 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
                 refresh(hasRespondedToOnboarding: hasRespondedToOnboarding)
             }
             .onChange(of: isPresented) { isPresented in
-                print("# SHEET onboardingPresentedChanged isPresented=\(isPresented) hasSeen=\(hasSeenOnboarding) hasResponded=\(hasRespondedToOnboarding) store=\(isPresentingStoreSheet)")
+                print("# SHEET onboardingPresentedChanged isPresented=\(isPresented) hasSeen=\(hasSeenOnboarding) hasResponded=\(hasRespondedToOnboarding) store=\(isPresentingOnboardingStoreSheet) globalStore=\(isPresentingStoreSheet)")
                 if !isPresented && !hasRespondedToOnboarding {
                     hasSeenOnboarding = true
                 }
             }
+            .onChange(of: isPresentingOnboardingStoreSheet) { isPresentingOnboardingStoreSheet in
+                print("# SHEET modifier.onboardingStoreBindingChanged isPresentingStoreSheet=\(isPresentingOnboardingStoreSheet) isPresented=\(isPresented) isActive=\(isActive)")
+            }
             .onChange(of: isPresentingStoreSheet) { isPresentingStoreSheet in
-                print("# SHEET modifier.storeBindingChanged isPresentingStoreSheet=\(isPresentingStoreSheet) isPresented=\(isPresented) isActive=\(isActive)")
+                print("# SHEET modifier.globalStoreBindingChanged isPresentingStoreSheet=\(isPresentingStoreSheet) isPresented=\(isPresented) isActive=\(isActive) onboardingStore=\(isPresentingOnboardingStoreSheet)")
             }
     }
 
@@ -2070,10 +2073,10 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
                 onboardingPresentationContent
                     .interactiveDismissDisabled()
                     .onAppear {
-                        print("# SHEET fullScreenCover.onAppear isPresented=\(isPresented) isActive=\(isActive) store=\(isPresentingStoreSheet)")
+                        print("# SHEET fullScreenCover.onAppear isPresented=\(isPresented) isActive=\(isActive) store=\(isPresentingOnboardingStoreSheet) globalStore=\(isPresentingStoreSheet)")
                     }
                     .onDisappear {
-                        print("# SHEET fullScreenCover.onDisappear isPresented=\(isPresented) isActive=\(isActive) store=\(isPresentingStoreSheet)")
+                        print("# SHEET fullScreenCover.onDisappear isPresented=\(isPresented) isActive=\(isActive) store=\(isPresentingOnboardingStoreSheet) globalStore=\(isPresentingStoreSheet)")
                     }
             }
 #elseif os(macOS)
@@ -2092,10 +2095,10 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
                 onboardingPresentationContent
                     .frame(idealWidth: 450, idealHeight: 600)
                     .onAppear {
-                        print("# SHEET sheet.onAppear isPresented=\(isPresented) isActive=\(isActive) store=\(isPresentingStoreSheet)")
+                        print("# SHEET sheet.onAppear isPresented=\(isPresented) isActive=\(isActive) store=\(isPresentingOnboardingStoreSheet) globalStore=\(isPresentingStoreSheet)")
                     }
                     .onDisappear {
-                        print("# SHEET sheet.onDisappear isPresented=\(isPresented) isActive=\(isActive) store=\(isPresentingStoreSheet)")
+                        print("# SHEET sheet.onDisappear isPresented=\(isPresented) isActive=\(isActive) store=\(isPresentingOnboardingStoreSheet) globalStore=\(isPresentingStoreSheet)")
                     }
             }
 #else
@@ -2109,12 +2112,12 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
         print("# SHEET refresh.schedule isActive=\(isActive) hasSeen=\(hasSeenOnboarding) hasResponded=\(hasRespondedToOnboarding) currentPresented=\(isPresented)")
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 250_000_000)
-            guard isActive || isPresentingStoreSheet else {
+            guard isActive || isPresentingOnboardingStoreSheet else {
                 didSkipOnboardingThisSession = false
-                if !isPresentingStoreSheet {
+                if !isPresentingOnboardingStoreSheet {
                     isPresented = false
                 }
-                print("# SHEET refresh.apply inactive isPresented=\(isPresented) store=\(isPresentingStoreSheet)")
+                print("# SHEET refresh.apply inactive isPresented=\(isPresented) store=\(isPresentingOnboardingStoreSheet) globalStore=\(isPresentingStoreSheet)")
                 return
             }
             isPresented = !(hasRespondedToOnboarding || hasSeenOnboarding)
