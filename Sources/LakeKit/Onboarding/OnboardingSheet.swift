@@ -1974,6 +1974,7 @@ private struct OnboardingChromeButtonStyleModifier: ViewModifier {
 
 public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: ViewModifier {
     let isActive: Bool
+    @Binding var isPresentingStoreSheet: Bool
     let cards: [OnboardingCard]
     let onRequiredAction: (OnboardingCard, @escaping () -> Void) -> Void
     @ViewBuilder let requiredActionContent: (OnboardingCard) -> RequiredActionContent
@@ -1985,21 +1986,19 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
     @State private var isPresented = false
     @State private var isFinished = false
     @State private var didSkipOnboardingThisSession = false
-    @State private var localIsPresentingStoreSheet = false
     @ViewBuilder
     private var onboardingPresentationContent: some View {
         OnboardingView(
             cards: cards,
             isPresentingSheet: $isPresented,
             isFinished: $isFinished,
-            isPresentingStoreSheet: $localIsPresentingStoreSheet,
+            isPresentingStoreSheet: $isPresentingStoreSheet,
             onSkipOnboarding: skipOnboarding,
             onRequiredAction: onRequiredAction,
             requiredActionContent: requiredActionContent,
             cardContent: cardContent
         )
         .preferredColorScheme(preferredColorScheme)
-        .storeSheet(isPresented: $localIsPresentingStoreSheet)
     }
 
     private var preferredColorScheme: ColorScheme? {
@@ -2135,6 +2134,7 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
 public extension View {
     func onboardingSheet(
         isActive: Bool,
+        isPresentingStoreSheet: Binding<Bool> = .constant(false),
         cards: [OnboardingCard],
         onRequiredAction: @escaping (OnboardingCard, @escaping () -> Void) -> Void,
         requiredActionContent: @escaping (OnboardingCard) -> some View,
@@ -2143,6 +2143,7 @@ public extension View {
         self.modifier(
             OnboardingSheet(
                 isActive: isActive,
+                isPresentingStoreSheet: isPresentingStoreSheet,
                 cards: cards,
                 onRequiredAction: onRequiredAction,
                 requiredActionContent: requiredActionContent,
@@ -2153,11 +2154,13 @@ public extension View {
 
     func onboardingSheet(
         isActive: Bool,
+        isPresentingStoreSheet: Binding<Bool> = .constant(false),
         cards: [OnboardingCard],
         cardContent: @escaping (OnboardingCard, Binding<Bool>, Bool) -> some View
     ) -> some View {
         onboardingSheet(
             isActive: isActive,
+            isPresentingStoreSheet: isPresentingStoreSheet,
             cards: cards,
             onRequiredAction: { _, complete in complete() },
             requiredActionContent: { _ in EmptyView() },
