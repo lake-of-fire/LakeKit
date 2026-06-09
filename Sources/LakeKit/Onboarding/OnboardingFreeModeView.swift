@@ -79,12 +79,18 @@ internal struct OnboardingFreeModeView: View {
                             .font(.title2)
                             .bold()
                         Text("Equal access in education is a valuable principle that Manabi aspires toward. If you're a student or if you just can't afford the full price, please consider the discounted plan. It's available for as low as \(purchasePrice) for full access.")
-                        Text("We raise prices periodically because Manabi has to keep up with inflation and rising operational costs. So far, we have never raised prices for existing subscribers, and we have no plans to. If the current price works for you, this is a good time to lock it in before pricing inevitably has to rise.")
                     }
                     
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Limited Time Pricing")
+                            .font(.title2)
+                            .bold()
+                        Text("We periodically raise prices to keep up with inflation and rising costs. Since launching in 2018, we’ve never increased prices for existing subscribers, and we have no current plans to do so. If the current price works for you, subscribing now helps you lock it in. If you wait to begin, you may need to pay a higher rate later.")
+                    }
+
                     // Editor's Note
-                    Text("Editor's Note: Thank you for using Manabi Reader. Whether or not you pay to support its full-time development, rest assured there is more to come for Free Mode. As the subscription tier features improve, more paid features will become free too. Manabi values accessibility for all.")
-                        .italic()
+//                    Text("Editor's Note: Thank you for using Manabi Reader. Whether or not you pay to support its full-time development, rest assured there is more to come for Free Mode. As the subscription tier features improve, more paid features will become free too. Manabi values accessibility for all.")
+//                        .italic()
                 }
                 .frame(maxWidth: 850)
                 .padding(.horizontal)

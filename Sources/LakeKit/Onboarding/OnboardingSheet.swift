@@ -313,7 +313,8 @@ struct OnboardingPrimaryButtons: View {
     @ViewBuilder
     private func subscriptionButton() -> some View {
         Button {
-            isPresentingStoreSheet.toggle()
+            print("# SHEET subscriptionButton currentCard=\(currentCard?.id ?? "<nil>") wasPresenting=\(isPresentingStoreSheet)")
+            isPresentingStoreSheet = true
         } label: {
             VStack {
                 Text(headlineText)
@@ -398,18 +399,22 @@ struct OnboardingPrimaryButtons: View {
 #if os(iOS)
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
 #endif
+            print("# SHEET continueButton currentCard=\(currentCard?.id ?? "<nil>") canAdvance=\(canAdvanceOnboarding) isFinishedOnboarding=\(isFinishedOnboarding) showAds=\(adsViewModel.showAds) wasPresenting=\(isPresentingStoreSheet)")
             if canAdvanceOnboarding {
                 advanceOnboarding()
             } else {
 #if DEBUG
                 isPresentingStoreSheet = true
+                print("# SHEET continueButton.presentStore debug currentCard=\(currentCard?.id ?? "<nil>") nowPresenting=\(isPresentingStoreSheet)")
 #else
                 if adsViewModel.showAds {
                     isPresentingStoreSheet = true
+                    print("# SHEET continueButton.presentStore release currentCard=\(currentCard?.id ?? "<nil>") nowPresenting=\(isPresentingStoreSheet)")
                 } else {
                     hasSeenOnboarding = true
                     hasRespondedToOnboarding = true
                     isPresentingSheet = false
+                    print("# SHEET continueButton.finishWithoutStore currentCard=\(currentCard?.id ?? "<nil>")")
                 }
 #endif
             }
@@ -834,6 +839,7 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onChange(of: scrolledID) { scrolledID in
             isFinished = scrolledID == cards.last?.id
+            print("# SHEET scrolledIDChanged id=\(scrolledID ?? "<nil>") last=\(cards.last?.id ?? "<nil>") isFinished=\(isFinished) cardCount=\(cards.count)")
         }
     }
 
@@ -1017,6 +1023,11 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
         currentCard?.introFeatures ?? []
     }
 
+    private var shouldGlowPrimaryAction: Bool {
+        (isShowingFullScreenIntro && isIntroPrimaryButtonGlowing)
+        || currentCard?.id == "premium"
+    }
+
     @ViewBuilder
     private func primaryButtonsView(
         primaryActionTransition: AnyTransition,
@@ -1033,7 +1044,7 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
             isPresentingSheet: $isPresentingSheet,
             isPresentingStoreSheet: $isPresentingStoreSheet,
             navigationPath: $navigationPath,
-            glowsPrimaryAction: isShowingFullScreenIntro && isIntroPrimaryButtonGlowing,
+            glowsPrimaryAction: shouldGlowPrimaryAction,
             showsPrimaryAction: showsPrimaryAction,
             primaryActionTransition: primaryActionTransition
         )
@@ -1478,6 +1489,7 @@ struct OnboardingView<CardContent: View, RequiredActionContent: View>: View {
             highlightedProduct = await storeViewModel.productSubscriptionInfo(productID: storeViewModel.highlightedProductID, storeHelper: storeHelper)
         }
         .onChange(of: isPresentingStoreSheet) { isPresentingStoreSheet in
+            print("# SHEET onboardingView.storeBindingChanged isPresentingStoreSheet=\(isPresentingStoreSheet) selectedCardID=\(selectedCardID ?? "<nil>") isFinished=\(isFinished) lastCard=\(cards.last?.id ?? "<nil>")")
             if isPresentingStoreSheet {
                 hasPresentedStoreSheet = true
             } else {
@@ -1487,11 +1499,13 @@ struct OnboardingView<CardContent: View, RequiredActionContent: View>: View {
     }
 
     private func closeOnboardingIfSubscribedAfterStoreDismissal() {
+        print("# SHEET closeAfterDismiss.check hasPresented=\(hasPresentedStoreSheet) isShowingLastCard=\(isShowingLastCard) selectedCardID=\(selectedCardID ?? "<nil>") isFinished=\(isFinished)")
         guard hasPresentedStoreSheet, isShowingLastCard else { return }
 
         Task { @MainActor in
             storeViewModel.refreshIsSubscribed(storeHelper: storeHelper)
             try? await Task.sleep(nanoseconds: 500_000_000)
+            print("# SHEET closeAfterDismiss.afterRefresh hasPresented=\(hasPresentedStoreSheet) isShowingLastCard=\(isShowingLastCard) subscribed=\(storeViewModel.isSubscribed) subscribedElsewhere=\(storeViewModel.isSubscribedFromElsewhere) showAds=\(AdsViewModel.shared.showAds)")
             guard hasPresentedStoreSheet, isShowingLastCard else { return }
             guard storeViewModel.isSubscribed || storeViewModel.isSubscribedFromElsewhere || !AdsViewModel.shared.showAds else { return }
 
@@ -1547,6 +1561,7 @@ struct OnboardingCardView<CardContent: View>: View {
 #endif
     @State private var entranceProgress: CGFloat = 1
     @State private var lightWipeProgress: CGFloat = 1
+    @State private var lastLoggedVerticalGeometry: String?
     
     private var useVStack: Bool {
 #if os(iOS)
@@ -1686,6 +1701,22 @@ struct OnboardingCardView<CardContent: View>: View {
         .multilineTextAlignment(.center)
         .padding(cardPadding)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background {
+            GeometryReader { geometry in
+                Color.clear
+                    .task(id: "\(card.id)-\(geometry.size.width)x\(geometry.size.height)-\(isTopVisible)") {
+                        logVerticalGeometry(size: geometry.size)
+                    }
+            }
+        }
+    }
+
+    private func logVerticalGeometry(size: CGSize) {
+        guard card.id == "welcome" || card.id == "stats" || card.id == "flashcards" else { return }
+        let signature = "\(card.id):\(Int(size.width.rounded()))x\(Int(size.height.rounded())):\(isTopVisible)"
+        guard signature != lastLoggedVerticalGeometry else { return }
+        lastLoggedVerticalGeometry = signature
+        print("# VERT card id=\(card.id) size=\(String(format: "%.1f", size.width))x\(String(format: "%.1f", size.height)) tight=\(card.usesTightVerticalSpacing) fills=\(card.contentFillsCard) fullWidth=\(card.contentUsesFullWidth) hasDescription=\(hasDescription) padding=\(cardPadding)")
     }
 
     private var cardPadding: EdgeInsets {
@@ -2000,18 +2031,25 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
     public func body(content: Content) -> some View {
         presentedContent(content)
             .onAppear {
+                print("# SHEET modifier.onAppear isActive=\(isActive) isPresented=\(isPresented) hasSeen=\(hasSeenOnboarding) hasResponded=\(hasRespondedToOnboarding) store=\(isPresentingStoreSheet)")
                 refresh()
             }
             .onChange(of: hasSeenOnboarding) { hasSeenOnboarding in
+                print("# SHEET hasSeenChanged value=\(hasSeenOnboarding) hasResponded=\(hasRespondedToOnboarding) isPresented=\(isPresented)")
                 refresh(hasSeenOnboarding: hasSeenOnboarding)
             }
             .onChange(of: hasRespondedToOnboarding) { hasRespondedToOnboarding in
+                print("# SHEET hasRespondedChanged value=\(hasRespondedToOnboarding) hasSeen=\(hasSeenOnboarding) isPresented=\(isPresented)")
                 refresh(hasRespondedToOnboarding: hasRespondedToOnboarding)
             }
             .onChange(of: isPresented) { isPresented in
+                print("# SHEET onboardingPresentedChanged isPresented=\(isPresented) hasSeen=\(hasSeenOnboarding) hasResponded=\(hasRespondedToOnboarding) store=\(isPresentingStoreSheet)")
                 if !isPresented && !hasRespondedToOnboarding {
                     hasSeenOnboarding = true
                 }
+            }
+            .onChange(of: isPresentingStoreSheet) { isPresentingStoreSheet in
+                print("# SHEET modifier.storeBindingChanged isPresentingStoreSheet=\(isPresentingStoreSheet) isPresented=\(isPresented) isActive=\(isActive)")
             }
     }
 
@@ -2029,9 +2067,15 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
                 .accessibilityHidden(shouldBlankUnderlyingContent)
                 .allowsHitTesting(!shouldBlankUnderlyingContent)
         }
-            .fullScreenCover(isPresented: $isPresented.gatedBy(isActive)) {
+            .fullScreenCover(isPresented: $isPresented) {
                 onboardingPresentationContent
                     .interactiveDismissDisabled()
+                    .onAppear {
+                        print("# SHEET fullScreenCover.onAppear isPresented=\(isPresented) isActive=\(isActive) store=\(isPresentingStoreSheet)")
+                    }
+                    .onDisappear {
+                        print("# SHEET fullScreenCover.onDisappear isPresented=\(isPresented) isActive=\(isActive) store=\(isPresentingStoreSheet)")
+                    }
             }
 #elseif os(macOS)
         ZStack {
@@ -2045,9 +2089,15 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
                 .accessibilityHidden(shouldBlankUnderlyingContent)
                 .allowsHitTesting(!shouldBlankUnderlyingContent)
         }
-            .sheet(isPresented: $isPresented.gatedBy(isActive)) {
+            .sheet(isPresented: $isPresented) {
                 onboardingPresentationContent
                     .frame(idealWidth: 450, idealHeight: 600)
+                    .onAppear {
+                        print("# SHEET sheet.onAppear isPresented=\(isPresented) isActive=\(isActive) store=\(isPresentingStoreSheet)")
+                    }
+                    .onDisappear {
+                        print("# SHEET sheet.onDisappear isPresented=\(isPresented) isActive=\(isActive) store=\(isPresentingStoreSheet)")
+                    }
             }
 #else
         content
@@ -2057,18 +2107,24 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
     private func refresh(hasRespondedToOnboarding: Bool? = nil, hasSeenOnboarding: Bool? = nil) {
         let hasRespondedToOnboarding = hasRespondedToOnboarding ?? self.hasRespondedToOnboarding
         let hasSeenOnboarding = hasSeenOnboarding ?? self.hasSeenOnboarding
+        print("# SHEET refresh.schedule isActive=\(isActive) hasSeen=\(hasSeenOnboarding) hasResponded=\(hasRespondedToOnboarding) currentPresented=\(isPresented)")
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 250_000_000)
-            guard isActive else {
+            guard isActive || isPresentingStoreSheet else {
                 didSkipOnboardingThisSession = false
-                isPresented = false
+                if !isPresentingStoreSheet {
+                    isPresented = false
+                }
+                print("# SHEET refresh.apply inactive isPresented=\(isPresented) store=\(isPresentingStoreSheet)")
                 return
             }
             isPresented = !(hasRespondedToOnboarding || hasSeenOnboarding)
+            print("# SHEET refresh.apply isActive=\(isActive) targetPresented=\(isPresented) hasSeen=\(hasSeenOnboarding) hasResponded=\(hasRespondedToOnboarding)")
         }
     }
 
     private func skipOnboarding() {
+        print("# SHEET skipOnboarding")
         didSkipOnboardingThisSession = true
         hasSeenOnboarding = true
         hasRespondedToOnboarding = true
