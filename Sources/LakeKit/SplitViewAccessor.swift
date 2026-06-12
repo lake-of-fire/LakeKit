@@ -43,7 +43,6 @@ public struct SplitViewAccessor: NSViewRepresentable {
                         self?.sideCollapsed?.wrappedValue = value
                     }
                 }
-                sideCollapsed?.wrappedValue = sideBar.isCollapsed
             }
         }
     }
