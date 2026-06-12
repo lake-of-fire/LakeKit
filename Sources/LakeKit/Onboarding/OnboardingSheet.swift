@@ -42,6 +42,7 @@ public struct OnboardingCard: Identifiable, Hashable {
     public let contentFillsCard: Bool
     public let isFullScreenIntro: Bool
     public let primaryActionTitle: String?
+    public let skipActionTitle: String?
     public let introFeatures: [OnboardingIntroFeature]
     public let introHeroImageName: String?
     public let cardVerticalInset: CGFloat?
@@ -62,6 +63,7 @@ public struct OnboardingCard: Identifiable, Hashable {
         contentFillsCard: Bool = false,
         isFullScreenIntro: Bool = false,
         primaryActionTitle: String? = nil,
+        skipActionTitle: String? = nil,
         introFeatures: [OnboardingIntroFeature] = [],
         introHeroImageName: String? = nil,
         cardVerticalInset: CGFloat? = nil,
@@ -81,6 +83,7 @@ public struct OnboardingCard: Identifiable, Hashable {
         self.contentFillsCard = contentFillsCard
         self.isFullScreenIntro = isFullScreenIntro
         self.primaryActionTitle = primaryActionTitle
+        self.skipActionTitle = skipActionTitle
         self.introFeatures = introFeatures
         self.introHeroImageName = introHeroImageName
         self.cardVerticalInset = cardVerticalInset
@@ -242,6 +245,8 @@ struct OnboardingPrimaryButtons: View {
     let advanceOnboarding: () -> Void
     let performRequiredAction: (@escaping () -> Void) -> Void
     let skipRequiredAction: () -> Void
+    let skipOptionalAction: () -> Void
+    let performPrimaryAction: (@escaping () -> Void) -> Void
     @Binding var isPresentingSheet: Bool
     @Binding var isPresentingStoreSheet: Bool
     @Binding var navigationPath: [String]
@@ -310,6 +315,12 @@ struct OnboardingPrimaryButtons: View {
         currentCard?.primaryActionTitle ?? "Continue"
     }
 
+    private var optionalSkipButtonTitle: String? {
+        guard !isWaitingForRequiredAction else { return nil }
+        guard !isCompletedWidgetRequiredAction else { return nil }
+        return currentCard?.skipActionTitle
+    }
+
     @ViewBuilder
     private func subscriptionButton() -> some View {
         Button {
@@ -372,14 +383,14 @@ struct OnboardingPrimaryButtons: View {
     }
 
     @ViewBuilder
-    private func skipRequiredActionButton() -> some View {
+    private func skipButton(title: String, action: @escaping () -> Void) -> some View {
         Button {
 #if os(iOS)
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
 #endif
-            skipRequiredAction()
+            action()
         } label: {
-            Text("Skip")
+            Text(title)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 10)
@@ -397,15 +408,27 @@ struct OnboardingPrimaryButtons: View {
     }
 
     @ViewBuilder
+    private func skipRequiredActionButton() -> some View {
+        skipButton(title: "Skip", action: skipRequiredAction)
+    }
+
+    @ViewBuilder
+    private func optionalSkipButton(title: String) -> some View {
+        skipButton(title: title, action: skipOptionalAction)
+    }
+
+    @ViewBuilder
     private func continueButton() -> some View {
         OnboardingPrimaryButton(title: continueButtonTitle, systemImage: nil) {
 #if os(iOS)
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
 #endif
-            if canAdvanceOnboarding {
-                advanceOnboarding()
-            } else {
-                finishOnboarding()
+            performPrimaryAction {
+                if canAdvanceOnboarding {
+                    advanceOnboarding()
+                } else {
+                    finishOnboarding()
+                }
             }
         }
         .buttonStyle(.borderedProminent)
@@ -492,6 +515,8 @@ struct OnboardingPrimaryButtons: View {
                     .opacity(shouldShowRequiredActionSkip ? 1 : 0)
                     .accessibilityHidden(!shouldShowRequiredActionSkip)
                     .allowsHitTesting(shouldShowRequiredActionSkip)
+            } else if let optionalSkipButtonTitle {
+                optionalSkipButton(title: optionalSkipButtonTitle)
             } else if shouldOfferFreeModePath {
                 subsidizedOptionsButton()
             }
@@ -546,6 +571,8 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
     @Binding var scrolledID: String?
     let onSkipOnboarding: () -> Void
     let onRequiredAction: (OnboardingCard, @escaping () -> Void) -> Void
+    let onSkipOptionalAction: (OnboardingCard, @escaping () -> Void) -> Void
+    let onPrimaryAction: (OnboardingCard, @escaping () -> Void) -> Void
     @ViewBuilder let requiredActionContent: (OnboardingCard) -> RequiredActionContent
     @ViewBuilder let cardContent: (OnboardingCard, Binding<Bool>, Bool) -> CardContent
     
@@ -1044,6 +1071,8 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
             advanceOnboarding: advanceOnboarding,
             performRequiredAction: performRequiredAction,
             skipRequiredAction: skipRequiredAction,
+            skipOptionalAction: skipOptionalAction,
+            performPrimaryAction: performPrimaryAction,
             isPresentingSheet: $isPresentingSheet,
             isPresentingStoreSheet: $isPresentingStoreSheet,
             navigationPath: $navigationPath,
@@ -1383,6 +1412,25 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
         completeSkippedRequiredAction()
     }
 
+    private func skipOptionalAction() {
+        guard let currentCard else { return }
+        onSkipOptionalAction(currentCard) {
+            if canAdvanceOnboarding {
+                advanceOnboarding()
+            } else {
+                finishOnboarding()
+            }
+        }
+    }
+
+    private func performPrimaryAction(_ completion: @escaping () -> Void) {
+        guard let currentCard else {
+            completion()
+            return
+        }
+        onPrimaryAction(currentCard, completion)
+    }
+
     private func completeSkippedRequiredAction() {
         if let requiredActionID = currentCard?.requiredActionID {
             completedRequiredActionIDs.insert(requiredActionID)
@@ -1409,6 +1457,8 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
         scrolledID: Binding<String?>,
         onSkipOnboarding: @escaping () -> Void,
         onRequiredAction: @escaping (OnboardingCard, @escaping () -> Void) -> Void,
+        onSkipOptionalAction: @escaping (OnboardingCard, @escaping () -> Void) -> Void,
+        onPrimaryAction: @escaping (OnboardingCard, @escaping () -> Void) -> Void,
         requiredActionContent: @escaping (OnboardingCard) -> RequiredActionContent,
         cardContent: @escaping (OnboardingCard, Binding<Bool>, Bool) -> CardContent
     ) {
@@ -1420,6 +1470,8 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
         _scrolledID = scrolledID
         self.onSkipOnboarding = onSkipOnboarding
         self.onRequiredAction = onRequiredAction
+        self.onSkipOptionalAction = onSkipOptionalAction
+        self.onPrimaryAction = onPrimaryAction
         self.requiredActionContent = requiredActionContent
         self.cardContent = cardContent
     }
@@ -1433,6 +1485,8 @@ struct OnboardingView<CardContent: View, RequiredActionContent: View>: View {
     @Binding var isPresentingStoreSheet: Bool
     let onSkipOnboarding: () -> Void
     let onRequiredAction: (OnboardingCard, @escaping () -> Void) -> Void
+    let onSkipOptionalAction: (OnboardingCard, @escaping () -> Void) -> Void
+    let onPrimaryAction: (OnboardingCard, @escaping () -> Void) -> Void
     @ViewBuilder let requiredActionContent: (OnboardingCard) -> RequiredActionContent
     @ViewBuilder let cardContent: (OnboardingCard, Binding<Bool>, Bool) -> CardContent
     
@@ -1460,6 +1514,8 @@ struct OnboardingView<CardContent: View, RequiredActionContent: View>: View {
             scrolledID: $selectedCardID,
             onSkipOnboarding: onSkipOnboarding,
             onRequiredAction: onRequiredAction,
+            onSkipOptionalAction: onSkipOptionalAction,
+            onPrimaryAction: onPrimaryAction,
             requiredActionContent: requiredActionContent,
             cardContent: cardContent
         )
@@ -1544,6 +1600,8 @@ struct OnboardingView<CardContent: View, RequiredActionContent: View>: View {
         isPresentingStoreSheet: Binding<Bool>,
         onSkipOnboarding: @escaping () -> Void,
         onRequiredAction: @escaping (OnboardingCard, @escaping () -> Void) -> Void,
+        onSkipOptionalAction: @escaping (OnboardingCard, @escaping () -> Void) -> Void,
+        onPrimaryAction: @escaping (OnboardingCard, @escaping () -> Void) -> Void,
         requiredActionContent: @escaping (OnboardingCard) -> RequiredActionContent,
         cardContent: @escaping (OnboardingCard, Binding<Bool>, Bool) -> CardContent
     ) {
@@ -1553,6 +1611,8 @@ struct OnboardingView<CardContent: View, RequiredActionContent: View>: View {
         _isPresentingStoreSheet = isPresentingStoreSheet
         self.onSkipOnboarding = onSkipOnboarding
         self.onRequiredAction = onRequiredAction
+        self.onSkipOptionalAction = onSkipOptionalAction
+        self.onPrimaryAction = onPrimaryAction
         self.requiredActionContent = requiredActionContent
         self.cardContent = cardContent
     }
@@ -1986,6 +2046,8 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
     @Binding var isPresentingStoreSheet: Bool
     let cards: [OnboardingCard]
     let onRequiredAction: (OnboardingCard, @escaping () -> Void) -> Void
+    let onSkipOptionalAction: (OnboardingCard, @escaping () -> Void) -> Void
+    let onPrimaryAction: (OnboardingCard, @escaping () -> Void) -> Void
     @ViewBuilder let requiredActionContent: (OnboardingCard) -> RequiredActionContent
     @ViewBuilder let cardContent: (OnboardingCard, Binding<Bool>, Bool) -> CardContent
 
@@ -2005,6 +2067,8 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
             isPresentingStoreSheet: $isPresentingOnboardingStoreSheet,
             onSkipOnboarding: skipOnboarding,
             onRequiredAction: onRequiredAction,
+            onSkipOptionalAction: onSkipOptionalAction,
+            onPrimaryAction: onPrimaryAction,
             requiredActionContent: requiredActionContent,
             cardContent: cardContent
         )
@@ -2137,6 +2201,8 @@ public extension View {
         isPresentingStoreSheet: Binding<Bool> = .constant(false),
         cards: [OnboardingCard],
         onRequiredAction: @escaping (OnboardingCard, @escaping () -> Void) -> Void,
+        onSkipOptionalAction: @escaping (OnboardingCard, @escaping () -> Void) -> Void = { _, complete in complete() },
+        onPrimaryAction: @escaping (OnboardingCard, @escaping () -> Void) -> Void = { _, complete in complete() },
         requiredActionContent: @escaping (OnboardingCard) -> some View,
         cardContent: @escaping (OnboardingCard, Binding<Bool>, Bool) -> some View
     ) -> some View {
@@ -2146,6 +2212,8 @@ public extension View {
                 isPresentingStoreSheet: isPresentingStoreSheet,
                 cards: cards,
                 onRequiredAction: onRequiredAction,
+                onSkipOptionalAction: onSkipOptionalAction,
+                onPrimaryAction: onPrimaryAction,
                 requiredActionContent: requiredActionContent,
                 cardContent: cardContent
             )
@@ -2163,6 +2231,8 @@ public extension View {
             isPresentingStoreSheet: isPresentingStoreSheet,
             cards: cards,
             onRequiredAction: { _, complete in complete() },
+            onSkipOptionalAction: { _, complete in complete() },
+            onPrimaryAction: { _, complete in complete() },
             requiredActionContent: { _ in EmptyView() },
             cardContent: cardContent
         )
