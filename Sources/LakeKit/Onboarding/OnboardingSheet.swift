@@ -359,7 +359,11 @@ struct OnboardingPrimaryButtons: View {
 #if os(iOS)
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
 #endif
-            advanceOnboarding()
+            if canAdvanceOnboarding {
+                advanceOnboarding()
+            } else {
+                finishOnboarding()
+            }
         }
         .buttonStyle(.borderedProminent)
         .tint(.accentColor)
@@ -401,19 +405,23 @@ struct OnboardingPrimaryButtons: View {
             if canAdvanceOnboarding {
                 advanceOnboarding()
             } else {
-                if adsViewModel.showAds {
-                    isPresentingStoreSheet = true
-                } else {
-                    hasSeenOnboarding = true
-                    hasRespondedToOnboarding = true
-                    isPresentingSheet = false
-                }
+                finishOnboarding()
             }
         }
         .buttonStyle(.borderedProminent)
         .tint(.accentColor)
         .modifier(OnboardingCategoryPressScaleModifier(glows: glowsPrimaryAction))
         .shadow(color: .black.opacity(0.26), radius: 18, x: 0, y: 10)
+    }
+
+    private func finishOnboarding() {
+        if adsViewModel.showAds {
+            isPresentingStoreSheet = true
+        } else {
+            hasSeenOnboarding = true
+            hasRespondedToOnboarding = true
+            isPresentingSheet = false
+        }
     }
 
     @ViewBuilder
@@ -557,6 +565,8 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
     @State private var introTitleShineCount = 0
     @State private var hasPlayedFullScreenIntroAnimation = false
     @State private var introFeatureAnimationTask: Task<Void, Never>?
+    @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
+    @AppStorage("hasRespondedToOnboarding") private var hasRespondedToOnboarding = false
 
     private var currentCard: OnboardingCard? {
         guard let scrolledID = scrolledID else { return nil }
@@ -1377,7 +1387,17 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
         if let requiredActionID = currentCard?.requiredActionID {
             completedRequiredActionIDs.insert(requiredActionID)
         }
-        advanceOnboarding()
+        if canAdvanceOnboarding {
+            advanceOnboarding()
+        } else {
+            finishOnboarding()
+        }
+    }
+
+    private func finishOnboarding() {
+        hasSeenOnboarding = true
+        hasRespondedToOnboarding = true
+        isPresentingSheet = false
     }
     
     init(
