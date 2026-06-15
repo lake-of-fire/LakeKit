@@ -11,6 +11,16 @@ public struct TranslationRequest {
     }
 }
 
+@available(iOS 18, macOS 15, *)
+public extension TranslationSession.Configuration {
+    static var japaneseToCurrentLanguage: Self {
+        Self(
+            source: Locale.Language(identifier: "ja"),
+            target: Locale.current.language
+        )
+    }
+}
+
 public struct BatchedTranslationRequest {
     public var translationTaskConfiguration: Any {
         willSet {
