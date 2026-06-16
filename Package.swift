@@ -30,7 +30,6 @@ let package = Package(
         .package(url: "https://github.com/lake-of-fire/DSFSearchField.git", branch: "main"),
 //        .package(url: "https://github.com/twostraws/Inferno.git", branch: "main"),
 //        .package(url: "https://github.com/elai950/AlertToast.git", branch: "master"),
-//        .package(url: "https://github.com/lake-of-fire/swiftui-layout-guides.git", branch: "main"),
 //        .package(url: "https://github.com/exyte/Grid.git", branch: "master"),
 //        .package(url: "https://github.com/JiHoonAHN/XcodeSnippet.git", branch: "main"),
         .package(url: "https://github.com/lake-of-fire/StoreHelper.git", branch: "main"),
