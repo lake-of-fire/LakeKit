@@ -11,6 +11,7 @@ public struct FitWidthSegmentedPicker<Selection: Hashable>: View {
     @Binding var selection: Selection
     let disabledOptions: Set<Selection>
     let accessibilityIdentifier: String?
+    let onReselect: ((Selection) -> Void)?
     let titleForOption: (Selection) -> String
 
     public init(
@@ -18,12 +19,14 @@ public struct FitWidthSegmentedPicker<Selection: Hashable>: View {
         selection: Binding<Selection>,
         disabledOptions: Set<Selection> = [],
         accessibilityIdentifier: String? = nil,
+        onReselect: ((Selection) -> Void)? = nil,
         titleForOption: @escaping (Selection) -> String = { String(describing: $0) }
     ) {
         self.options = options
         self._selection = selection
         self.disabledOptions = disabledOptions
         self.accessibilityIdentifier = accessibilityIdentifier
+        self.onReselect = onReselect
         self.titleForOption = titleForOption
     }
 
@@ -34,6 +37,7 @@ public struct FitWidthSegmentedPicker<Selection: Hashable>: View {
             selection: $selection,
             disabledOptions: disabledOptions,
             accessibilityIdentifier: accessibilityIdentifier,
+            onReselect: onReselect,
             titleForOption: titleForOption
         )
 #elseif os(macOS)
@@ -42,6 +46,7 @@ public struct FitWidthSegmentedPicker<Selection: Hashable>: View {
             selection: $selection,
             disabledOptions: disabledOptions,
             accessibilityIdentifier: accessibilityIdentifier,
+            onReselect: onReselect,
             titleForOption: titleForOption
         )
 #endif
@@ -56,12 +61,16 @@ private struct FitWidthSegmentedPickerIOS<Selection: Hashable>: UIViewRepresenta
     @Binding var selection: Selection
     let disabledOptions: Set<Selection>
     let accessibilityIdentifier: String?
+    let onReselect: ((Selection) -> Void)?
     let titleForOption: (Selection) -> String
 
     func makeUIView(context: Context) -> UISegmentedControl {
-        let segmentedControl = UISegmentedControl()
+        let segmentedControl = ReselectingSegmentedControl()
         segmentedControl.apportionsSegmentWidthsByContent = true
         segmentedControl.addTarget(context.coordinator, action: #selector(Coordinator.selectionChanged(_:)), for: .valueChanged)
+        segmentedControl.onReselectSegment = { index in
+            context.coordinator.selectionChanged(index: index)
+        }
         return segmentedControl
     }
 
@@ -86,6 +95,10 @@ private struct FitWidthSegmentedPickerIOS<Selection: Hashable>: UIViewRepresenta
             guard options.indices.contains(index) else { return }
             let selectedOption = options[index]
             guard !disabledOptions.contains(selectedOption) else { return }
+            if selectedOption == selection {
+                onReselect?(selectedOption)
+                return
+            }
             selection = selectedOption
         }
     }
@@ -99,7 +112,25 @@ private struct FitWidthSegmentedPickerIOS<Selection: Hashable>: UIViewRepresenta
         var onSelectionChanged: ((Int) -> Void)?
 
         @objc func selectionChanged(_ sender: UISegmentedControl) {
-            onSelectionChanged?(sender.selectedSegmentIndex)
+            selectionChanged(index: sender.selectedSegmentIndex)
+        }
+
+        func selectionChanged(index: Int) {
+            onSelectionChanged?(index)
+        }
+    }
+
+    final class ReselectingSegmentedControl: UISegmentedControl {
+        var onReselectSegment: ((Int) -> Void)?
+
+        override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+            let previousSelectedSegmentIndex = selectedSegmentIndex
+            super.touchesEnded(touches, with: event)
+            guard previousSelectedSegmentIndex != UISegmentedControl.noSegment,
+                  previousSelectedSegmentIndex == selectedSegmentIndex else {
+                return
+            }
+            onReselectSegment?(selectedSegmentIndex)
         }
     }
 }
@@ -109,6 +140,7 @@ private struct FitWidthSegmentedPickerMacOS<Selection: Hashable>: NSViewRepresen
     @Binding var selection: Selection
     let disabledOptions: Set<Selection>
     let accessibilityIdentifier: String?
+    let onReselect: ((Selection) -> Void)?
     let titleForOption: (Selection) -> String
 
     func makeNSView(context: Context) -> NSSegmentedControl {
@@ -135,6 +167,10 @@ private struct FitWidthSegmentedPickerMacOS<Selection: Hashable>: NSViewRepresen
             guard options.indices.contains(index) else { return }
             let selectedOption = options[index]
             guard !disabledOptions.contains(selectedOption) else { return }
+            if selectedOption == selection {
+                onReselect?(selectedOption)
+                return
+            }
             selection = selectedOption
         }
     }
