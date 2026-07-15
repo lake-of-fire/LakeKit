@@ -66,8 +66,8 @@ public extension Templates {
 
     struct RoundedBackground: Shape {
         public var cornerRadius: CGFloat
-        public static var width = CGFloat(48)
-        public static var height = CGFloat(12)
+        public static let width = CGFloat(48)
+        public static let height = CGFloat(12)
 
         public func path(in rect: CGRect) -> Path {
             var path = Path()
