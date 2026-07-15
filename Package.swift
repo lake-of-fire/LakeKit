@@ -98,8 +98,7 @@ let package = Package(
                 .product(name: "NavigationBackport", package: "NavigationBackport"),
                 .product(
                     name: "PersistedLRUCache",
-                    package: "PersistedLRUCache",
-                    moduleAliases: ["PersistedLRUCacheHybrid": "PersistedLRUCache"]
+                    package: "PersistedLRUCache"
                 ),
             ],
             resources: [
