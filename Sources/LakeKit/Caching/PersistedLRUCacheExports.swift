@@ -1,5 +1,2 @@
-#if canImport(PersistedLRUCacheHybrid)
-@_exported import PersistedLRUCacheHybrid
-#else
+// Both package graphs expose the implementation target through this alias.
 @_exported import PersistedLRUCache
-#endif
