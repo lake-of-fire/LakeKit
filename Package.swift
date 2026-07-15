@@ -96,7 +96,11 @@ let package = Package(
 //                .product(name: "Inferno", package: "Inferno"),
                 .product(name: "CloudKitSyncMonitor", package: "CloudKitSyncMonitor"),
                 .product(name: "NavigationBackport", package: "NavigationBackport"),
-                .product(name: "PersistedLRUCache", package: "PersistedLRUCache"),
+                .product(
+                    name: "PersistedLRUCache",
+                    package: "PersistedLRUCache",
+                    moduleAliases: ["PersistedLRUCacheHybrid": "PersistedLRUCache"]
+                ),
             ],
             resources: [
                 .process("Resources"),
@@ -122,7 +126,6 @@ let package = Package(
             name: "LakeKitTests",
             dependencies: [
                 "LakeKit",
-                .product(name: "PersistedLRUCache", package: "PersistedLRUCache"),
             ]),
     ]
 )
