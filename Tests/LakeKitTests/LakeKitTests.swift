@@ -6,9 +6,8 @@ final class LakeKitPersistedLRUCacheDependencyTests: XCTestCase {
         let root = try makeTemporaryRoot()
         let namespace = "lakekit.persisted.\(UUID().uuidString)"
 
-        let cache = PersistedLRUCache<String, String>(
+        let cache = PersistedCache<String, String>(
             namespace: namespace,
-            inlineStorageThreshold: 8,
             compressionThreshold: .max,
             cacheRootURL: root
         )
@@ -16,9 +15,8 @@ final class LakeKitPersistedLRUCacheDependencyTests: XCTestCase {
 
         XCTAssertEqual(cache.value(forKey: "key"), String(repeating: "value", count: 8))
         XCTAssertEqual(
-            PersistedLRUCache<String, String>(
+            PersistedCache<String, String>(
                 namespace: namespace,
-                inlineStorageThreshold: 8,
                 compressionThreshold: .max,
                 cacheRootURL: root
             ).value(forKey: "key"),
