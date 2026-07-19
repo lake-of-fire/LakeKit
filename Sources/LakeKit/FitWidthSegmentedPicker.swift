@@ -49,6 +49,7 @@ public struct FitWidthSegmentedPicker<Selection: Hashable>: View {
             onReselect: onReselect,
             titleForOption: titleForOption
         )
+        .fixedSize(horizontal: true, vertical: false)
 #endif
     }
 }
