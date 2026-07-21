@@ -63,3 +63,30 @@ final class LakeKitPersistedLRUCacheDependencyTests: XCTestCase {
         return root
     }
 }
+
+final class EnhancedSearchablePlatformPolicyTests: XCTestCase {
+    func testResolvedPlacementAndHideabilityMatchPlatformPolicy() {
+        XCTAssertFalse(
+            EnhancedSearchablePlatformPolicy.canHide(hasPresentationBinding: false)
+        )
+        let resolvedPlacement = EnhancedSearchablePlatformPolicy.resolvedPlacement(
+            .native(.toolbar)
+        )
+
+#if os(macOS)
+        guard case .contentTop = resolvedPlacement else {
+            return XCTFail("macOS enhanced search must use content-top placement")
+        }
+        XCTAssertFalse(
+            EnhancedSearchablePlatformPolicy.canHide(hasPresentationBinding: true)
+        )
+#else
+        guard case .native = resolvedPlacement else {
+            return XCTFail("iOS enhanced search must preserve native placement")
+        }
+        XCTAssertTrue(
+            EnhancedSearchablePlatformPolicy.canHide(hasPresentationBinding: true)
+        )
+#endif
+    }
+}

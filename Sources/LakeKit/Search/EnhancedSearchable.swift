@@ -20,6 +20,24 @@ public enum EnhancedSearchPlacement {
     case native(SearchFieldPlacement)
 }
 
+enum EnhancedSearchablePlatformPolicy {
+    static func resolvedPlacement(_ requestedPlacement: EnhancedSearchPlacement) -> EnhancedSearchPlacement {
+#if os(macOS)
+        .contentTop
+#else
+        requestedPlacement
+#endif
+    }
+
+    static func canHide(hasPresentationBinding: Bool) -> Bool {
+#if os(macOS)
+        false
+#else
+        hasPresentationBinding
+#endif
+    }
+}
+
 public struct EnhancedSearchableModifier: ViewModifier {
     @Binding var isPresented: Bool
     @Binding var isEnhancedlySearching: Bool
@@ -44,10 +62,27 @@ public struct EnhancedSearchableModifier: ViewModifier {
     @State private var shouldClear = false
     @State private var searchChangeID = 0
     @FocusState private var focusedField: String?
+
+    private var showsContentTopSearchField: Bool {
+        guard case .contentTop = placement else { return false }
+#if os(macOS)
+        return true
+#else
+        return isPresented
+#endif
+    }
+
+    private var showsDismissButton: Bool {
+#if os(macOS)
+        canHide && isPresented && (isEnhancedlySearching || focusedField == "search")
+#else
+        isPresented && (canHide || isEnhancedlySearching || focusedField == "search")
+#endif
+    }
     
     public func body(content: Content) -> some View {
         VStack {
-            if case .contentTop = placement, isPresented {
+            if showsContentTopSearchField {
                 HStack {
                     Group {
 #if os(macOS)
@@ -58,6 +93,7 @@ public struct EnhancedSearchableModifier: ViewModifier {
                                 }
                             }
                         })
+                        .frame(maxWidth: .infinity)
                         .onExitCommand {
                             shouldClear = true
                             isPresented = false
@@ -73,7 +109,7 @@ public struct EnhancedSearchableModifier: ViewModifier {
 #endif
                     }
                     .focused($focusedField, equals: "search")
-                    if isPresented && (canHide || isEnhancedlySearching || focusedField == "search") {
+                    if showsDismissButton {
 #if os(macOS)
                         Button("Done") {
                             shouldClear = true
@@ -304,15 +340,20 @@ public extension View {
         placement: EnhancedSearchPlacement = .native(.automatic),
         searchAction: @escaping ((String) async throws -> Void)
     ) -> some View {
-        self.modifier(
+        let resolvedIsPresented = isPresented ?? .constant(true)
+        let resolvedCanHide = EnhancedSearchablePlatformPolicy.canHide(
+            hasPresentationBinding: isPresented != nil
+        )
+        let resolvedPlacement = EnhancedSearchablePlatformPolicy.resolvedPlacement(placement)
+        return self.modifier(
             EnhancedSearchableModifier(
-                isPresented: isPresented ?? .constant(true),
+                isPresented: resolvedIsPresented,
                 isEnhancedlySearching: isEnhancedlySearching,
-                canHide: isPresented != nil,
+                canHide: resolvedCanHide,
                 searchText: searchText,
                 autosaveName: autosaveName,
                 prompt: prompt,
-                placement: placement,
+                placement: resolvedPlacement,
                 searchAction: searchAction
             )
         )
