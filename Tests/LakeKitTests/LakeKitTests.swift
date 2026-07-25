@@ -325,6 +325,27 @@ final class AccountSessionStateTests: XCTestCase {
     }
 
     @MainActor
+    func testAccessValuesForOneSessionShareBoundaryIdentity() {
+        let keychain = KeychainSwift(keyPrefix: "LakeKitTests.\(UUID().uuidString).")
+        defer { keychain.clear() }
+        let session = Session(keychain: keychain)
+
+        XCTAssertEqual(
+            AccountSessionAccess(session: session).boundaryID,
+            AccountSessionAccess(session: session).boundaryID
+        )
+    }
+
+    func testIndependentInjectedAccessValuesHaveDistinctBoundaryIdentities() {
+        let snapshot = AccountSessionSnapshot(identity: .signedOut, generation: 0)
+
+        XCTAssertNotEqual(
+            AccountSessionAccess(testSnapshotProvider: { snapshot }).boundaryID,
+            AccountSessionAccess(testSnapshotProvider: { snapshot }).boundaryID
+        )
+    }
+
+    @MainActor
     private func waitForAuthenticationPresentation(_ session: Session) async {
         for _ in 0..<1_000 {
             if session.isPresentingWebAuthentication {

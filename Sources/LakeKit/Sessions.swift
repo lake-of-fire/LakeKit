@@ -68,10 +68,22 @@ struct AccountSessionState: Equatable, Sendable {
     }
 }
 
+/// Stable identity for one account-session publication boundary. Multiple access
+/// values created from the same `Session` share this identity, while independently
+/// injected boundaries remain isolated even when their snapshots happen to match.
+public struct AccountSessionBoundaryID: Hashable, Sendable {
+    fileprivate let rawValue: UUID
+
+    init() {
+        rawValue = UUID()
+    }
+}
+
 /// One coherent boundary for reading account identity and conditionally publishing
 /// work derived from it. Production access wraps `Session`'s lock so an account
 /// transition cannot begin during the publication closure.
 public struct AccountSessionAccess: @unchecked Sendable {
+    public let boundaryID: AccountSessionBoundaryID
     private let snapshotProvider: () -> AccountSessionSnapshot
     private let authorizationProvider: (
         AccountSessionSnapshot?
@@ -82,6 +94,7 @@ public struct AccountSessionAccess: @unchecked Sendable {
     ) throws -> Bool
 
     public init(session: Session) {
+        boundaryID = session.accountSessionBoundaryID
         snapshotProvider = { session.accountSessionSnapshot }
         authorizationProvider = { expected in
             session.accountAuthorization(matching: expected)
@@ -97,9 +110,11 @@ public struct AccountSessionAccess: @unchecked Sendable {
     /// Creates an access boundary for deterministic tests whose provider does not
     /// mutate concurrently with publication. Production code must use `init(session:)`.
     init(
+        boundaryID: AccountSessionBoundaryID = AccountSessionBoundaryID(),
         testSnapshotProvider snapshotProvider: @escaping () -> AccountSessionSnapshot,
         authTokenProvider: @escaping () -> String? = { "test-auth-token" }
     ) {
+        self.boundaryID = boundaryID
         self.snapshotProvider = snapshotProvider
         authorizationProvider = { expected in
             let snapshot = snapshotProvider()
@@ -161,6 +176,7 @@ public class Session: ObservableObject {
 
     private let credentialRepository: SessionCredentialRepository
     private let authenticationPresentationDelayNanoseconds: UInt64
+    fileprivate nonisolated let accountSessionBoundaryID = AccountSessionBoundaryID()
     /// Lock-backed account ID for non-main-actor callers. Transitional and signed-out
     /// sessions deliberately read as the historical `-1` sentinel.
     public nonisolated var fastUserID: Int {
