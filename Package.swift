@@ -126,6 +126,7 @@ let package = Package(
             name: "LakeKitTests",
             dependencies: [
                 "LakeKit",
+                .product(name: "KeychainSwift", package: "keychain-swift"),
             ]),
     ]
 )
