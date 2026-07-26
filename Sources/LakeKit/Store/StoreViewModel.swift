@@ -3,6 +3,14 @@ import OrderedCollections
 import StoreKit
 import StoreHelper
 
+private let lakeKitPretendSubscriptionEnabled: Bool = {
+#if DEBUG
+    ProcessInfo.processInfo.arguments.contains("pretend-subscribed")
+#else
+    false
+#endif
+}()
+
 @MainActor
 public class AdsViewModel: NSObject, ObservableObject {
     public static var shared = AdsViewModel()
@@ -143,7 +151,7 @@ public class StoreViewModel: NSObject, ObservableObject {
                 //#if DEBUG
                 //                isSubscribedFromElsewhere = true
                 //#else
-                if ProcessInfo.processInfo.arguments.contains("pretend-subscribed"), !isSubscribedFromElsewhere {
+                if lakeKitPretendSubscriptionEnabled, !isSubscribedFromElsewhere {
                     isSubscribedFromElsewhere = true
                 } else if let isSubscribedFromElsewhereCallback = isSubscribedFromElsewhereCallback {
                     let isSubscribedFromElsewhere = await isSubscribedFromElsewhereCallback(self)
