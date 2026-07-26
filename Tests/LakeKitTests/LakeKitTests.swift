@@ -3,6 +3,32 @@ import Combine
 import KeychainSwift
 @testable import LakeKit
 
+final class StoreLaunchOverrideTests: XCTestCase {
+    func testPretendSubscriptionArgumentIsIgnoredOutsideDebugBuilds() {
+        XCTAssertFalse(
+            lakeKitPretendSubscriptionEnabled(
+                arguments: ["pretend-subscribed"],
+                allowsDebugOverrides: false
+            )
+        )
+    }
+
+    func testPretendSubscriptionArgumentIsRecognizedForDebugBuilds() {
+        XCTAssertTrue(
+            lakeKitPretendSubscriptionEnabled(
+                arguments: ["pretend-subscribed"],
+                allowsDebugOverrides: true
+            )
+        )
+        XCTAssertFalse(
+            lakeKitPretendSubscriptionEnabled(
+                arguments: [],
+                allowsDebugOverrides: true
+            )
+        )
+    }
+}
+
 final class AccountSessionStateTests: XCTestCase {
     @MainActor
     func testSessionRepairsIncompleteStoredCredentialsToSignedOut() {

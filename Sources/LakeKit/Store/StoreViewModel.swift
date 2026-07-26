@@ -3,6 +3,25 @@ import OrderedCollections
 import StoreKit
 import StoreHelper
 
+func lakeKitPretendSubscriptionEnabled(
+    arguments: [String],
+    allowsDebugOverrides: Bool
+) -> Bool {
+    allowsDebugOverrides && arguments.contains("pretend-subscribed")
+}
+
+private let lakeKitPretendSubscriptionEnabled: Bool = {
+#if DEBUG
+    let allowsDebugOverrides = true
+#else
+    let allowsDebugOverrides = false
+#endif
+    return lakeKitPretendSubscriptionEnabled(
+        arguments: ProcessInfo.processInfo.arguments,
+        allowsDebugOverrides: allowsDebugOverrides
+    )
+}()
+
 @MainActor
 public class AdsViewModel: NSObject, ObservableObject {
     public static var shared = AdsViewModel()
@@ -143,7 +162,7 @@ public class StoreViewModel: NSObject, ObservableObject {
                 //#if DEBUG
                 //                isSubscribedFromElsewhere = true
                 //#else
-                if ProcessInfo.processInfo.arguments.contains("pretend-subscribed"), !isSubscribedFromElsewhere {
+                if lakeKitPretendSubscriptionEnabled, !isSubscribedFromElsewhere {
                     isSubscribedFromElsewhere = true
                 } else if let isSubscribedFromElsewhereCallback = isSubscribedFromElsewhereCallback {
                     let isSubscribedFromElsewhere = await isSubscribedFromElsewhereCallback(self)
