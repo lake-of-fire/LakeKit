@@ -1,5 +1,5 @@
 {
-  "originHash" : "e65e723817d2a29e358ff29ea13e1f584483c38a10ac086d17ccd469f07dfdbc",
+  "originHash" : "c049f32e996668f508eaf4b67d654eef253fde98626b11ace7c28cec424b7e77",
   "pins" : [
     {
       "identity" : "bettersafariview2",
@@ -260,15 +260,6 @@
       "state" : {
         "branch" : "main",
         "revision" : "f4707c81aef01aae5e2f3a8a5315add150165b28"
-      }
-    },
-    {
-      "identity" : "visionlivetext_swiftuicompatible",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/lake-of-fire/VisionLiveText_SwiftUICompatible.git",
-      "state" : {
-        "branch" : "main",
-        "revision" : "4507047c5300582603c8e19040634bd86a534ab2"
       }
     },
     {

@@ -42,7 +42,6 @@ let package = Package(
         .package(url: "https://github.com/weichsel/ZIPFoundation.git", branch: "development"),
 //        .package(url: "https://github.com/kean/Pulse.git", branch: "main"),
         .package(url: "https://github.com/stevengharris/SplitView.git", branch: "main"),
-        .package(url: "https://github.com/lake-of-fire/VisionLiveText_SwiftUICompatible.git", branch: "main"),
         .package(url: "https://github.com/EmergeTools/Pow.git", branch: "main"),
         .package(url: "https://github.com/apple/swift-log.git", branch: "main"),
         .package(url: "https://github.com/siteline/swiftui-introspect.git", from: "26.0.0"),
@@ -77,11 +76,6 @@ let package = Package(
 //                .product(name: "FrameUp", package: "FrameUp"),
 //                .product(name: "Flow", package: "SwiftUI-Flow"),
                 //                .product(name: "SwiftUIKit", package: "SwiftUIKit"),
-                .product(
-                    name: "VisionLiveText_SwiftUICompatible",
-                    package: "VisionLiveText_SwiftUICompatible",
-                    condition: .when(platforms: [.iOS])
-                ),
                 .product(name: "FilePicker", package: "FilePicker"),
                 .product(name: "SwiftUIDownloads", package: "SwiftUIDownloads"),
 //                .product(name: "Pulse", package: "Pulse"),
