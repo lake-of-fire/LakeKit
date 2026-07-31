@@ -1,6 +1,44 @@
 import XCTest
 import Combine
+import BigSyncKit
+import RealmSwift
 @testable import LakeKit
+
+final class ReferralCodeUsageMutationTrackingTests: XCTestCase {
+    @RealmBackgroundActor
+    func testCreateRecordsDurableBigSyncMutationAfterAddingUsage() async throws {
+        var configuration = Realm.Configuration(
+            inMemoryIdentifier: UUID().uuidString
+        )
+        configuration.objectTypes = [
+            ReferralCodeUsage.self,
+            BigSyncPendingMutation.self,
+        ]
+        BigSyncMutationTracking.install(
+            configurations: [configuration],
+            excludedClassNames: []
+        )
+
+        let usage = try await ReferralCodeUsage.create(
+            referralCode: "referral",
+            receipt: "receipt",
+            realmConfiguration: configuration
+        )
+        let realm = try await RealmBackgroundActor.shared.cachedRealm(
+            for: configuration
+        )
+        let recordName = "ReferralCodeUsage.\(usage.id.uuidString)"
+        let mutation = realm.object(
+            ofType: BigSyncPendingMutation.self,
+            forPrimaryKey: recordName
+        )
+
+        XCTAssertNotNil(mutation)
+        XCTAssertEqual(mutation?.entityType, ReferralCodeUsage.className())
+        XCTAssertEqual(mutation?.objectIdentifier, usage.id.uuidString)
+        XCTAssertEqual(usage.explicitlyModifiedAt, mutation?.changedAt)
+    }
+}
 
 final class AccountSessionStateTests: XCTestCase {
     @MainActor
