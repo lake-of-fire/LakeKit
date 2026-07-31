@@ -11,6 +11,7 @@ public struct FitWidthSegmentedPicker<Selection: Hashable>: View {
     @Binding var selection: Selection
     let disabledOptions: Set<Selection>
     let accessibilityIdentifier: String?
+    let onSelect: ((Selection) -> Void)?
     let onReselect: ((Selection) -> Void)?
     let titleForOption: (Selection) -> String
 
@@ -19,6 +20,7 @@ public struct FitWidthSegmentedPicker<Selection: Hashable>: View {
         selection: Binding<Selection>,
         disabledOptions: Set<Selection> = [],
         accessibilityIdentifier: String? = nil,
+        onSelect: ((Selection) -> Void)? = nil,
         onReselect: ((Selection) -> Void)? = nil,
         titleForOption: @escaping (Selection) -> String = { String(describing: $0) }
     ) {
@@ -26,6 +28,7 @@ public struct FitWidthSegmentedPicker<Selection: Hashable>: View {
         self._selection = selection
         self.disabledOptions = disabledOptions
         self.accessibilityIdentifier = accessibilityIdentifier
+        self.onSelect = onSelect
         self.onReselect = onReselect
         self.titleForOption = titleForOption
     }
@@ -37,6 +40,7 @@ public struct FitWidthSegmentedPicker<Selection: Hashable>: View {
             selection: $selection,
             disabledOptions: disabledOptions,
             accessibilityIdentifier: accessibilityIdentifier,
+            onSelect: onSelect,
             onReselect: onReselect,
             titleForOption: titleForOption
         )
@@ -46,6 +50,7 @@ public struct FitWidthSegmentedPicker<Selection: Hashable>: View {
             selection: $selection,
             disabledOptions: disabledOptions,
             accessibilityIdentifier: accessibilityIdentifier,
+            onSelect: onSelect,
             onReselect: onReselect,
             titleForOption: titleForOption
         )
@@ -62,6 +67,7 @@ private struct FitWidthSegmentedPickerIOS<Selection: Hashable>: UIViewRepresenta
     @Binding var selection: Selection
     let disabledOptions: Set<Selection>
     let accessibilityIdentifier: String?
+    let onSelect: ((Selection) -> Void)?
     let onReselect: ((Selection) -> Void)?
     let titleForOption: (Selection) -> String
 
@@ -100,7 +106,11 @@ private struct FitWidthSegmentedPickerIOS<Selection: Hashable>: UIViewRepresenta
                 onReselect?(selectedOption)
                 return
             }
-            selection = selectedOption
+            if let onSelect {
+                onSelect(selectedOption)
+            } else {
+                selection = selectedOption
+            }
         }
     }
 
@@ -141,6 +151,7 @@ private struct FitWidthSegmentedPickerMacOS<Selection: Hashable>: NSViewRepresen
     @Binding var selection: Selection
     let disabledOptions: Set<Selection>
     let accessibilityIdentifier: String?
+    let onSelect: ((Selection) -> Void)?
     let onReselect: ((Selection) -> Void)?
     let titleForOption: (Selection) -> String
 
@@ -172,7 +183,11 @@ private struct FitWidthSegmentedPickerMacOS<Selection: Hashable>: NSViewRepresen
                 onReselect?(selectedOption)
                 return
             }
-            selection = selectedOption
+            if let onSelect {
+                onSelect(selectedOption)
+            } else {
+                selection = selectedOption
+            }
         }
     }
 
