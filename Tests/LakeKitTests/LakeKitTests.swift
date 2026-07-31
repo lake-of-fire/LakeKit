@@ -2,6 +2,7 @@ import XCTest
 import Combine
 import BigSyncKit
 import RealmSwift
+import RealmSwiftGaps
 @testable import LakeKit
 
 final class ReferralCodeUsageMutationTrackingTests: XCTestCase {

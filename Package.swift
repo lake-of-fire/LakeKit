@@ -127,6 +127,7 @@ let package = Package(
             dependencies: [
                 "LakeKit",
                 .product(name: "KeychainSwift", package: "keychain-swift"),
+                .product(name: "RealmSwiftGaps", package: "RealmSwiftGaps"),
             ]),
     ]
 )
