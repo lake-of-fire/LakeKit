@@ -1,7 +1,31 @@
 import XCTest
 import Combine
 import KeychainSwift
+import RealmSwift
+import RealmSwiftGaps
 @testable import LakeKit
+
+final class ReferralCodeUsageMutationTrackingTests: XCTestCase {
+    @RealmBackgroundActor
+    func testCreateMarksUsageAsExplicitlyModifiedAfterAddingIt() async throws {
+        var configuration = Realm.Configuration(inMemoryIdentifier: UUID().uuidString)
+        configuration.objectTypes = [ReferralCodeUsage.self]
+
+        let usage = try await ReferralCodeUsage.create(
+            referralCode: "referral",
+            receipt: "receipt",
+            realmConfiguration: configuration
+        )
+
+        XCTAssertNotNil(usage.explicitlyModifiedAt)
+    }
+}
+
+final class BackgroundWorkerLifecycleTests: XCTestCase {
+    func testStopBeforeStartIsSafe() {
+        BackgroundWorker().stop()
+    }
+}
 
 final class StoreLaunchOverrideTests: XCTestCase {
     func testPretendSubscriptionArgumentIsIgnoredOutsideDebugBuilds() {

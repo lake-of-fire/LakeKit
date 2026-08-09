@@ -35,6 +35,7 @@ public class ReferralCodeUsage: Object, UnownedSyncableObject, ChangeMetadataRec
 //        await realm.asyncRefresh()
         try await realm.asyncWrite {
             realm.add(usage, update: .modified)
+            usage.refreshChangeMetadata(explicitlyModified: true)
         }
         return usage
     }
