@@ -61,6 +61,34 @@ public struct FitWidthSegmentedPicker<Selection: Hashable>: View {
 
 public typealias FitWidthSegmenetedPicker<Selection: Hashable> = FitWidthSegmentedPicker<Selection>
 
+enum FitWidthSegmentedPickerInteraction: Equatable {
+    case selectionChanged
+    case selectionReselected
+}
+
+enum FitWidthSegmentedPickerAction<Selection: Hashable>: Equatable {
+    case select(Selection)
+    case reselect(Selection)
+    case ignore
+}
+
+func fitWidthSegmentedPickerAction<Selection: Hashable>(
+    options: [Selection],
+    disabledOptions: Set<Selection>,
+    index: Int,
+    interaction: FitWidthSegmentedPickerInteraction
+) -> FitWidthSegmentedPickerAction<Selection> {
+    guard options.indices.contains(index) else { return .ignore }
+    let option = options[index]
+    guard !disabledOptions.contains(option) else { return .ignore }
+    switch interaction {
+    case .selectionChanged:
+        return .select(option)
+    case .selectionReselected:
+        return .reselect(option)
+    }
+}
+
 #if os(iOS)
 private struct FitWidthSegmentedPickerIOS<Selection: Hashable>: UIViewRepresentable {
     let options: [Selection]
@@ -76,7 +104,7 @@ private struct FitWidthSegmentedPickerIOS<Selection: Hashable>: UIViewRepresenta
         segmentedControl.apportionsSegmentWidthsByContent = true
         segmentedControl.addTarget(context.coordinator, action: #selector(Coordinator.selectionChanged(_:)), for: .valueChanged)
         segmentedControl.onReselectSegment = { index in
-            context.coordinator.selectionChanged(index: index)
+            context.coordinator.selectionReselected(index: index)
         }
         return segmentedControl
     }
@@ -99,18 +127,30 @@ private struct FitWidthSegmentedPickerIOS<Selection: Hashable>: UIViewRepresenta
         uiView.accessibilityIdentifier = accessibilityIdentifier
         uiView.selectedSegmentIndex = options.firstIndex(of: selection) ?? UISegmentedControl.noSegment
         context.coordinator.onSelectionChanged = { index in
-            guard options.indices.contains(index) else { return }
-            let selectedOption = options[index]
-            guard !disabledOptions.contains(selectedOption) else { return }
-            if selectedOption == selection {
-                onReselect?(selectedOption)
+            switch fitWidthSegmentedPickerAction(
+                options: options,
+                disabledOptions: disabledOptions,
+                index: index,
+                interaction: .selectionChanged
+            ) {
+            case let .select(selectedOption):
+                if let onSelect {
+                    onSelect(selectedOption)
+                } else {
+                    selection = selectedOption
+                }
+            case .reselect, .ignore:
                 return
             }
-            if let onSelect {
-                onSelect(selectedOption)
-            } else {
-                selection = selectedOption
-            }
+        }
+        context.coordinator.onSelectionReselected = { index in
+            guard case let .reselect(selectedOption) = fitWidthSegmentedPickerAction(
+                options: options,
+                disabledOptions: disabledOptions,
+                index: index,
+                interaction: .selectionReselected
+            ) else { return }
+            onReselect?(selectedOption)
         }
     }
 
@@ -121,6 +161,7 @@ private struct FitWidthSegmentedPickerIOS<Selection: Hashable>: UIViewRepresenta
     @MainActor
     final class Coordinator: NSObject {
         var onSelectionChanged: ((Int) -> Void)?
+        var onSelectionReselected: ((Int) -> Void)?
 
         @objc func selectionChanged(_ sender: UISegmentedControl) {
             selectionChanged(index: sender.selectedSegmentIndex)
@@ -128,6 +169,10 @@ private struct FitWidthSegmentedPickerIOS<Selection: Hashable>: UIViewRepresenta
 
         func selectionChanged(index: Int) {
             onSelectionChanged?(index)
+        }
+
+        func selectionReselected(index: Int) {
+            onSelectionReselected?(index)
         }
     }
 
@@ -174,19 +219,26 @@ private struct FitWidthSegmentedPickerMacOS<Selection: Hashable>: NSViewRepresen
         }
 
         nsView.setAccessibilityIdentifier(accessibilityIdentifier)
-        nsView.selectedSegment = options.firstIndex(of: selection) ?? -1
-        context.coordinator.onSelectionChanged = { index in
-            guard options.indices.contains(index) else { return }
-            let selectedOption = options[index]
-            guard !disabledOptions.contains(selectedOption) else { return }
-            if selectedOption == selection {
+        let selectedSegment = options.firstIndex(of: selection) ?? -1
+        nsView.selectedSegment = selectedSegment
+        context.coordinator.synchronizeSelection(selectedSegment)
+        context.coordinator.onSelectionChanged = { index, isReselection in
+            switch fitWidthSegmentedPickerAction(
+                options: options,
+                disabledOptions: disabledOptions,
+                index: index,
+                interaction: isReselection ? .selectionReselected : .selectionChanged
+            ) {
+            case let .reselect(selectedOption):
                 onReselect?(selectedOption)
+            case let .select(selectedOption):
+                if let onSelect {
+                    onSelect(selectedOption)
+                } else {
+                    selection = selectedOption
+                }
+            case .ignore:
                 return
-            }
-            if let onSelect {
-                onSelect(selectedOption)
-            } else {
-                selection = selectedOption
             }
         }
     }
@@ -197,10 +249,18 @@ private struct FitWidthSegmentedPickerMacOS<Selection: Hashable>: NSViewRepresen
 
     @MainActor
     final class Coordinator: NSObject {
-        var onSelectionChanged: ((Int) -> Void)?
+        var onSelectionChanged: ((Int, Bool) -> Void)?
+        private var selectedSegment = -1
+
+        func synchronizeSelection(_ selectedSegment: Int) {
+            self.selectedSegment = selectedSegment
+        }
 
         @objc func selectionChanged(_ sender: NSSegmentedControl) {
-            onSelectionChanged?(sender.selectedSegment)
+            let newSelection = sender.selectedSegment
+            let isReselection = newSelection == selectedSegment
+            selectedSegment = newSelection
+            onSelectionChanged?(newSelection, isReselection)
         }
     }
 }
