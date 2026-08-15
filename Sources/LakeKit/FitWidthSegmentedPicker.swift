@@ -72,6 +72,13 @@ enum FitWidthSegmentedPickerAction<Selection: Hashable>: Equatable {
     case ignore
 }
 
+private struct FitWidthSegmentedPickerNativePresentation<Selection: Hashable>: Equatable {
+    let options: [Selection]
+    let titles: [String]
+    let disabledOptions: Set<Selection>
+    let accessibilityIdentifier: String?
+}
+
 func fitWidthSegmentedPickerAction<Selection: Hashable>(
     options: [Selection],
     disabledOptions: Set<Selection>,
@@ -110,22 +117,27 @@ private struct FitWidthSegmentedPickerIOS<Selection: Hashable>: UIViewRepresenta
     }
 
     func updateUIView(_ uiView: UISegmentedControl, context: Context) {
-        if uiView.numberOfSegments != options.count
-            || options.enumerated().contains(where: { index, option in
-                uiView.titleForSegment(at: index) != titleForOption(option)
-            }) {
+        let presentation = FitWidthSegmentedPickerNativePresentation(
+            options: options,
+            titles: options.map(titleForOption),
+            disabledOptions: disabledOptions,
+            accessibilityIdentifier: accessibilityIdentifier
+        )
+        if context.coordinator.presentation != presentation {
             uiView.removeAllSegments()
-            for (index, option) in options.enumerated() {
-                uiView.insertSegment(withTitle: titleForOption(option), at: index, animated: false)
+            for (index, title) in presentation.titles.enumerated() {
+                uiView.insertSegment(withTitle: title, at: index, animated: false)
             }
+            for (index, option) in options.enumerated() {
+                uiView.setEnabled(!disabledOptions.contains(option), forSegmentAt: index)
+            }
+            uiView.accessibilityIdentifier = accessibilityIdentifier
+            context.coordinator.presentation = presentation
         }
-
-        for (index, option) in options.enumerated() {
-            uiView.setEnabled(!disabledOptions.contains(option), forSegmentAt: index)
+        let selectedSegment = options.firstIndex(of: selection) ?? UISegmentedControl.noSegment
+        if uiView.selectedSegmentIndex != selectedSegment {
+            uiView.selectedSegmentIndex = selectedSegment
         }
-
-        uiView.accessibilityIdentifier = accessibilityIdentifier
-        uiView.selectedSegmentIndex = options.firstIndex(of: selection) ?? UISegmentedControl.noSegment
         context.coordinator.onSelectionChanged = { index in
             switch fitWidthSegmentedPickerAction(
                 options: options,
@@ -162,6 +174,7 @@ private struct FitWidthSegmentedPickerIOS<Selection: Hashable>: UIViewRepresenta
     final class Coordinator: NSObject {
         var onSelectionChanged: ((Int) -> Void)?
         var onSelectionReselected: ((Int) -> Void)?
+        var presentation: FitWidthSegmentedPickerNativePresentation<Selection>?
 
         @objc func selectionChanged(_ sender: UISegmentedControl) {
             selectionChanged(index: sender.selectedSegmentIndex)
@@ -211,16 +224,28 @@ private struct FitWidthSegmentedPickerMacOS<Selection: Hashable>: NSViewRepresen
     }
 
     func updateNSView(_ nsView: NSSegmentedControl, context: Context) {
-        nsView.segmentCount = options.count
-        for (index, option) in options.enumerated() {
-            nsView.setLabel(titleForOption(option), forSegment: index)
-            nsView.setEnabled(!disabledOptions.contains(option), forSegment: index)
-            nsView.setWidth(0, forSegment: index)
+        let presentation = FitWidthSegmentedPickerNativePresentation(
+            options: options,
+            titles: options.map(titleForOption),
+            disabledOptions: disabledOptions,
+            accessibilityIdentifier: accessibilityIdentifier
+        )
+        if context.coordinator.presentation != presentation {
+            nsView.segmentCount = options.count
+            for (index, title) in presentation.titles.enumerated() {
+                nsView.setLabel(title, forSegment: index)
+                nsView.setWidth(0, forSegment: index)
+            }
+            for (index, option) in options.enumerated() {
+                nsView.setEnabled(!disabledOptions.contains(option), forSegment: index)
+            }
+            nsView.setAccessibilityIdentifier(accessibilityIdentifier)
+            context.coordinator.presentation = presentation
         }
-
-        nsView.setAccessibilityIdentifier(accessibilityIdentifier)
         let selectedSegment = options.firstIndex(of: selection) ?? -1
-        nsView.selectedSegment = selectedSegment
+        if nsView.selectedSegment != selectedSegment {
+            nsView.selectedSegment = selectedSegment
+        }
         context.coordinator.synchronizeSelection(selectedSegment)
         context.coordinator.onSelectionChanged = { index, isReselection in
             switch fitWidthSegmentedPickerAction(
@@ -251,6 +276,7 @@ private struct FitWidthSegmentedPickerMacOS<Selection: Hashable>: NSViewRepresen
     final class Coordinator: NSObject {
         var onSelectionChanged: ((Int, Bool) -> Void)?
         private var selectedSegment = -1
+        var presentation: FitWidthSegmentedPickerNativePresentation<Selection>?
 
         func synchronizeSelection(_ selectedSegment: Int) {
             self.selectedSegment = selectedSegment
