@@ -170,6 +170,13 @@ extension Notification {
     }
 }
 
+#if DEBUG
+private final class EphemeralSessionCredentialStore {
+    var data: [String: Data] = [:]
+    var strings: [String: String] = [:]
+}
+#endif
+
 @MainActor
 public class Session: ObservableObject {
     private static let defaultAuthenticationPresentationDelayNanoseconds: UInt64 = 500_000_000
@@ -245,6 +252,30 @@ public class Session: ObservableObject {
                 Self.defaultAuthenticationPresentationDelayNanoseconds
         )
     }
+
+#if DEBUG
+    /// Creates a process-local session for isolated UI fixtures. It exercises
+    /// the normal credential repository and account-generation transitions
+    /// without requiring Keychain entitlements or leaving credentials behind.
+    public static func ephemeralForTesting() -> Session {
+        let storage = EphemeralSessionCredentialStore()
+        return Session(
+            credentialStore: SessionCredentialStore(
+                data: { storage.data[$0] },
+                string: { storage.strings[$0] },
+                setData: { storage.data[$1] = $0; return true },
+                setString: { storage.strings[$1] = $0; return true },
+                delete: {
+                    let removedData = storage.data.removeValue(forKey: $0)
+                    let removedString = storage.strings.removeValue(forKey: $0)
+                    return removedData != nil || removedString != nil
+                }
+            ),
+            authenticationPresentationDelayNanoseconds:
+                defaultAuthenticationPresentationDelayNanoseconds
+        )
+    }
+#endif
 
     init(
         keychain: KeychainSwift,

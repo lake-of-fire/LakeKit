@@ -17,7 +17,7 @@ let package = Package(
 //        .package(url: "https://github.com/lake-of-fire/RealmBinary.git", branch: "main"),
         .package(url: "https://github.com/realm/realm-swift.git", from: "20.0.4"),
         .package(path: "../BigSyncKit"),
-        .package(url: "https://github.com/lake-of-fire/RealmSwiftGaps.git", branch: "main"),
+        .package(path: "../RealmSwiftGaps"),
         .package(url: "https://github.com/lake-of-fire/SwiftUIDownloads.git", branch: "main"),
         .package(path: "../SwiftUtilities"),
         .package(url: "https://github.com/lake-of-fire/LakeImage.git", branch: "main"),

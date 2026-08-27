@@ -4,6 +4,25 @@ import XCTest
 
 final class SessionCredentialPersistenceTests: XCTestCase {
     @MainActor
+    func testEphemeralSessionPublishesCredentialsWithoutSharingThem() {
+        let session = Session.ephemeralForTesting()
+        session.authenticated(authToken: "fixture-token", userID: 42)
+
+        XCTAssertEqual(
+            session.accountSessionSnapshot.identity,
+            .authenticated(userID: 42)
+        )
+        XCTAssertEqual(
+            AccountSessionAccess(session: session).authorization?.authToken,
+            "fixture-token"
+        )
+        XCTAssertEqual(
+            Session.ephemeralForTesting().accountSessionSnapshot.identity,
+            .signedOut
+        )
+    }
+
+    @MainActor
     func testCanonicalCredentialSlotsRoundTripAndSelectHighestRevision() {
         let store = InMemoryCredentialStore()
         let session = makeSession(using: store)
