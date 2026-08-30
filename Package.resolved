@@ -1,5 +1,5 @@
 {
-  "originHash" : "5d9d6f76945777c86028ed017e4c00294e96fcb599d4d8b219c10f852dbb37f4",
+  "originHash" : "810d839ee45b82e90c859f29a513396a89f2f8a31e05e6e93255c83541c3a83d",
   "pins" : [
     {
       "identity" : "bettersafariview2",
@@ -242,15 +242,6 @@
       "state" : {
         "branch" : "main",
         "revision" : "2beebc6960375b3af3655447586e768a5271a5c2"
-      }
-    },
-    {
-      "identity" : "swiftuidownloads",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/lake-of-fire/SwiftUIDownloads.git",
-      "state" : {
-        "branch" : "main",
-        "revision" : "f4707c81aef01aae5e2f3a8a5315add150165b28"
       }
     },
     {
