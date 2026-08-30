@@ -18,7 +18,7 @@ let package = Package(
         .package(url: "https://github.com/realm/realm-swift.git", from: "20.0.4"),
         .package(path: "../BigSyncKit"),
         .package(path: "../RealmSwiftGaps"),
-        .package(url: "https://github.com/lake-of-fire/SwiftUIDownloads.git", branch: "main"),
+        .package(path: "../SwiftUIDownloads"),
         .package(path: "../SwiftUtilities"),
         .package(url: "https://github.com/lake-of-fire/LakeImage.git", branch: "main"),
 //        .package(url: "https://github.com/NuPlay/ExpandableText.git", branch: "main"),
