@@ -43,7 +43,7 @@ fileprivate struct StoreViewForSheet: View {
     @EnvironmentObject private var storeViewModel: StoreViewModel
     @Environment(\.dismiss) var dismiss
     
-    @State var isRestoringPurchases = false
+    @State private var isRestoringPurchases = false
     
     var body: some View {
 #if os(iOS)
