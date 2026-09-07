@@ -29,13 +29,22 @@ private struct ShareSheet<Data>: NSViewRepresentable where Data: RandomAccessCol
     final class SourceView: NSView, @preconcurrency NSSharingServicePickerDelegate, @preconcurrency NSSharingServiceDelegate {
         var picker: NSSharingServicePicker?
 
+        private var previousItem: ActivityItem<Data>?
         var item: Binding<ActivityItem<Data>?> {
-            didSet {
-                updateControllerLifecycle(
-                    from: oldValue.wrappedValue,
-                    to: item.wrappedValue
-                )
-            }
+            didSet { updateItem() }
+        }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            updateItem()
+        }
+
+        func updateItem() {
+            guard window != nil else { return }
+            let oldItem = previousItem
+            let newItem = item.wrappedValue
+            previousItem = newItem
+            updateControllerLifecycle(from: oldItem, to: newItem)
         }
 
         init(item: Binding<ActivityItem<Data>?>) {
@@ -108,13 +117,16 @@ private extension ShareSheet {
     final class Representable: UIViewController, UIAdaptivePresentationControllerDelegate, UISheetPresentationControllerDelegate {
         private weak var controller: UIActivityViewController?
 
+        private var previousItem: ActivityItem<Data>?
         var item: Binding<ActivityItem<Data>?> {
-            didSet {
-                updateControllerLifecycle(
-                    from: oldValue.wrappedValue,
-                    to: item.wrappedValue
-                )
-            }
+            didSet { updateItem() }
+        }
+
+        func updateItem() {
+            let oldItem = previousItem
+            let newItem = item.wrappedValue
+            previousItem = newItem
+            updateControllerLifecycle(from: oldItem, to: newItem)
         }
 
         init(item: Binding<ActivityItem<Data>?>) {
