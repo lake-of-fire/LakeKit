@@ -49,7 +49,8 @@ let package = Package(
         .package(url: "https://github.com/lake-of-fire/Puppy.git", branch: "main"),
         .package(url: "https://github.com/lake-of-fire/CloudKitSyncMonitor.git", branch: "main"),
         .package(url: "https://github.com/johnpatrickmorgan/NavigationBackport.git", branch: "main"),
-        .package(url: "https://github.com/lake-of-fire/PersistedLRUCache.git", branch: "main"),
+        // Match ManabiOCR's revision requirement in the shared Reader dependency graph.
+        .package(url: "https://github.com/lake-of-fire/PersistedLRUCache.git", revision: "fc486ae9e566106de8c4a319b012117055791525"),
         //        .package(path: "../FramedScreenshotsTool"),
     ],
     targets: [

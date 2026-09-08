@@ -16,7 +16,7 @@ import SwiftUtilities
 struct FrameTagModifier: ViewModifier {
     /// The name of the frame.
     let tag: AnyHashable
-    @State var frame = CGRect.zero
+    @State private var frame = CGRect.zero
     @State private var window: NSWindow? = nil
 
     func body(content: Content) -> some View {

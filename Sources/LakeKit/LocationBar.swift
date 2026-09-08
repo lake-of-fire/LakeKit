@@ -15,30 +15,41 @@ public class LocationController: ObservableObject {
 
 fileprivate struct LocationBarIntrospection: ViewModifier {
     @EnvironmentObject private var locationController: LocationController
+
+    let accessibilityIdentifier: String?
     
     func body(content: Content) -> some View {
         content
 #if os(macOS)
             .introspect(.textField, on: .macOS(.v12...)) { textField in
+                if let accessibilityIdentifier {
+                    textField.setAccessibilityIdentifier(accessibilityIdentifier)
+                }
                 // See: https://developer.apple.com/forums/thread/74372
                 if locationController.isPresentingLocationOpening {
+                    // Focusing can rerun introspection. Consume the open request
+                    // first so it can never become a focus toggle.
+                    locationController.isPresentingLocationOpening = false
                     if textField.currentEditor() == nil {
                         textField.becomeFirstResponder()
-                    } else {
-                        locationController.isPresentingLocationOpening = false
-                        textField.resignFirstResponder()
                     }
                 }
             }
 #elseif os(iOS)
             .introspect(.textField, on: .iOS(.v15...)) { textField in
+                if let accessibilityIdentifier {
+                    textField.accessibilityIdentifier = accessibilityIdentifier
+                }
                 // See: https://developer.apple.com/forums/thread/74372
                 if locationController.isPresentingLocationOpening {
                     Task { @MainActor in
-                        if textField.isFirstResponder {
-                            locationController.isPresentingLocationOpening = false
-                            textField.resignFirstResponder()
-                        } else {
+                        guard locationController.isPresentingLocationOpening else {
+                            return
+                        }
+                        // Focusing can rerun introspection. Consume the open request
+                        // first so it can never become a focus toggle.
+                        locationController.isPresentingLocationOpening = false
+                        if !textField.isFirstResponder {
                             textField.becomeFirstResponder()
                         }
                     }
@@ -52,6 +63,7 @@ public struct LocationBar: View {
     let prompt: String
     @Binding var locationText: String
     @Binding var selection: Any? // TextSelection
+    private let accessibilityIdentifier: String?
     private let onSubmit: ((URL?, String) async throws -> Void)
     
     @Environment(\.colorScheme) private var colorScheme
@@ -111,7 +123,17 @@ public struct LocationBar: View {
             }
         }
 #if os(macOS)
-        .modifier(LocationBarIntrospection())
+        .modifier(
+            LocationBarIntrospection(
+                accessibilityIdentifier: accessibilityIdentifier
+            )
+        )
+#elseif os(iOS)
+        .modifier(
+            LocationBarIntrospection(
+                accessibilityIdentifier: accessibilityIdentifier
+            )
+        )
 #endif
         .onChange(of: isFocused) { isFocused in
             if #available(iOS 18, macOS 15, *) {
@@ -140,11 +162,13 @@ public struct LocationBar: View {
         locationText: Binding<String>,
         prompt: String,
         selection: Binding<Any?>,
+        accessibilityIdentifier: String? = nil,
         onSubmit: @escaping ((URL?, String) async throws -> Void)
     ) {
         _locationText = locationText
         self.prompt = prompt
         _selection = selection
+        self.accessibilityIdentifier = accessibilityIdentifier
         self.onSubmit = onSubmit
     }
 }
