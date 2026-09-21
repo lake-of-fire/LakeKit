@@ -583,12 +583,12 @@ public struct StoreView: View {
         }
     }
     
-    @ViewBuilder private func purchaseOptionsGrid(
+    private func purchaseOptionsGrid(
         storeProductVersions: [StoreProductVersions],
         maxWidth: CGFloat
-    ) -> some View {
+    ) -> AnyView {
         if #available(iOS 16, macOS 13, *) {
-            ViewThatFits {
+            return AnyView(ViewThatFits {
                 UniformHeightHStack(maxHeight: $purchaseOptionsMaxHeight) {
                     HStack(alignment: .top, spacing: 0) {
                         Spacer(minLength: 0)
@@ -624,10 +624,9 @@ public struct StoreView: View {
                     }
                     .fixedSize()
                 }
-            }
-            .frame(maxWidth: maxWidth)
+            }.frame(maxWidth: maxWidth))
         } else {
-            UniformHeightHStack(maxHeight: $purchaseOptionsMaxHeight) {
+            return AnyView(UniformHeightHStack(maxHeight: $purchaseOptionsMaxHeight) {
                 HStack(alignment: .top, spacing: 0) {
                     Spacer(minLength: 0)
                     HStack(alignment: .top, spacing: 10) {
@@ -638,7 +637,7 @@ public struct StoreView: View {
                     }
                     Spacer(minLength: 0)
                 }
-            }
+            })
         }
     }
     
