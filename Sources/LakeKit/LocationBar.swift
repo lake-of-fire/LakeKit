@@ -187,6 +187,10 @@ public struct LocationBarProgressBar: View {
         .onChange(of: progress) { newValue in
             updateProgress(newValue)
         }
+        .onDisappear {
+            hideTask?.cancel()
+            hideTask = nil
+        }
     }
 
     @MainActor
@@ -205,11 +209,12 @@ public struct LocationBarProgressBar: View {
                 displayProgress = 1
             }
             hideTask = Task { @MainActor in
-                try? await Task.sleep(nanoseconds: UInt64(hideDelay * 1_000_000_000))
-                withAnimation(.easeOut(duration: 0.2)) {
-                    isVisible = false
+                await LocationBarProgressHide.run(after: hideDelay) {
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        isVisible = false
+                    }
+                    displayProgress = 0
                 }
-                displayProgress = 0
             }
         } else {
             displayProgress = 0
