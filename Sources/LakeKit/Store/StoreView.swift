@@ -583,51 +583,22 @@ public struct StoreView: View {
         }
     }
     
-    @ViewBuilder private func purchaseOptionsGrid(
+    private func purchaseOptionsGrid(
         storeProductVersions: [StoreProductVersions],
         maxWidth: CGFloat
-    ) -> some View {
+    ) -> AnyView {
         if #available(iOS 16, macOS 13, *) {
-            ViewThatFits {
-                UniformHeightHStack(maxHeight: $purchaseOptionsMaxHeight) {
-                    HStack(alignment: .top, spacing: 0) {
-                        Spacer(minLength: 0)
-                        HStack(alignment: .top, spacing: 20) {
-                            purchaseOptions(
-                                storeProductVersions: storeProductVersions,
-                                maxWidth: maxWidth
-                            )
-                        }
-                        .fixedSize()
-                        Spacer(minLength: 0)
-                    }
+            return AnyView(ViewThatFits {
+                ForEach(PurchaseOptionsLayout.allCases, id: \.self) { layout in
+                    purchaseOptionsCandidate(
+                        layout: layout,
+                        storeProductVersions: storeProductVersions,
+                        maxWidth: maxWidth
+                    )
                 }
-                UniformHeightHStack(maxHeight: $purchaseOptionsMaxHeight) {
-                    HStack(alignment: .top, spacing: 0) {
-                        Spacer(minLength: 0)
-                        HStack(alignment: .top, spacing: 10) {
-                            purchaseOptions(
-                                storeProductVersions: storeProductVersions,
-                                maxWidth: maxWidth
-                            )
-                        }
-                        .fixedSize()
-                        Spacer(minLength: 0)
-                    }
-                }
-                UniformHeightHStack(maxHeight: $purchaseOptionsMaxHeight) {
-                    VStack(alignment: .center) {
-                        purchaseOptions(
-                            storeProductVersions: storeProductVersions,
-                            maxWidth: maxWidth
-                        )
-                    }
-                    .fixedSize()
-                }
-            }
-            .frame(maxWidth: maxWidth)
+            }.frame(maxWidth: maxWidth))
         } else {
-            UniformHeightHStack(maxHeight: $purchaseOptionsMaxHeight) {
+            return AnyView(UniformHeightHStack(maxHeight: $purchaseOptionsMaxHeight) {
                 HStack(alignment: .top, spacing: 0) {
                     Spacer(minLength: 0)
                     HStack(alignment: .top, spacing: 10) {
@@ -638,6 +609,59 @@ public struct StoreView: View {
                     }
                     Spacer(minLength: 0)
                 }
+            })
+        }
+    }
+
+    private enum PurchaseOptionsLayout: CaseIterable {
+        case wide
+        case compact
+        case vertical
+    }
+
+    @ViewBuilder private func purchaseOptionsCandidate(
+        layout: PurchaseOptionsLayout,
+        storeProductVersions: [StoreProductVersions],
+        maxWidth: CGFloat
+    ) -> some View {
+        switch layout {
+        case .wide:
+            UniformHeightHStack(maxHeight: $purchaseOptionsMaxHeight) {
+                HStack(alignment: .top, spacing: 0) {
+                    Spacer(minLength: 0)
+                    HStack(alignment: .top, spacing: 20) {
+                        purchaseOptions(
+                            storeProductVersions: storeProductVersions,
+                            maxWidth: maxWidth
+                        )
+                    }
+                    .fixedSize()
+                    Spacer(minLength: 0)
+                }
+            }
+        case .compact:
+            UniformHeightHStack(maxHeight: $purchaseOptionsMaxHeight) {
+                HStack(alignment: .top, spacing: 0) {
+                    Spacer(minLength: 0)
+                    HStack(alignment: .top, spacing: 10) {
+                        purchaseOptions(
+                            storeProductVersions: storeProductVersions,
+                            maxWidth: maxWidth
+                        )
+                    }
+                    .fixedSize()
+                    Spacer(minLength: 0)
+                }
+            }
+        case .vertical:
+            UniformHeightHStack(maxHeight: $purchaseOptionsMaxHeight) {
+                VStack(alignment: .center) {
+                    purchaseOptions(
+                        storeProductVersions: storeProductVersions,
+                        maxWidth: maxWidth
+                    )
+                }
+                .fixedSize()
             }
         }
     }
