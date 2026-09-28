@@ -384,7 +384,7 @@ struct OnboardingPrimaryButtons: View {
 
     @ViewBuilder
     private func skipButton(title: String, action: @escaping () -> Void) -> some View {
-        Button {
+        let button = Button {
 #if os(iOS)
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
 #endif
@@ -396,15 +396,21 @@ struct OnboardingPrimaryButtons: View {
                 .padding(.horizontal, 10)
         }
         .controlSize(.regular)
-        .modifier { button in
-            if #available(iOS 26, macOS 26, *) {
-                button.buttonStyle(.glass(.clear))
-            } else {
-                button.buttonStyle(.bordered)
-            }
-        }
-        .buttonBorderShape(.capsule)
+        onboardingButtonStyle(button)
         .environment(\.colorScheme, .dark)
+    }
+
+    @ViewBuilder
+    private func onboardingButtonStyle<Content: View>(_ button: Content) -> some View {
+        if #available(iOS 26, macOS 26, *) {
+            button.buttonStyle(.glass(.clear))
+                .buttonBorderShape(.capsule)
+        } else if #available(iOS 15, macOS 14, *) {
+            button.buttonStyle(.bordered)
+                .buttonBorderShape(.capsule)
+        } else {
+            button.buttonStyle(.bordered)
+        }
     }
 
     @ViewBuilder
@@ -454,7 +460,7 @@ struct OnboardingPrimaryButtons: View {
 
     @ViewBuilder
     private func subsidizedOptionsButton() -> some View {
-        Button {
+        let button = Button {
             navigationPath.removeLast(navigationPath.count)
             navigationPath.append("free-mode")
         } label: {
@@ -463,14 +469,7 @@ struct OnboardingPrimaryButtons: View {
                 .foregroundStyle(.secondary)
         }
         .controlSize(.regular)
-        .modifier { button in
-            if #available(iOS 26, macOS 26, *) {
-                button.buttonStyle(.glass(.clear))
-            } else {
-                button.buttonStyle(.bordered)
-            }
-        }
-        .buttonBorderShape(.capsule)
+        onboardingButtonStyle(button)
         .environment(\.colorScheme, .dark)
     }
     
