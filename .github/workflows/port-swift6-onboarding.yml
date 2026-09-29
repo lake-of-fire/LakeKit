@@ -1,0 +1,69 @@
+name: Port Swift 6 onboarding qualification
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'Sources/LakeKit/Onboarding/OnboardingSheet.swift'
+      - '.github/workflows/port-swift6-onboarding.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: lakekit-swift6-onboarding-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: LakeKit
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: lake-of-fire/BigSyncKit
+          ref: e31100998ed6d5c0a515eebc29ddb9acab3090ee
+          path: BigSyncKit
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: lake-of-fire/SwiftUtilities
+          ref: 2258e79bf270c384488058915a58d723ddfe7568
+          path: SwiftUtilities
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: lake-of-fire/swiftui-webview
+          ref: bb4b8d682b2befdf3bcf4285e3dae08771be2679
+          path: swiftui-webview
+          persist-credentials: false
+      - name: Select Swift 6.2+ Apple toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          selected=""
+          for candidate in /Applications/Xcode*.app; do
+            [ -d "$candidate/Contents/Developer" ] || continue
+            version="$(DEVELOPER_DIR="$candidate/Contents/Developer" xcrun swift --version 2>&1 | head -n 1)"
+            printf '%s: %s\n' "$candidate" "$version"
+            if printf '%s\n' "$version" | grep -Eq 'Swift version (6\.[2-9]|[7-9]\.)|Apple Swift version (6\.[2-9]|[7-9]\.)'; then
+              selected="$candidate/Contents/Developer"
+            fi
+          done
+          test -n "$selected"
+          echo "DEVELOPER_DIR=$selected" >> "$GITHUB_ENV"
+          DEVELOPER_DIR="$selected" xcodebuild -version
+          DEVELOPER_DIR="$selected" xcrun swift --version
+      - name: Record exact tuple
+        run: |
+          for path in LakeKit BigSyncKit SwiftUtilities swiftui-webview; do
+            printf '%s ' "$path"
+            git -C "$path" rev-parse HEAD
+          done
+      - name: Resolve
+        run: xcrun swift package --package-path LakeKit resolve
+      - name: Build Debug
+        run: xcrun swift build --package-path LakeKit -c debug --target LakeKit
+      - name: Build Release
+        run: xcrun swift build --package-path LakeKit -c release --target LakeKit
