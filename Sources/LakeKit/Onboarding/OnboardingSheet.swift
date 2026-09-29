@@ -120,7 +120,11 @@ private struct OnboardingGrainOverlay: View {
                 let coordsX = Double(x) / Double(size)
                 let coordsY = Double(y) / Double(size)
                 let source = (coordsX + 4) * (coordsY + 4) * 10
-                let grain = (fmod((fmod(source, 13) + 1) * (fmod(source, 123) + 1), 0.01) - 0.005) * 16
+                let firstNoise = fmod(source, 13) + 1
+                let secondNoise = fmod(source, 123) + 1
+                let combinedNoise = firstNoise * secondNoise
+                let centeredNoise = fmod(combinedNoise, 0.01) - 0.005
+                let grain = centeredNoise * 16
                 let alpha = UInt8(min(max(abs(grain) * 860, 0), 42))
                 let value: UInt8 = grain >= 0 ? 255 : 0
                 let premultipliedValue = UInt8((Int(value) * Int(alpha) + 127) / 255)
@@ -321,6 +325,15 @@ struct OnboardingPrimaryButtons: View {
         return currentCard?.skipActionTitle
     }
 
+    @MainActor
+    private func refreshHighlightedProduct() async {
+        let productID = storeViewModel.highlightedProductID
+        highlightedProduct = await storeViewModel.productSubscriptionInfo(
+            productID: productID,
+            storeHelper: storeHelper
+        )
+    }
+
     @ViewBuilder
     private func subscriptionButton() -> some View {
         Button {
@@ -330,8 +343,8 @@ struct OnboardingPrimaryButtons: View {
                 Text(headlineText)
                     .font(.footnote)
                     .bold()
-                    .task { @MainActor in
-                        highlightedProduct = await storeViewModel.productSubscriptionInfo(productID: storeViewModel.highlightedProductID, storeHelper: storeHelper)
+                    .task {
+                        await refreshHighlightedProduct()
                     }
                 Text("With qualifying discounts")
                     .foregroundStyle(.secondary)
@@ -1504,6 +1517,15 @@ struct OnboardingView<CardContent: View, RequiredActionContent: View>: View {
         isFinished || selectedCardID == cards.last?.id
     }
 
+    @MainActor
+    private func refreshHighlightedProduct() async {
+        let productID = storeViewModel.highlightedProductID
+        highlightedProduct = await storeViewModel.productSubscriptionInfo(
+            productID: productID,
+            storeHelper: storeHelper
+        )
+    }
+
     @ViewBuilder private var onboardingCardsView: some View {
         OnboardingCardsView(
             cards: cards,
@@ -1554,8 +1576,8 @@ struct OnboardingView<CardContent: View, RequiredActionContent: View>: View {
         .navigationBarHidden(true)
         .navigationBarTitleDisplayMode(.inline)
 #endif
-        .task { @MainActor in
-            highlightedProduct = await storeViewModel.productSubscriptionInfo(productID: storeViewModel.highlightedProductID, storeHelper: storeHelper)
+        .task {
+            await refreshHighlightedProduct()
         }
         .onChange(of: isPresentingStoreSheet) { isPresentingStoreSheet in
             if isPresentingStoreSheet {
