@@ -241,6 +241,44 @@ private struct OnboardingCategoryPressScaleModifier: ViewModifier {
     }
 }
 
+@MainActor
+private final class OnboardingHighlightedProductLoader: ObservableObject {
+    @Published private(set) var product: PrePurchaseSubscriptionInfo?
+
+    private var task: Task<Void, Never>?
+    private var storeViewModel: StoreViewModel?
+    private var storeHelper: StoreHelper?
+
+    func load(
+        storeViewModel: StoreViewModel,
+        storeHelper: StoreHelper
+    ) {
+        task?.cancel()
+        self.storeViewModel = storeViewModel
+        self.storeHelper = storeHelper
+
+        task = Task { @MainActor [weak self] in
+            guard let self,
+                  let storeViewModel = self.storeViewModel,
+                  let storeHelper = self.storeHelper else {
+                return
+            }
+            let productID = storeViewModel.highlightedProductID
+            let product = await storeViewModel.productSubscriptionInfo(
+                productID: productID,
+                storeHelper: storeHelper
+            )
+            guard !Task.isCancelled else { return }
+            self.product = product
+        }
+    }
+
+    func cancel() {
+        task?.cancel()
+        task = nil
+    }
+}
+
 struct OnboardingPrimaryButtons: View {
     let currentCard: OnboardingCard?
     let isFinishedOnboarding: Bool
@@ -258,7 +296,7 @@ struct OnboardingPrimaryButtons: View {
     var showsPrimaryAction = true
     var primaryActionTransition: AnyTransition = .move(edge: .bottom).combined(with: .opacity)
 
-    @State private var highlightedProduct: PrePurchaseSubscriptionInfo?
+    @StateObject private var highlightedProductLoader = OnboardingHighlightedProductLoader()
     @AppStorage("hasSeenOnboarding") var hasSeenOnboarding = false
     @AppStorage("hasRespondedToOnboarding") var hasRespondedToOnboarding = false
     @EnvironmentObject private var storeViewModel: StoreViewModel
@@ -268,6 +306,10 @@ struct OnboardingPrimaryButtons: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.verticalSizeClass) private var verticalSizeClass
 #endif
+
+    private var highlightedProduct: PrePurchaseSubscriptionInfo? {
+        highlightedProductLoader.product
+    }
 
     private var headlineText: String {
         if let highlightedProduct {
@@ -325,15 +367,6 @@ struct OnboardingPrimaryButtons: View {
         return currentCard?.skipActionTitle
     }
 
-    @MainActor
-    private func refreshHighlightedProduct() async {
-        let productID = storeViewModel.highlightedProductID
-        highlightedProduct = await storeViewModel.productSubscriptionInfo(
-            productID: productID,
-            storeHelper: storeHelper
-        )
-    }
-
     @ViewBuilder
     private func subscriptionButton() -> some View {
         Button {
@@ -343,8 +376,14 @@ struct OnboardingPrimaryButtons: View {
                 Text(headlineText)
                     .font(.footnote)
                     .bold()
-                    .task {
-                        await refreshHighlightedProduct()
+                    .onAppear {
+                        highlightedProductLoader.load(
+                            storeViewModel: storeViewModel,
+                            storeHelper: storeHelper
+                        )
+                    }
+                    .onDisappear {
+                        highlightedProductLoader.cancel()
                     }
                 Text("With qualifying discounts")
                     .foregroundStyle(.secondary)
@@ -1508,22 +1547,17 @@ struct OnboardingView<CardContent: View, RequiredActionContent: View>: View {
 
     @State private var navigationPath = [String]()
     @State private var selectedCardID: String?
-    @State private var highlightedProduct: PrePurchaseSubscriptionInfo?
+    @StateObject private var highlightedProductLoader = OnboardingHighlightedProductLoader()
     @State private var hasPresentedStoreSheet = false
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
     @AppStorage("hasRespondedToOnboarding") private var hasRespondedToOnboarding = false
 
-    private var isShowingLastCard: Bool {
-        isFinished || selectedCardID == cards.last?.id
+    private var highlightedProduct: PrePurchaseSubscriptionInfo? {
+        highlightedProductLoader.product
     }
 
-    @MainActor
-    private func refreshHighlightedProduct() async {
-        let productID = storeViewModel.highlightedProductID
-        highlightedProduct = await storeViewModel.productSubscriptionInfo(
-            productID: productID,
-            storeHelper: storeHelper
-        )
+    private var isShowingLastCard: Bool {
+        isFinished || selectedCardID == cards.last?.id
     }
 
     @ViewBuilder private var onboardingCardsView: some View {
@@ -1576,8 +1610,14 @@ struct OnboardingView<CardContent: View, RequiredActionContent: View>: View {
         .navigationBarHidden(true)
         .navigationBarTitleDisplayMode(.inline)
 #endif
-        .task {
-            await refreshHighlightedProduct()
+        .onAppear {
+            highlightedProductLoader.load(
+                storeViewModel: storeViewModel,
+                storeHelper: storeHelper
+            )
+        }
+        .onDisappear {
+            highlightedProductLoader.cancel()
         }
         .onChange(of: isPresentingStoreSheet) { isPresentingStoreSheet in
             if isPresentingStoreSheet {
