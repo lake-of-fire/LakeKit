@@ -485,6 +485,11 @@ struct OnboardingPrimaryButtons: View {
         }
         .buttonStyle(.borderedProminent)
         .tint(.accentColor)
+        .accessibilityIdentifier(
+            currentCard?.isFullScreenIntro == true
+                ? "OnboardingWelcome.GetStartedButton"
+                : "Onboarding.PrimaryButton"
+        )
         .modifier(OnboardingCategoryPressScaleModifier(glows: glowsPrimaryAction))
         .shadow(color: .black.opacity(0.26), radius: 18, x: 0, y: 10)
     }
@@ -947,6 +952,7 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
                             .contentShape(Circle())
                     }
                     .accessibilityLabel("Dismiss onboarding")
+                    .accessibilityIdentifier("OnboardingWelcome.SkipButton")
                     .buttonStyle(.borderless)
                     .tint(.primary)
                     .background(.regularMaterial, in: Circle())
@@ -968,6 +974,7 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
                     .contentShape(Circle())
             }
             .accessibilityLabel("Dismiss onboarding")
+            .accessibilityIdentifier("OnboardingWelcome.SkipButton")
             .buttonStyle(.borderless)
             .tint(.white)
             .background(.black.opacity(0.34), in: Circle())
@@ -2077,6 +2084,7 @@ fileprivate struct PageNavigator: View {
                     guard let currentIndex = currentIndex else { return }
                     scrollTo(index: currentIndex - 1)
                 }
+                .accessibilityIdentifier("Onboarding.BackButton")
                 .foregroundStyle(.secondary)
                 .clipShape(.circle)
 
