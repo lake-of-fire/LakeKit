@@ -1,0 +1,43 @@
+name: Port picker and share UI
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: port-ui-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  native:
+    runs-on: macos-15
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        configuration: [debug, release]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: '6.2.1'
+      - name: Test actual SwiftUI and AppKit implementations
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/tested-commit.txt
+          git ls-tree -r HEAD > evidence/source-manifest.txt
+          swift --version > evidence/toolchain.txt
+          export UI_PORT_EVIDENCE_DIRECTORY="$PWD/evidence"
+          export UI_PORT_TYPECHECK_IOS=1
+          bash Tools/test-ui-port.sh -c ${{ matrix.configuration }} 2>&1 | tee evidence/test.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lake-ui-port-${{ matrix.configuration }}-${{ github.run_attempt }}
+          path: evidence
+          retention-days: 7
+          if-no-files-found: error

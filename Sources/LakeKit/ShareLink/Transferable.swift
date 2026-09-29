@@ -11,6 +11,8 @@ public protocol Shareable {
 
 public struct ActivityItem<Data> where Data: RandomAccessCollection, Data.Element: Shareable {
     public var data: Data
+    /// Stable for copies/updates of one request, distinct for a new share action.
+    let presentationID = UUID()
     
     public init(data: Data) {
         self.data = data
