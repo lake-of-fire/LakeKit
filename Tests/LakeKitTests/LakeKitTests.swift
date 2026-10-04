@@ -2,10 +2,122 @@ import XCTest
 import Combine
 import BigSyncKit
 import RealmSwift
-import RealmSwiftGaps
+@testable import RealmSwiftGaps
 @testable import LakeKit
 
 final class ReferralCodeUsageMutationTrackingTests: XCTestCase {
+    @RealmBackgroundActor
+    private final class Completion {
+        var settled = false
+    }
+
+    private func configuration() -> Realm.Configuration {
+        var configuration = Realm.Configuration(inMemoryIdentifier: UUID().uuidString)
+        configuration.objectTypes = [ReferralCodeUsage.self, BigSyncPendingMutation.self]
+        BigSyncMutationTracking.install(configurations: [configuration], excludedClassNames: [])
+        return configuration
+    }
+
+    @RealmBackgroundActor
+    func testCancelledCreatePreservesIndependentOwnerUsageAndJournal() async throws {
+        let configuration = configuration()
+        let realm = try await RealmBackgroundActor.shared.cachedRealm(for: configuration)
+        defer {
+            if realm.isInWriteTransaction { realm.cancelWrite() }
+            RealmBackgroundActor.shared.removeCachedRealm(for: configuration)
+        }
+        realm.beginWrite()
+        let ownerUsage = ReferralCodeUsage()
+        ownerUsage.referralCode = "independent-owner"
+        realm.add(ownerUsage)
+        ownerUsage.refreshChangeMetadata(explicitlyModified: true)
+        let ownerRecord = "ReferralCodeUsage.\(ownerUsage.id.uuidString)"
+        let ownerGeneration = try XCTUnwrap(realm.object(
+            ofType: BigSyncPendingMutation.self, forPrimaryKey: ownerRecord
+        )?.generation)
+        let submitted = expectation(description: "Referral create submitted its own SDK begin ticket")
+        let completion = Completion()
+        let caller = Task { @RealmBackgroundActor in
+            defer { completion.settled = true }
+            try await RealmWriteSubmissionObservation.$willSubmit.withValue({ submitted.fulfill() }) {
+                _ = try await ReferralCodeUsage.create(
+                    referralCode: "cancelled-create", receipt: "cancelled-receipt",
+                    realmConfiguration: configuration
+                )
+            }
+        }
+        await fulfillment(of: [submitted], timeout: 5)
+        caller.cancel()
+        let deadline = Date().addingTimeInterval(2)
+        while !completion.settled, Date() < deadline {
+            try? await Task.sleep(nanoseconds: 1_000_000)
+        }
+        let cancelledBeforeOwnerRelease = completion.settled
+        XCTAssertTrue(cancelledBeforeOwnerRelease, "Cancellation must settle while another owner holds its write")
+        XCTAssertTrue(realm.isInWriteTransaction)
+        XCTAssertEqual(realm.objects(ReferralCodeUsage.self).count, 1)
+        XCTAssertEqual(realm.objects(BigSyncPendingMutation.self).count, 1)
+        XCTAssertEqual(realm.object(ofType: BigSyncPendingMutation.self,
+                                    forPrimaryKey: ownerRecord)?.generation, ownerGeneration)
+        // Always release the real owner before joining, including a failed timeout.
+        if realm.isInWriteTransaction { try realm.commitWrite() }
+        do {
+            try await caller.value
+            XCTFail("Cancelled referral creation must not report success")
+        } catch is CancellationError {
+        } catch {
+            XCTFail("Expected cancellation, received \(error)")
+        }
+        XCTAssertEqual(Array(realm.objects(ReferralCodeUsage.self).map(\.referralCode)), ["independent-owner"])
+        XCTAssertEqual(realm.objects(BigSyncPendingMutation.self).count, 1)
+        XCTAssertEqual(realm.object(ofType: BigSyncPendingMutation.self,
+                                    forPrimaryKey: ownerRecord)?.generation, ownerGeneration)
+    }
+
+    @RealmBackgroundActor
+    func testCreateQueuesIndependentlyAndJournalsAfterOwnerRollback() async throws {
+        let configuration = configuration()
+        let realm = try await RealmBackgroundActor.shared.cachedRealm(for: configuration)
+        defer {
+            if realm.isInWriteTransaction { realm.cancelWrite() }
+            RealmBackgroundActor.shared.removeCachedRealm(for: configuration)
+        }
+        realm.beginWrite()
+        let ownerUsage = ReferralCodeUsage()
+        ownerUsage.referralCode = "rolled-back-owner"
+        realm.add(ownerUsage)
+        ownerUsage.refreshChangeMetadata(explicitlyModified: true)
+        let submitted = expectation(description: "Referral create submitted behind the independent owner")
+        let completion = Completion()
+        let caller = Task { @RealmBackgroundActor in
+            defer { completion.settled = true }
+            try await RealmWriteSubmissionObservation.$willSubmit.withValue({ submitted.fulfill() }) {
+                _ = try await ReferralCodeUsage.create(
+                    referralCode: "committed-create", receipt: "committed-receipt",
+                    realmConfiguration: configuration
+                )
+            }
+        }
+        await fulfillment(of: [submitted], timeout: 5)
+        XCTAssertFalse(completion.settled)
+        XCTAssertTrue(realm.isInWriteTransaction)
+        XCTAssertEqual(Array(realm.objects(ReferralCodeUsage.self).map(\.referralCode)), ["rolled-back-owner"])
+        if realm.isInWriteTransaction { realm.cancelWrite() }
+        try await caller.value
+        XCTAssertFalse(realm.isInWriteTransaction)
+        let usage = try XCTUnwrap(realm.objects(ReferralCodeUsage.self).first)
+        XCTAssertEqual(realm.objects(ReferralCodeUsage.self).count, 1)
+        XCTAssertEqual(usage.referralCode, "committed-create")
+        XCTAssertEqual(usage.itunesReceipt, "committed-receipt")
+        XCTAssertFalse(usage.wasSubmitted)
+        XCTAssertNil(usage.lastAttemptedAt)
+        let record = "ReferralCodeUsage.\(usage.id.uuidString)"
+        let mutation = try XCTUnwrap(realm.object(ofType: BigSyncPendingMutation.self, forPrimaryKey: record))
+        XCTAssertEqual(realm.objects(BigSyncPendingMutation.self).count, 1)
+        XCTAssertEqual(mutation.entityType, ReferralCodeUsage.className())
+        XCTAssertEqual(mutation.objectIdentifier, usage.id.uuidString)
+        XCTAssertEqual(mutation.changedAt, usage.explicitlyModifiedAt)
+    }
     @RealmBackgroundActor
     func testCreateRecordsDurableBigSyncMutationAfterAddingUsage() async throws {
         var configuration = Realm.Configuration(
