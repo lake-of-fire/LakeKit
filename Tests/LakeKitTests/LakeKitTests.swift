@@ -70,13 +70,18 @@ final class ReferralCodeUsageMutationTrackingTests: XCTestCase {
         let configuration = configuration()
         let realm = try await RealmBackgroundActor.shared.cachedRealm(for: configuration)
         let completion = Completion()
+        // Retain fixtures for unsettled SDK callbacks; otherwise await cleanup
+        // on the concrete cache actor rather than its global actor annotation.
+        addTeardownBlock {
+            let mayReleaseCache = await { @RealmBackgroundActor in
+                !completion.started || completion.settled
+            }()
+            if mayReleaseCache {
+                _ = await RealmBackgroundActor.shared.removeCachedRealm(for: configuration)
+            }
+        }
         defer {
             if realm.isInWriteTransaction { realm.cancelWrite() }
-            // A broken SDK callback must not evict a Realm still owned by an
-            // unsettled task. This unique fixture is retained on that failure.
-            if !completion.started || completion.settled {
-                RealmBackgroundActor.shared.removeCachedRealm(for: configuration)
-            }
         }
         realm.beginWrite()
         let ownerUsage = ReferralCodeUsage()
@@ -134,11 +139,18 @@ final class ReferralCodeUsageMutationTrackingTests: XCTestCase {
         let configuration = configuration()
         let realm = try await RealmBackgroundActor.shared.cachedRealm(for: configuration)
         let completion = Completion()
+        // Retain fixtures for unsettled SDK callbacks; otherwise await cleanup
+        // on the concrete cache actor rather than its global actor annotation.
+        addTeardownBlock {
+            let mayReleaseCache = await { @RealmBackgroundActor in
+                !completion.started || completion.settled
+            }()
+            if mayReleaseCache {
+                _ = await RealmBackgroundActor.shared.removeCachedRealm(for: configuration)
+            }
+        }
         defer {
             if realm.isInWriteTransaction { realm.cancelWrite() }
-            if !completion.started || completion.settled {
-                RealmBackgroundActor.shared.removeCachedRealm(for: configuration)
-            }
         }
         realm.beginWrite()
         let ownerUsage = ReferralCodeUsage()
