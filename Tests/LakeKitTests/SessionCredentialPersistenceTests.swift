@@ -410,9 +410,9 @@ final class SessionCredentialPersistenceTests: XCTestCase {
         XCTAssertNotEqual(current, original)
         XCTAssertNil(access.authorization(ifCurrent: original.accountSession))
         var published = false
-        XCTAssertFalse(access.publish(ifCurrent: original.accountSession) { published = true })
+        XCTAssertFalse(try access.publish(ifCurrent: original.accountSession) { published = true })
         XCTAssertFalse(published)
-        XCTAssertTrue(access.publish(ifCurrent: current.accountSession) { published = true })
+        XCTAssertTrue(try access.publish(ifCurrent: current.accountSession) { published = true })
         XCTAssertTrue(published)
         session.updateAuthenticationState()
         XCTAssertEqual(access.authorization, current)
