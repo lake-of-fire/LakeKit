@@ -126,14 +126,13 @@ struct SessionCredentialRepository {
 
     func load() -> SessionCredentials? {
         if let record = currentCanonicalRecord() {
-            return record.credentials
+            guard record.credentials.recordID.isEmpty else { return record.credentials }
+            return migrateToCanonical(record.credentials)
         }
 
         if let data = store.data(Key.deprecatedCanonical) {
             if let credentials = decodeValidCredentials(data) {
-                // Migration failure does not invalidate a complete existing login.
-                _ = persistCanonical(credentials)
-                return credentials
+                return migrateToCanonical(credentials)
             }
             _ = deleteIfPresent(Key.deprecatedCanonical, exists: true)
         }
@@ -149,16 +148,42 @@ struct SessionCredentialRepository {
             }
             return nil
         }
-        let credentials = SessionCredentials(
+        return migrateToCanonical(SessionCredentials(
             authToken: legacyAuthToken,
-            userID: legacyUserID
+            userID: legacyUserID,
+            recordID: ""
+        ))
+    }
+
+    /// Migration/readback failure must preserve a complete login without claiming
+    /// that a generated or deprecated identity was confirmed in the active slots.
+    private func migrateToCanonical(_ credentials: SessionCredentials) -> SessionCredentials {
+        if let written = persistCanonical(credentials),
+           let confirmed = currentCanonicalRecord()?.credentials,
+           confirmed == written {
+            return confirmed
+        }
+        return SessionCredentials(
+            authToken: credentials.authToken,
+            userID: credentials.userID,
+            revision: credentials.revision,
+            recordID: ""
         )
-        _ = persistCanonical(credentials)
-        return credentials
+    }
+
+    /// Confirms a freshly authenticated pair against the selected durable slot.
+    /// Revision is assigned by persistence, while the caller supplies record ID.
+    func confirmedCredentials(matching credentials: SessionCredentials) -> SessionCredentials? {
+        guard !credentials.recordID.isEmpty,
+              let confirmed = currentCanonicalRecord()?.credentials,
+              confirmed.recordID == credentials.recordID,
+              confirmed.authToken == credentials.authToken,
+              confirmed.userID == credentials.userID else { return nil }
+        return confirmed
     }
 
     func persist(_ credentials: SessionCredentials) -> Bool {
-        guard persistCanonical(credentials) else { return false }
+        guard persistCanonical(credentials) != nil else { return false }
         // These mirrors support older app versions but are never read when a
         // canonical record exists.
         _ = store.setString(credentials.authToken, Key.legacyAuthToken)
@@ -195,26 +220,27 @@ struct SessionCredentialRepository {
         )
     }
 
-    private func persistCanonical(_ credentials: SessionCredentials) -> Bool {
-        guard credentials.isValid else { return false }
+    private func persistCanonical(_ credentials: SessionCredentials) -> SessionCredentials? {
+        guard credentials.isValid else { return nil }
         let currentRecord = currentCanonicalRecord()
         let currentRevision = currentRecord?.credentials.revision ?? 0
-        guard currentRevision < UInt64.max else { return false }
+        guard currentRevision < UInt64.max else { return nil }
         let revisedCredentials = SessionCredentials(
             authToken: credentials.authToken,
             userID: credentials.userID,
-            revision: currentRevision + 1
+            revision: currentRevision + 1,
+            recordID: credentials.recordID.isEmpty ? UUID().uuidString : credentials.recordID
         )
         guard let data = try? JSONEncoder().encode(revisedCredentials) else {
-            return false
+            return nil
         }
         let destination = currentRecord?.slot.alternate ?? .primary
-        guard store.setData(data, destination.key) else { return false }
+        guard store.setData(data, destination.key) else { return nil }
         _ = deleteIfPresent(
             Key.deprecatedCanonical,
             exists: store.data(Key.deprecatedCanonical) != nil
         )
-        return true
+        return revisedCredentials
     }
 
     private func currentCanonicalRecord() -> Record? {

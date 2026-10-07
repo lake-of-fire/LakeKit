@@ -30,10 +30,18 @@ public struct AccountSessionSnapshot: Hashable, Sendable {
 public struct AccountAuthorizationContext: Hashable, Sendable {
     public let accountSession: AccountSessionSnapshot
     public let authToken: String
+    /// Nonsecret identity of the persisted credential record. Stable across app
+    /// restarts, replaced on a fresh login, and never derived from the user ID.
+    public let credentialRecordID: String?
 
-    public init(accountSession: AccountSessionSnapshot, authToken: String) {
+    public init(
+        accountSession: AccountSessionSnapshot,
+        authToken: String,
+        credentialRecordID: String? = nil
+    ) {
         self.accountSession = accountSession
         self.authToken = authToken
+        self.credentialRecordID = credentialRecordID
     }
 }
 
@@ -112,7 +120,8 @@ public struct AccountSessionAccess: @unchecked Sendable {
     init(
         boundaryID: AccountSessionBoundaryID = AccountSessionBoundaryID(),
         testSnapshotProvider snapshotProvider: @escaping () -> AccountSessionSnapshot,
-        authTokenProvider: @escaping () -> String? = { "test-auth-token" }
+        authTokenProvider: @escaping () -> String? = { "test-auth-token" },
+        credentialRecordIDProvider: @escaping () -> String? = { nil }
     ) {
         self.boundaryID = boundaryID
         self.snapshotProvider = snapshotProvider
@@ -124,7 +133,8 @@ public struct AccountSessionAccess: @unchecked Sendable {
                   !authToken.isEmpty else { return nil }
             return AccountAuthorizationContext(
                 accountSession: snapshot,
-                authToken: authToken
+                authToken: authToken,
+                credentialRecordID: credentialRecordIDProvider()
             )
         }
         publicationFence = { expected, publish in
@@ -209,6 +219,7 @@ public class Session: ObservableObject {
     private nonisolated let accountSessionStateLock = NSLock()
     private nonisolated(unsafe) var accountSessionState = AccountSessionState()
     private nonisolated(unsafe) var accountAuthorizationToken: String?
+    private nonisolated(unsafe) var accountCredentialRecordID: String?
 
     /// A causal, thread-safe authentication snapshot for background work. Unlike
     /// separately reading `userID` and `isAuthenticated`, this distinguishes two
@@ -228,7 +239,8 @@ public class Session: ObservableObject {
                   !authToken.isEmpty else { return nil }
             return AccountAuthorizationContext(
                 accountSession: snapshot,
-                authToken: authToken
+                authToken: authToken,
+                credentialRecordID: accountCredentialRecordID
             )
         }
     }
@@ -319,7 +331,8 @@ public class Session: ObservableObject {
         // observing a mixed pair then fails its generation/identity validation.
         let sessionSnapshot = settleAccountSession(
             identity: credentials.map { .authenticated(userID: $0.userID) } ?? .signedOut,
-            authToken: credentials?.authToken
+            authToken: credentials?.authToken,
+            credentialRecordID: credentials?.recordID
         )
         publishAccountSessionSnapshot(sessionSnapshot)
         if userID != newUserID {
@@ -369,7 +382,15 @@ public class Session: ObservableObject {
         let storedRequestedSession = credentials.isValid
             && credentialRepository.persist(credentials)
         if storedRequestedSession {
-            publishSettledAuthentication(credentials)
+            // A successful write preserves the login even if Keychain readback is
+            // temporarily unavailable. Only a matching durable record may supply
+            // its identity to request authorization.
+            let confirmed = credentialRepository.confirmedCredentials(matching: credentials)
+            publishSettledAuthentication(confirmed ?? SessionCredentials(
+                authToken: credentials.authToken,
+                userID: credentials.userID,
+                recordID: ""
+            ))
         } else {
             // The alternating canonical slots preserve the previous complete
             // login when validation or persistence fails. Re-publish that durable
@@ -424,6 +445,7 @@ public class Session: ObservableObject {
     private func beginAccountSessionTransition() {
         let snapshot = withLockedAccountSessionState {
             accountAuthorizationToken = nil
+            accountCredentialRecordID = nil
             return $0.beginTransition()
         }
         publishAccountSessionSnapshot(snapshot)
@@ -432,11 +454,15 @@ public class Session: ObservableObject {
     @MainActor
     private func settleAccountSession(
         identity: AccountSessionIdentity,
-        authToken: String?
+        authToken: String?,
+        credentialRecordID: String?
     ) -> AccountSessionSnapshot {
         return withLockedAccountSessionState {
+            let durableIdentity = credentialRecordID.flatMap { $0.isEmpty ? nil : $0 }
             let authorizationChanged = accountAuthorizationToken != authToken
+                || accountCredentialRecordID != durableIdentity
             accountAuthorizationToken = authToken
+            accountCredentialRecordID = durableIdentity
             return $0.settle(
                 identity: identity,
                 authorizationChanged: authorizationChanged

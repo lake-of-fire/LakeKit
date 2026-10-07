@@ -120,6 +120,8 @@ final class SessionCredentialPersistenceTests: XCTestCase {
         let authorization = AccountSessionAccess(session: session).authorization
         XCTAssertEqual(authorization?.accountSession, session.accountSessionSnapshot)
         XCTAssertEqual(authorization?.authToken, "newer-durable-token")
+        XCTAssertNotNil(authorization?.credentialRecordID)
+        XCTAssertEqual(authorization?.credentialRecordID, store.latestCanonicalRecord?.recordID)
     }
 
     @MainActor
@@ -230,6 +232,251 @@ final class SessionCredentialPersistenceTests: XCTestCase {
     }
 
     @MainActor
+    func testCredentialIdentityMatchesDurableRecordSurvivesRestartAndRotatesOnFreshLogin() throws {
+        let store = InMemoryCredentialStore()
+        let session = makeSession(using: store)
+        session.authenticated(authToken: "same-token", userID: 42)
+        let access = AccountSessionAccess(session: session)
+        let original = try XCTUnwrap(access.authorization)
+        let originalID = try XCTUnwrap(original.credentialRecordID)
+        XCTAssertFalse(originalID.isEmpty)
+        XCTAssertEqual(originalID, store.latestCanonicalRecord?.recordID)
+        XCTAssertEqual(
+            AccountSessionAccess(session: makeSession(using: store)).authorization?.credentialRecordID,
+            originalID
+        )
+        session.updateAuthenticationState()
+        XCTAssertEqual(access.authorization, original)
+
+        session.authenticated(authToken: "same-token", userID: 42)
+        let replacement = try XCTUnwrap(access.authorization)
+        XCTAssertNotEqual(replacement.credentialRecordID, originalID)
+        XCTAssertEqual(replacement.credentialRecordID, store.latestCanonicalRecord?.recordID)
+        XCTAssertEqual(replacement.accountSession.generation, original.accountSession.generation &+ 1)
+        XCTAssertNil(access.authorization(ifCurrent: original.accountSession))
+        XCTAssertTrue(session.logout())
+        XCTAssertNil(access.authorization)
+    }
+
+    @MainActor
+    func testSameTokenDurableReplacementInvalidatesAuthorizationAndPublication() throws {
+        let store = InMemoryCredentialStore()
+        let session = makeSession(using: store)
+        session.authenticated(authToken: "same-token", userID: 42)
+        let access = AccountSessionAccess(session: session)
+        let original = try XCTUnwrap(access.authorization)
+        let replacement = SessionCredentials(authToken: "same-token", userID: 42)
+        XCTAssertTrue(SessionCredentialRepository(store: store.credentialStore).persist(replacement))
+        session.updateAuthenticationState()
+
+        let current = try XCTUnwrap(access.authorization)
+        XCTAssertEqual(current.authToken, original.authToken)
+        XCTAssertEqual(current.accountSession.identity, original.accountSession.identity)
+        XCTAssertEqual(current.credentialRecordID, replacement.recordID)
+        XCTAssertEqual(current.accountSession.generation, original.accountSession.generation &+ 1)
+        XCTAssertNotEqual(current, original)
+        XCTAssertNil(access.authorization(ifCurrent: original.accountSession))
+        var published = false
+        XCTAssertFalse(access.publish(ifCurrent: original.accountSession) { published = true })
+        XCTAssertFalse(published)
+        XCTAssertTrue(access.publish(ifCurrent: current.accountSession) { published = true })
+        XCTAssertTrue(published)
+        session.updateAuthenticationState()
+        XCTAssertEqual(access.authorization, current)
+    }
+
+    @MainActor
+    func testRewritingSameCredentialIdentityDoesNotRotateAuthorizationGeneration() throws {
+        let store = InMemoryCredentialStore()
+        let session = makeSession(using: store)
+        session.authenticated(authToken: "same-token", userID: 42)
+        let access = AccountSessionAccess(session: session)
+        let original = try XCTUnwrap(access.authorization)
+        let identity = try XCTUnwrap(original.credentialRecordID)
+        XCTAssertTrue(SessionCredentialRepository(store: store.credentialStore).persist(
+            SessionCredentials(authToken: "same-token", userID: 42, recordID: identity)
+        ))
+        XCTAssertEqual(store.latestCanonicalRecord?.revision, 2)
+        session.updateAuthenticationState()
+        XCTAssertEqual(access.authorization, original)
+    }
+
+    @MainActor
+    func testRevisionOverflowDuringIdentityUpgradePreservesLoginWithoutIdentity() throws {
+        let store = InMemoryCredentialStore()
+        store.dataValues[CredentialKeys.canonicalPrimary] = try JSONEncoder().encode(
+            SessionCredentials(authToken: "legacy-token", userID: 42, revision: UInt64.max, recordID: "")
+        )
+        let session = makeSession(using: store)
+        let access = AccountSessionAccess(session: session)
+        let original = try XCTUnwrap(access.authorization)
+        XCTAssertTrue(session.isAuthenticated)
+        XCTAssertEqual(session.userID, 42)
+        XCTAssertEqual(original.authToken, "legacy-token")
+        XCTAssertNil(original.credentialRecordID)
+        XCTAssertNil(store.dataValues[CredentialKeys.canonicalSecondary])
+        session.updateAuthenticationState()
+        XCTAssertEqual(access.authorization, original)
+    }
+
+    @MainActor
+    func testLegacyFormsUpgradeOnlyToConfirmedStableIdentity() throws {
+        for form in LegacyCredentialForm.allCases {
+            let store = InMemoryCredentialStore()
+            try seedLegacy(form, into: store)
+            let session = makeSession(using: store)
+            let authorization = try XCTUnwrap(AccountSessionAccess(session: session).authorization)
+            XCTAssertEqual(authorization.authToken, "legacy-token")
+            XCTAssertEqual(session.userID, 42)
+            let identity = try XCTUnwrap(authorization.credentialRecordID)
+            XCTAssertFalse(identity.isEmpty)
+            XCTAssertEqual(identity, store.latestCanonicalRecord?.recordID)
+            XCTAssertEqual(store.latestCanonicalRecord?.revision, form.isCanonical ? 2 : 1)
+            if form.isCanonical {
+                XCTAssertNotNil(store.dataValues[CredentialKeys.canonicalPrimary])
+                XCTAssertNotNil(store.dataValues[CredentialKeys.canonicalSecondary])
+            }
+            session.updateAuthenticationState()
+            XCTAssertEqual(AccountSessionAccess(session: session).authorization, authorization)
+            XCTAssertEqual(
+                AccountSessionAccess(session: makeSession(using: store)).authorization?.credentialRecordID,
+                identity
+            )
+        }
+    }
+
+    @MainActor
+    func testFailedLegacyUpgradesPreserveLoginWithoutInventingIdentity() throws {
+        for form in LegacyCredentialForm.allCases {
+            let store = InMemoryCredentialStore()
+            try seedLegacy(form, into: store)
+            store.failDataWrites = true
+            let session = makeSession(using: store)
+            let access = AccountSessionAccess(session: session)
+            let fallback = try XCTUnwrap(access.authorization)
+            XCTAssertTrue(session.isAuthenticated)
+            XCTAssertEqual(session.userID, 42)
+            XCTAssertEqual(fallback.authToken, "legacy-token")
+            XCTAssertNil(fallback.credentialRecordID)
+            session.updateAuthenticationState()
+            XCTAssertEqual(access.authorization, fallback)
+            store.failDataWrites = false
+            session.updateAuthenticationState()
+            let confirmed = try XCTUnwrap(access.authorization)
+            XCTAssertNotNil(confirmed.credentialRecordID)
+            XCTAssertEqual(confirmed.credentialRecordID, store.latestCanonicalRecord?.recordID)
+            XCTAssertEqual(confirmed.accountSession.generation, fallback.accountSession.generation &+ 1)
+            XCTAssertNil(access.authorization(ifCurrent: fallback.accountSession))
+        }
+    }
+
+    @MainActor
+    func testUnavailableMigrationReadbackPreservesLoginAndLaterConfirmsIdentity() throws {
+        for form in LegacyCredentialForm.allCases {
+            let store = InMemoryCredentialStore()
+            try seedLegacy(form, into: store)
+            store.hideWrittenCanonicalReads = true
+            let session = makeSession(using: store)
+            let access = AccountSessionAccess(session: session)
+            let fallback = try XCTUnwrap(access.authorization)
+            XCTAssertTrue(session.isAuthenticated)
+            XCTAssertEqual(fallback.authToken, "legacy-token")
+            XCTAssertEqual(session.userID, 42)
+            XCTAssertNil(fallback.credentialRecordID)
+            XCTAssertNotNil(store.latestCanonicalRecord?.recordID)
+            store.hiddenReadKeys.removeAll()
+            store.hideWrittenCanonicalReads = false
+            session.updateAuthenticationState()
+            let confirmed = try XCTUnwrap(access.authorization)
+            XCTAssertEqual(confirmed.credentialRecordID, store.latestCanonicalRecord?.recordID)
+            XCTAssertNotNil(confirmed.credentialRecordID)
+            XCTAssertEqual(confirmed.accountSession.generation, fallback.accountSession.generation &+ 1)
+            session.updateAuthenticationState()
+            XCTAssertEqual(access.authorization, confirmed)
+        }
+    }
+
+    @MainActor
+    func testMismatchedMigrationReadbackDoesNotAuthorizeUnconfirmedIdentity() throws {
+        for form in LegacyCredentialForm.allCases {
+            let store = InMemoryCredentialStore()
+            try seedLegacy(form, into: store)
+            store.writtenReadbackOverride = try JSONEncoder().encode(SessionCredentials(
+                authToken: "unrelated-token", userID: 7, revision: 100, recordID: "unrelated-record"
+            ))
+            let session = makeSession(using: store)
+            let authorization = try XCTUnwrap(AccountSessionAccess(session: session).authorization)
+            XCTAssertTrue(session.isAuthenticated)
+            XCTAssertEqual(session.userID, 42)
+            XCTAssertEqual(authorization.authToken, "legacy-token")
+            XCTAssertNil(authorization.credentialRecordID)
+        }
+    }
+
+    @MainActor
+    func testFreshLoginWithUnavailableReadbackPreservesLoginWithoutInventingIdentity() throws {
+        let store = InMemoryCredentialStore()
+        let session = makeSession(using: store)
+        store.hideWrittenCanonicalReads = true
+        session.authenticated(authToken: "fresh-token", userID: 42)
+        let access = AccountSessionAccess(session: session)
+        let fallback = try XCTUnwrap(access.authorization)
+        XCTAssertTrue(session.isAuthenticated)
+        XCTAssertEqual(session.userID, 42)
+        XCTAssertEqual(fallback.authToken, "fresh-token")
+        XCTAssertNil(fallback.credentialRecordID)
+        XCTAssertNotNil(store.latestCanonicalRecord?.recordID)
+        store.hiddenReadKeys.removeAll()
+        store.hideWrittenCanonicalReads = false
+        session.updateAuthenticationState()
+        XCTAssertEqual(access.authorization?.credentialRecordID, store.latestCanonicalRecord?.recordID)
+        XCTAssertEqual(session.accountSessionSnapshot.generation, fallback.accountSession.generation &+ 1)
+        XCTAssertNil(access.authorization(ifCurrent: fallback.accountSession))
+    }
+
+    @MainActor
+    func testFreshLoginWithMismatchedReadbackDoesNotPublishUnconfirmedIdentity() throws {
+        let store = InMemoryCredentialStore()
+        let session = makeSession(using: store)
+        store.writtenReadbackOverride = try JSONEncoder().encode(SessionCredentials(
+            authToken: "other-token", userID: 7, revision: 100, recordID: "other-record"
+        ))
+        session.authenticated(authToken: "fresh-token", userID: 42)
+        let authorization = try XCTUnwrap(AccountSessionAccess(session: session).authorization)
+        XCTAssertTrue(session.isAuthenticated)
+        XCTAssertEqual(session.userID, 42)
+        XCTAssertEqual(authorization.authToken, "fresh-token")
+        XCTAssertNil(authorization.credentialRecordID)
+    }
+
+    func testAuthorizationContextDefaultIdentityAndInjectedIdentityRemainSourceCompatible() throws {
+        let snapshot = AccountSessionSnapshot(identity: .authenticated(userID: 42), generation: 1)
+        let legacyContext = AccountAuthorizationContext(accountSession: snapshot, authToken: "token")
+        XCTAssertNil(legacyContext.credentialRecordID)
+        let access = AccountSessionAccess(
+            testSnapshotProvider: { snapshot },
+            authTokenProvider: { "token" },
+            credentialRecordIDProvider: { "confirmed-record" }
+        )
+        XCTAssertEqual(access.authorization?.credentialRecordID, "confirmed-record")
+        XCTAssertNotEqual(access.authorization, legacyContext)
+        XCTAssertEqual(Set([legacyContext, try XCTUnwrap(access.authorization)]).count, 2)
+    }
+
+    private func seedLegacy(_ form: LegacyCredentialForm, into store: InMemoryCredentialStore) throws {
+        if form == .splitPair {
+            store.stringValues[CredentialKeys.legacyAuthToken] = "legacy-token"
+            store.stringValues[CredentialKeys.legacyUserID] = "42"
+            return
+        }
+        var object: [String: Any] = ["authToken": "legacy-token", "userID": 42, "revision": 1]
+        if form == .canonicalEmptyID { object["recordID"] = "" }
+        if form == .deprecatedWithID { object["recordID"] = "deprecated-record" }
+        store.dataValues[form.isCanonical ? CredentialKeys.canonicalPrimary : CredentialKeys.deprecatedCanonical] =
+            try JSONSerialization.data(withJSONObject: object)
+    }
+
+    @MainActor
     private func makeSession(using store: InMemoryCredentialStore) -> Session {
         Session(
             credentialStore: store.credentialStore,
@@ -238,7 +485,16 @@ final class SessionCredentialPersistenceTests: XCTestCase {
     }
 }
 
+private enum LegacyCredentialForm: CaseIterable, Equatable {
+    case splitPair, deprecatedMissingID, deprecatedWithID, canonicalMissingID, canonicalEmptyID
+
+    var isCanonical: Bool {
+        self == .canonicalMissingID || self == .canonicalEmptyID
+    }
+}
+
 enum CredentialKeys {
+    static let deprecatedCanonical = "accountCredentials.v1"
     static let canonicalPrimary = "accountCredentials.v1.primary"
     static let canonicalSecondary = "accountCredentials.v1.secondary"
     static let canonicalSlots = [canonicalPrimary, canonicalSecondary]
@@ -250,30 +506,39 @@ struct StoredCredentialFixture: Codable, Equatable {
     let authToken: String
     let userID: Int
     let revision: UInt64
+    var recordID: String? = nil
 }
 
 final class InMemoryCredentialStore {
     var dataValues = [String: Data]()
     var stringValues = [String: String]()
     var failNextDataWrite = false
+    var failDataWrites = false
+    var hideWrittenCanonicalReads = false
+    var hiddenReadKeys = Set<String>()
+    var writtenReadbackOverride: Data?
+    var readbackOverrides = [String: Data]()
     var failingDeleteKeys = Set<String>()
 
     var credentialStore: SessionCredentialStore {
         SessionCredentialStore(
             data: { [self] key in
-                dataValues[key]
+                guard !hiddenReadKeys.contains(key) else { return nil }
+                return readbackOverrides[key] ?? dataValues[key]
             },
             string: { [self] key in
                 stringValues[key]
             },
             setData: { [self] data, key in
-                if failNextDataWrite {
+                if failNextDataWrite || failDataWrites {
                     failNextDataWrite = false
                     // Match KeychainSwift.set's delete-before-add failure behavior.
                     dataValues.removeValue(forKey: key)
                     return false
                 }
                 dataValues[key] = data
+                if hideWrittenCanonicalReads { hiddenReadKeys.insert(key) }
+                readbackOverrides[key] = writtenReadbackOverride
                 return true
             },
             setString: { [self] value, key in
