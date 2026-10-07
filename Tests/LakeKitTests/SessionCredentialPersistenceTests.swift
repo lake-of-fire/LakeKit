@@ -1,8 +1,141 @@
 import Foundation
+import KeychainSwift
+import Security
 import XCTest
 @testable import LakeKit
 
 final class SessionCredentialPersistenceTests: XCTestCase {
+    @MainActor
+    func testNativeKeychainCredentialSlotsPreserveAuthorizationAcrossRestartAndLogout() throws {
+        let prefix = "io.manabi.tests.native-credentials.\(UUID().uuidString)."
+        let keychain = KeychainSwift(keyPrefix: prefix)
+        let ownedKeys = [
+            CredentialKeys.canonicalPrimary,
+            CredentialKeys.canonicalSecondary,
+            CredentialKeys.deprecatedCanonical,
+            CredentialKeys.legacyAuthToken,
+            CredentialKeys.legacyUserID,
+        ]
+        // Delete only this test's prefixed keys, including on an assertion/unwrap failure.
+        defer {
+            for key in ownedKeys {
+                let deleted = keychain.delete(key)
+                let status = keychain.lastResultCode
+                XCTAssertTrue(
+                    (deleted && status == errSecSuccess)
+                        || (!deleted && status == errSecItemNotFound),
+                    "Native Keychain cleanup failed for \(key): OSStatus \(status)"
+                )
+            }
+        }
+
+        func assertOwnedKeysAbsent() {
+            for key in ownedKeys {
+                let data = keychain.getData(key)
+                let status = keychain.lastResultCode
+                XCTAssertNil(data, "Unexpected native Keychain value for \(key)")
+                XCTAssertEqual(
+                    status, errSecItemNotFound,
+                    "Native Keychain absence check failed for \(key): OSStatus \(status)"
+                )
+            }
+        }
+
+        func readCredentials(_ key: String) throws -> SessionCredentials {
+            let data = keychain.getData(key)
+            let status = keychain.lastResultCode
+            XCTAssertEqual(
+                status, errSecSuccess,
+                "Native Keychain read failed for \(key): OSStatus \(status)"
+            )
+            return try JSONDecoder().decode(
+                SessionCredentials.self,
+                from: XCTUnwrap(data, "Missing native Keychain record for \(key)")
+            )
+        }
+
+        assertOwnedKeysAbsent()
+        let durableCredentials: SessionCredentials
+        do {
+            let session = Session(keychain: keychain, authenticationPresentationDelayNanoseconds: 0)
+            XCTAssertFalse(session.isAuthenticated)
+            XCTAssertNil(AccountSessionAccess(session: session).authorization)
+
+            session.authenticated(authToken: "synthetic-native-first-token", userID: 42)
+            let access = AccountSessionAccess(session: session)
+            let firstAuthorization = try XCTUnwrap(access.authorization)
+            let primary = try readCredentials(CredentialKeys.canonicalPrimary)
+            XCTAssertEqual(primary.revision, 1)
+            XCTAssertEqual(primary.authToken, "synthetic-native-first-token")
+            XCTAssertEqual(primary.userID, 42)
+            XCTAssertFalse(primary.recordID.isEmpty)
+            XCTAssertEqual(firstAuthorization.credentialRecordID, primary.recordID)
+            XCTAssertEqual(firstAuthorization.authToken, primary.authToken)
+            XCTAssertEqual(firstAuthorization.accountSession, session.accountSessionSnapshot)
+
+            session.authenticated(authToken: "synthetic-native-second-token", userID: 7)
+            let secondAuthorization = try XCTUnwrap(access.authorization)
+            durableCredentials = try readCredentials(CredentialKeys.canonicalSecondary)
+            XCTAssertEqual(try readCredentials(CredentialKeys.canonicalPrimary), primary)
+            XCTAssertEqual(durableCredentials.revision, 2)
+            XCTAssertEqual(durableCredentials.authToken, "synthetic-native-second-token")
+            XCTAssertEqual(durableCredentials.userID, 7)
+            XCTAssertFalse(durableCredentials.recordID.isEmpty)
+            XCTAssertNotEqual(durableCredentials.recordID, primary.recordID)
+            XCTAssertEqual(secondAuthorization.credentialRecordID, durableCredentials.recordID)
+            XCTAssertEqual(secondAuthorization.authToken, durableCredentials.authToken)
+            XCTAssertEqual(secondAuthorization.accountSession, session.accountSessionSnapshot)
+            XCTAssertEqual(secondAuthorization.accountSession.identity, .authenticated(userID: 7))
+            XCTAssertNil(access.authorization(ifCurrent: firstAuthorization.accountSession))
+
+            let mirroredToken = keychain.get(CredentialKeys.legacyAuthToken)
+            XCTAssertEqual(keychain.lastResultCode, errSecSuccess)
+            XCTAssertEqual(mirroredToken, durableCredentials.authToken)
+            let mirroredUserID = keychain.get(CredentialKeys.legacyUserID)
+            XCTAssertEqual(keychain.lastResultCode, errSecSuccess)
+            XCTAssertEqual(mirroredUserID, String(durableCredentials.userID))
+        }
+
+        do {
+            // A fresh KeychainSwift instance must recover the same durable identity.
+            let restarted = Session(
+                keychain: KeychainSwift(keyPrefix: prefix),
+                authenticationPresentationDelayNanoseconds: 0
+            )
+            let access = AccountSessionAccess(session: restarted)
+            let authorization = try XCTUnwrap(access.authorization)
+            XCTAssertTrue(restarted.isAuthenticated)
+            XCTAssertEqual(restarted.userID, durableCredentials.userID)
+            XCTAssertEqual(authorization.credentialRecordID, durableCredentials.recordID)
+            XCTAssertEqual(authorization.authToken, durableCredentials.authToken)
+            XCTAssertEqual(authorization.accountSession, restarted.accountSessionSnapshot)
+            XCTAssertEqual(authorization.accountSession.identity, .authenticated(userID: 7))
+            XCTAssertEqual(access.authorization(ifCurrent: restarted.accountSessionSnapshot), authorization)
+
+            restarted.updateAuthenticationState()
+            XCTAssertEqual(access.authorization, authorization)
+            XCTAssertEqual(try readCredentials(CredentialKeys.canonicalSecondary), durableCredentials)
+
+            XCTAssertTrue(restarted.logout(), "Native Keychain logout must succeed")
+            XCTAssertFalse(restarted.isAuthenticated)
+            XCTAssertEqual(restarted.userID, -1)
+            XCTAssertEqual(restarted.accountSessionSnapshot.identity, .signedOut)
+            XCTAssertNil(access.authorization)
+            XCTAssertNil(access.authorization(ifCurrent: authorization.accountSession))
+            assertOwnedKeysAbsent()
+        }
+
+        let signedOutRestart = Session(
+            keychain: KeychainSwift(keyPrefix: prefix),
+            authenticationPresentationDelayNanoseconds: 0
+        )
+        XCTAssertFalse(signedOutRestart.isAuthenticated)
+        XCTAssertEqual(signedOutRestart.userID, -1)
+        XCTAssertEqual(signedOutRestart.accountSessionSnapshot.identity, .signedOut)
+        XCTAssertNil(AccountSessionAccess(session: signedOutRestart).authorization)
+        assertOwnedKeysAbsent()
+    }
+
     @MainActor
     func testEphemeralSessionPublishesCredentialsWithoutSharingThem() {
         let session = Session.ephemeralForTesting()
