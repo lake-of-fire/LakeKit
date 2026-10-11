@@ -60,3 +60,21 @@ root's explicit test-source list does not yet include this regression. Current
 candidate compilation, test execution, root integration and mounted rapid
 navigation/store layout checks remain unverified. Historical qualification above
 does not qualify this new candidate.
+
+## October 10, 2026 local replacement review (America/Toronto)
+
+This source-only re-review starts at draft #13 `29db685f7145182445324ac0d8aefbd58eb6f3c2`.
+Fresh refs still select main `ce5732052d1480329b4b1c47f1440877dedf0e41`. Review uses an
+isolated clone; the preserved task-18 checkout and Reader root pins are unchanged.
+
+P2 fixture liveness: `testCanceledCompletionCannotHideSuccessorProgress` previously awaited
+an unchecked-length entry continuation. If a regression prevented sleep entry, the test
+could hang without reaching its cancellation oracle. The fixture now uses a five-second
+XCTest expectation and throws on missing entry. Deferred cancellation and sleeper release
+also run on failure. The real helper, cancellation interleaving and completion assertions
+remain; no production layout or progress behavior changes.
+
+Actual verification is full focused source/test diff review, owning-target membership
+inspection and `git diff --check`. No build, test, native app, generator, benchmark or CI
+dispatch occurred. Regression compilation/execution, mounted progress ownership, purchase
+layout and root test membership remain open. Publication uses `[skip ci]`.
