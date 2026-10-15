@@ -3,7 +3,7 @@ import XCTest
 
 final class LocationBarProgressHideTests: XCTestCase {
     @MainActor
-    func testCanceledCompletionCannotHideSuccessorProgress() async {
+    func testCanceledCompletionCannotHideSuccessorProgress() async throws {
         var visible = true
         var progress = 1.0
         let sleeper = SuspendedSleep()
@@ -13,7 +13,11 @@ final class LocationBarProgressHideTests: XCTestCase {
                 progress = 0
             }
         }
-        await sleeper.waitUntilSleeping()
+        defer {
+            oldTask.cancel()
+            sleeper.resume()
+        }
+        try await sleeper.waitUntilSleeping()
         oldTask.cancel()
         visible = true
         progress = 0.25
@@ -65,20 +69,21 @@ final class LocationBarProgressHideTests: XCTestCase {
 
 @MainActor
 private final class SuspendedSleep {
+    private enum WaitError: Error { case didNotStart }
+
     private var continuation: CheckedContinuation<Void, Never>?
-    private var started: CheckedContinuation<Void, Never>?
+    private let started = XCTestExpectation(description: "progress hide sleep started")
 
     func sleep(_ nanoseconds: UInt64) async throws {
         await withCheckedContinuation { continuation in
             self.continuation = continuation
-            started?.resume()
-            started = nil
+            started.fulfill()
         }
     }
 
-    func waitUntilSleeping() async {
-        guard continuation == nil else { return }
-        await withCheckedContinuation { started = $0 }
+    func waitUntilSleeping() async throws {
+        let status = await XCTWaiter.fulfillment(of: [started], timeout: 5)
+        guard status == .completed, continuation != nil else { throw WaitError.didNotStart }
     }
 
     func resume() {
