@@ -166,10 +166,10 @@
     {
       "identity" : "storehelper",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/lake-of-fire/StoreHelper.git",
+      "location" : "https://github.com/russell-archer/StoreHelper.git",
       "state" : {
-        "branch" : "main",
-        "revision" : "60b410573cc36d7da51c0548fdcae49619c30f03"
+        "revision" : "1c55f49473d847fd5a2f495aabe45f6e5ea3e2ef",
+        "version" : "2.7.1"
       }
     },
     {
