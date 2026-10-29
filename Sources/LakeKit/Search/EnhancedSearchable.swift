@@ -317,6 +317,8 @@ private struct NativeSearchStateObserver: View {
     }
 }
 
+// Dormant UI retained for local development; excluded from shipping builds.
+#if DEBUG
 #if os(iOS)
 struct CustomSpacingLabel: LabelStyle {
     var spacing: Double = 0.0
@@ -328,6 +330,7 @@ struct CustomSpacingLabel: LabelStyle {
         }
     }
 }
+#endif
 #endif
 
 public extension View {

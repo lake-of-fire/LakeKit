@@ -254,7 +254,10 @@ struct OnboardingPrimaryButtons: View {
     var showsPrimaryAction = true
     var primaryActionTransition: AnyTransition = .move(edge: .bottom).combined(with: .opacity)
 
+// Dormant UI retained for local development; excluded from shipping builds.
+#if DEBUG
     @State private var highlightedProduct: PrePurchaseSubscriptionInfo?
+#endif
     @AppStorage("hasSeenOnboarding") var hasSeenOnboarding = false
     @AppStorage("hasRespondedToOnboarding") var hasRespondedToOnboarding = false
     @EnvironmentObject private var storeViewModel: StoreViewModel
@@ -265,6 +268,8 @@ struct OnboardingPrimaryButtons: View {
     @Environment(\.verticalSizeClass) private var verticalSizeClass
 #endif
 
+// Dormant UI retained for local development; excluded from shipping builds.
+#if DEBUG
     private var headlineText: String {
         if let highlightedProduct {
             let renewalPeriod = highlightedProduct.subscriptionPeriod
@@ -290,6 +295,7 @@ struct OnboardingPrimaryButtons: View {
         }
         return ""
     }
+#endif
 
     private var shouldOfferFreeModePath: Bool {
 #if DEBUG
@@ -321,6 +327,8 @@ struct OnboardingPrimaryButtons: View {
         return currentCard?.skipActionTitle
     }
 
+// Dormant UI retained for local development; excluded from shipping builds.
+#if DEBUG
     @ViewBuilder
     private func subscriptionButton() -> some View {
         Button {
@@ -347,7 +355,8 @@ struct OnboardingPrimaryButtons: View {
         .padding(.vertical, (horizontalSizeClass == .compact ? 0: 5) as CGFloat?)
 #endif
     }
-    
+#endif
+
     @ViewBuilder
     private func requiredActionButton() -> some View {
         OnboardingPrimaryButton(

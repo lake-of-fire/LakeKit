@@ -2,6 +2,8 @@ import SwiftUI
 
 // MARK: - StackList Style & Environment
 
+// Dormant StackList layout retained for local development.
+#if DEBUG
 public struct StackListConfig: Equatable, Sendable {
     public var interItemSpacing: CGFloat
     public var managesSeparators: Bool
@@ -29,6 +31,9 @@ extension EnvironmentValues {
     }
 }
 
+#endif
+
+// Shared appearance is also consumed by the current list and group-box views.
 // MARK: - Appearance Environment (separate from layout config)
 public enum StackListAppearance: Equatable, Sendable {
     case automatic
@@ -47,6 +52,7 @@ extension EnvironmentValues {
     }
 }
 
+#if DEBUG
 private struct StackListContentBackgroundVisibilityKey: EnvironmentKey {
     static let defaultValue: Visibility = .automatic
 }
@@ -57,6 +63,8 @@ extension EnvironmentValues {
         set { self[StackListContentBackgroundVisibilityKey.self] = newValue }
     }
 }
+
+#endif
 
 // MARK: - Style-type API (mimic SwiftUI's .listStyle)
 
@@ -96,11 +104,15 @@ public extension View {
         environment(\.stackListStyle, appearance)
     }
     /// Matches SwiftUI's `.scrollContentBackground(_:)`, allowing callers to show or hide StackList's background.
+#if DEBUG
     func stackListContentBackground(_ visibility: Visibility) -> some View {
         environment(\.stackListContentBackgroundVisibility, visibility)
     }
+#endif
 }
 
+// Dormant layout writers, row preferences, builder and container.
+#if DEBUG
 private struct StackListStyleWriter: ViewModifier {
     @Environment(\.stackListConfig) private var current
     let interItemSpacing: CGFloat?
@@ -504,3 +516,4 @@ public struct StackList: View {
         }
     }
 }
+#endif

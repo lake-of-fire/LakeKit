@@ -159,6 +159,8 @@ public extension StackSectionListRow {
     }
 }
 
+// Dormant UI retained for local development; excluded from shipping builds.
+#if DEBUG
 public struct StackSectionList: View {
     private let rows: [StackSectionListRow]
     private let rowSpacing: CGFloat
@@ -248,3 +250,4 @@ private enum StackSectionListTypography {
 #endif
     }
 }
+#endif

@@ -1,3 +1,5 @@
+// Dormant UI retained for local development; excluded from shipping builds.
+#if DEBUG
 //
 //  WheelScroll.swift
 //  TestSwiftUI
@@ -134,3 +136,4 @@ fileprivate extension View {
 //        return Image(uiImage: image)
 //    }
 //}
+#endif

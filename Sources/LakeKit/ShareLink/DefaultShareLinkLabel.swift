@@ -1,3 +1,5 @@
+// Dormant UI retained for local development; excluded from shipping builds.
+#if DEBUG
 import SwiftUI
 //import SwiftBackports
 
@@ -44,3 +46,4 @@ public struct DefaultShareLinkLabel: View {
         }
     }
 }
+#endif

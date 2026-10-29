@@ -1,16 +1,35 @@
 import Foundation
 import KeychainSwift
+import Security
+
+enum SessionCredentialRead<Value> {
+    case value(Value)
+    case missing
+    case unavailable
+
+    func resolved() throws -> Value? {
+        switch self {
+        case .value(let value): return value
+        case .missing: return nil
+        case .unavailable: throw SessionCredentialStorageError.unavailable
+        }
+    }
+}
+
+private enum SessionCredentialStorageError: Error {
+    case unavailable
+}
 
 struct SessionCredentialStore {
-    let data: (String) -> Data?
-    let string: (String) -> String?
+    let data: (String) -> SessionCredentialRead<Data>
+    let string: (String) -> SessionCredentialRead<String>
     let setData: (Data, String) -> Bool
     let setString: (String, String) -> Bool
     let delete: (String) -> Bool
 
     init(
-        data: @escaping (String) -> Data?,
-        string: @escaping (String) -> String?,
+        data: @escaping (String) -> SessionCredentialRead<Data>,
+        string: @escaping (String) -> SessionCredentialRead<String>,
         setData: @escaping (Data, String) -> Bool,
         setString: @escaping (String, String) -> Bool,
         delete: @escaping (String) -> Bool
@@ -23,8 +42,14 @@ struct SessionCredentialStore {
     }
 
     init(keychain: KeychainSwift) {
-        data = { keychain.getData($0) }
-        string = { keychain.get($0) }
+        data = {
+            if let value = keychain.getData($0) { return .value(value) }
+            return keychain.lastResultCode == errSecItemNotFound ? .missing : .unavailable
+        }
+        string = {
+            if let value = keychain.get($0) { return .value(value) }
+            return keychain.lastResultCode == errSecItemNotFound ? .missing : .unavailable
+        }
         setData = {
             keychain.set(
                 $0,
@@ -39,7 +64,10 @@ struct SessionCredentialStore {
                 withAccess: .accessibleAfterFirstUnlock
             )
         }
-        delete = { keychain.delete($0) }
+        delete = {
+            let deleted = keychain.delete($0)
+            return deleted || keychain.lastResultCode == errSecItemNotFound
+        }
     }
 }
 
@@ -124,22 +152,31 @@ struct SessionCredentialRepository {
         self.store = store
     }
 
-    func load() -> SessionCredentials? {
-        if let record = currentCanonicalRecord() {
-            return record.credentials
+    func load() throws -> SessionCredentials? {
+        if let record = try currentCanonicalRecord() {
+            guard record.credentials.recordID.isEmpty else { return record.credentials }
+            let upgraded = SessionCredentials(
+                authToken: record.credentials.authToken,
+                userID: record.credentials.userID,
+                revision: record.credentials.revision
+            )
+            guard persistCanonical(upgraded) else { return record.credentials }
+            return (try? currentCanonicalRecord())?.credentials ?? record.credentials
         }
 
-        if let data = store.data(Key.deprecatedCanonical) {
+        if let data = try store.data(Key.deprecatedCanonical).resolved() {
             if let credentials = decodeValidCredentials(data) {
                 // Migration failure does not invalidate a complete existing login.
-                _ = persistCanonical(credentials)
+                if persistCanonical(credentials) {
+                    return (try? currentCanonicalRecord())?.credentials ?? credentials
+                }
                 return credentials
             }
-            _ = deleteIfPresent(Key.deprecatedCanonical, exists: true)
+            _ = store.delete(Key.deprecatedCanonical)
         }
 
-        let legacyAuthToken = store.string(Key.legacyAuthToken)
-        let legacyUserID = store.string(Key.legacyUserID).flatMap(Int.init)
+        let legacyAuthToken = try store.string(Key.legacyAuthToken).resolved()
+        let legacyUserID = try store.string(Key.legacyUserID).resolved().flatMap(Int.init)
         guard let legacyAuthToken,
               !legacyAuthToken.isEmpty,
               let legacyUserID,
@@ -153,8 +190,16 @@ struct SessionCredentialRepository {
             authToken: legacyAuthToken,
             userID: legacyUserID
         )
-        _ = persistCanonical(credentials)
-        return credentials
+        if persistCanonical(credentials), let persisted = (try? currentCanonicalRecord())?.credentials {
+            return persisted
+        }
+        // A failed write or unavailable readback must not invalidate the complete
+        // legacy login. Publish durable identity only after canonical readback.
+        return SessionCredentials(
+            authToken: legacyAuthToken,
+            userID: legacyUserID,
+            recordID: ""
+        )
     }
 
     func persist(_ credentials: SessionCredentials) -> Bool {
@@ -167,63 +212,58 @@ struct SessionCredentialRepository {
     }
 
     func remove() -> Bool {
-        let currentRecord = currentCanonicalRecord()
+        // Determine the current slot before any destructive operation. An
+        // unreadable newer record must never make an older account authoritative.
+        let currentRecord: Record?
+        do { currentRecord = try currentCanonicalRecord() }
+        catch { return false }
         var removedSupersededSlots = true
         for slot in Slot.allCases where slot != currentRecord?.slot {
-            let removed = deleteIfPresent(
-                slot.key,
-                exists: store.data(slot.key) != nil
-            )
+            let removed = store.delete(slot.key)
             removedSupersededSlots = removed && removedSupersededSlots
         }
-        let removedDeprecatedCanonical = deleteIfPresent(
-            Key.deprecatedCanonical,
-            exists: store.data(Key.deprecatedCanonical) != nil
-        )
+        let removedDeprecatedCanonical = store.delete(Key.deprecatedCanonical)
         let removedLegacy = removeLegacyCredentials()
-        guard removedSupersededSlots,
-              removedDeprecatedCanonical,
-              removedLegacy else {
-            // Keep the current complete pair when ancillary cleanup fails. This
-            // avoids falling back to a superseded account on this or the next launch.
+        guard removedSupersededSlots, removedDeprecatedCanonical, removedLegacy else {
+            // Preserve the newest complete login until all fallback records are gone.
             return false
         }
         guard let currentRecord else { return true }
-        return deleteIfPresent(
-            currentRecord.slot.key,
-            exists: store.data(currentRecord.slot.key) != nil
-        )
+        return store.delete(currentRecord.slot.key)
     }
 
     private func persistCanonical(_ credentials: SessionCredentials) -> Bool {
         guard credentials.isValid else { return false }
-        let currentRecord = currentCanonicalRecord()
+        let currentRecord: Record?
+        do { currentRecord = try currentCanonicalRecord() }
+        catch { return false }
         let currentRevision = currentRecord?.credentials.revision ?? 0
         guard currentRevision < UInt64.max else { return false }
         let revisedCredentials = SessionCredentials(
             authToken: credentials.authToken,
             userID: credentials.userID,
-            revision: currentRevision + 1
+            revision: currentRevision + 1,
+            recordID: credentials.recordID.isEmpty ? UUID().uuidString : credentials.recordID
         )
         guard let data = try? JSONEncoder().encode(revisedCredentials) else {
             return false
         }
         let destination = currentRecord?.slot.alternate ?? .primary
         guard store.setData(data, destination.key) else { return false }
-        _ = deleteIfPresent(
-            Key.deprecatedCanonical,
-            exists: store.data(Key.deprecatedCanonical) != nil
-        )
+        _ = store.delete(Key.deprecatedCanonical)
         return true
     }
 
-    private func currentCanonicalRecord() -> Record? {
+    private func currentCanonicalRecord() throws -> Record? {
         var records = [Record]()
         records.reserveCapacity(Slot.allCases.count)
-        for slot in Slot.allCases {
-            guard let data = store.data(slot.key) else { continue }
+        // Read every slot before repairing malformed records. A failed read
+        // leaves the whole durable credential set untouched.
+        let values = try Slot.allCases.map { ($0, try store.data($0.key).resolved()) }
+        for (slot, value) in values {
+            guard let data = value else { continue }
             guard let credentials = decodeValidCredentials(data) else {
-                _ = deleteIfPresent(slot.key, exists: true)
+                _ = store.delete(slot.key)
                 continue
             }
             records.append(Record(slot: slot, credentials: credentials))
@@ -247,20 +287,9 @@ struct SessionCredentialRepository {
     }
 
     private func removeLegacyCredentials() -> Bool {
-        let authTokenExists = store.string(Key.legacyAuthToken) != nil
-        let userIDExists = store.string(Key.legacyUserID) != nil
-        let removedAuthToken = deleteIfPresent(
-            Key.legacyAuthToken,
-            exists: authTokenExists
-        )
-        let removedUserID = deleteIfPresent(
-            Key.legacyUserID,
-            exists: userIDExists
-        )
+        // Deletion status, rather than an optional read, proves absence.
+        let removedAuthToken = store.delete(Key.legacyAuthToken)
+        let removedUserID = store.delete(Key.legacyUserID)
         return removedAuthToken && removedUserID
-    }
-
-    private func deleteIfPresent(_ key: String, exists: Bool) -> Bool {
-        !exists || store.delete(key)
     }
 }

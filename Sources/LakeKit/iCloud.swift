@@ -59,6 +59,8 @@ extension SyncMonitor.SyncState: Equatable {
     }
 }
 
+// Dormant UI retained for local development; excluded from shipping builds.
+#if DEBUG
 public struct ICloudStatusReaderModifier: ViewModifier {
     let cloudKitSynchronizers: [CloudKitSynchronizer]
     
@@ -132,3 +134,4 @@ public extension View {
         return self.modifier(ICloudStatusReaderModifier(cloudKitSynchronizers: cloudKitSynchronizers))
     }
 }
+#endif

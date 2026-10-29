@@ -1,5 +1,7 @@
 import Foundation
 import XCTest
+import KeychainSwift
+import Security
 @testable import LakeKit
 
 final class SessionCredentialPersistenceTests: XCTestCase {
@@ -52,6 +54,78 @@ final class SessionCredentialPersistenceTests: XCTestCase {
     }
 
     @MainActor
+    func testCredentialRecordIdentityMatchesDurableRecordAndSurvivesRestart() {
+        let store = InMemoryCredentialStore()
+        let session = makeSession(using: store)
+
+        session.authenticated(authToken: "same-token", userID: 42)
+        let original = AccountSessionAccess(session: session).authorization?.credentialRecordID
+
+        XCTAssertNotNil(original)
+        XCTAssertEqual(original, store.latestCanonicalRecord?.recordID)
+
+        let restarted = makeSession(using: store)
+        XCTAssertEqual(
+            AccountSessionAccess(session: restarted).authorization?.credentialRecordID,
+            original
+        )
+
+        let beforeRefresh = session.accountSessionSnapshot
+        session.updateAuthenticationState()
+        XCTAssertEqual(session.accountSessionSnapshot, beforeRefresh)
+
+        session.authenticated(authToken: "same-token", userID: 42)
+        let refreshedCredentialRecordID =
+            AccountSessionAccess(session: session).authorization?.credentialRecordID
+        XCTAssertNotEqual(refreshedCredentialRecordID, original)
+        XCTAssertEqual(refreshedCredentialRecordID, store.latestCanonicalRecord?.recordID)
+        XCTAssertNotEqual(session.accountSessionSnapshot.generation, beforeRefresh.generation)
+    }
+
+    @MainActor
+    func testOldCredentialRecordUpgradesStableIdentityWithoutChangingLogin() throws {
+        let store = InMemoryCredentialStore()
+        store.dataValues[CredentialKeys.canonicalPrimary] = try JSONSerialization.data(
+            withJSONObject: [
+                "authToken": "legacy-token",
+                "userID": 42,
+                "revision": 1,
+            ]
+        )
+
+        let session = makeSession(using: store)
+        let identity = AccountSessionAccess(session: session).authorization?.credentialRecordID
+
+        XCTAssertNotNil(identity)
+        XCTAssertEqual(identity, store.latestCanonicalRecord?.recordID)
+        XCTAssertEqual(session.userID, 42)
+        XCTAssertEqual(
+            AccountSessionAccess(session: makeSession(using: store)).authorization?.credentialRecordID,
+            identity
+        )
+    }
+
+    @MainActor
+    func testFailedCredentialIdentityUpgradePreservesLoginWithoutInventingDurableAuthority() throws {
+        let store = InMemoryCredentialStore()
+        store.dataValues[CredentialKeys.canonicalPrimary] = try JSONSerialization.data(
+            withJSONObject: [
+                "authToken": "legacy-token",
+                "userID": 42,
+                "revision": 1,
+            ]
+        )
+        store.failNextDataWrite = true
+
+        let session = makeSession(using: store)
+
+        XCTAssertEqual(session.userID, 42)
+        XCTAssertTrue(session.isAuthenticated)
+        XCTAssertNil(AccountSessionAccess(session: session).authorization?.credentialRecordID)
+        XCTAssertNil(store.latestCanonicalRecord?.recordID)
+    }
+
+    @MainActor
     func testLegacyCredentialPairMigratesToCanonicalSlots() {
         let store = InMemoryCredentialStore()
         store.stringValues[CredentialKeys.legacyAuthToken] = "legacy-token"
@@ -75,6 +149,54 @@ final class SessionCredentialPersistenceTests: XCTestCase {
             reloadedSession.accountSessionSnapshot.identity,
             .authenticated(userID: 42)
         )
+    }
+
+    @MainActor
+    func testLegacyMigrationWithUnavailableReadbackPreservesLoginAndRecoversDurableIdentity() throws {
+        let store = InMemoryCredentialStore()
+        store.stringValues[CredentialKeys.legacyAuthToken] = "legacy-token"
+        store.stringValues[CredentialKeys.legacyUserID] = "42"
+        let underlying = store.credentialStore
+        var canonicalReadbackIsUnavailable = false
+        let session = Session(
+            credentialStore: SessionCredentialStore(
+                data: { key in
+                    if canonicalReadbackIsUnavailable, CredentialKeys.canonicalSlots.contains(key) {
+                        return .unavailable
+                    }
+                    return underlying.data(key)
+                },
+                string: underlying.string,
+                setData: { data, key in
+                    guard underlying.setData(data, key) else { return false }
+                    canonicalReadbackIsUnavailable = true
+                    return true
+                },
+                setString: underlying.setString,
+                delete: underlying.delete
+            ),
+            authenticationPresentationDelayNanoseconds: 0
+        )
+        let access = AccountSessionAccess(session: session)
+        let beforeReadback = session.accountSessionSnapshot
+        XCTAssertTrue(session.isAuthenticated)
+        XCTAssertEqual(session.userID, 42)
+        XCTAssertEqual(access.authorization?.authToken, "legacy-token")
+        XCTAssertNil(access.authorization?.credentialRecordID)
+        let storedIdentity = try XCTUnwrap(store.latestCanonicalRecord?.recordID)
+
+        canonicalReadbackIsUnavailable = false
+        session.updateAuthenticationState()
+        XCTAssertTrue(session.isAuthenticated)
+        XCTAssertEqual(session.userID, 42)
+        XCTAssertEqual(access.authorization?.credentialRecordID, storedIdentity)
+        XCTAssertNotEqual(session.accountSessionSnapshot.generation, beforeReadback.generation)
+        XCTAssertNil(access.authorization(ifCurrent: beforeReadback))
+
+        let afterReadback = session.accountSessionSnapshot
+        session.updateAuthenticationState()
+        XCTAssertEqual(session.accountSessionSnapshot, afterReadback)
+        XCTAssertEqual(store.canonicalRecords.count, 1)
     }
 
     @MainActor
@@ -178,12 +300,104 @@ final class SessionCredentialPersistenceTests: XCTestCase {
     }
 
     @MainActor
+    func testUnavailableCanonicalReadsCannotPublishSuccessfulLogout() {
+        let store = InMemoryCredentialStore()
+        let session = makeSession(using: store)
+        session.authenticated(authToken: "first-token", userID: 42)
+        session.authenticated(authToken: "current-token", userID: 7)
+        let records = store.dataValues
+        store.unavailableReadKeys.formUnion(CredentialKeys.canonicalSlots)
+
+        XCTAssertFalse(session.logout())
+        XCTAssertTrue(session.isAuthenticated)
+        XCTAssertEqual(session.userID, 7)
+        XCTAssertEqual(AccountSessionAccess(session: session).authorization?.authToken, "current-token")
+        XCTAssertEqual(store.dataValues, records)
+
+        store.unavailableReadKeys.removeAll()
+        XCTAssertTrue(session.logout())
+        XCTAssertTrue(store.dataValues.isEmpty)
+        XCTAssertTrue(store.stringValues.isEmpty)
+        XCTAssertFalse(makeSession(using: store).isAuthenticated)
+        XCTAssertTrue(session.logout(), "Deleting already absent credentials is successful")
+    }
+
+    @MainActor
+    func testUnreadableNewestCanonicalSlotCannotRestoreSupersededAccount() throws {
+        let store = InMemoryCredentialStore()
+        let session = makeSession(using: store)
+        session.authenticated(authToken: "old-token", userID: 42)
+        session.authenticated(authToken: "current-token", userID: 7)
+        let snapshot = session.accountSessionSnapshot
+        store.unavailableReadKeys.insert(try XCTUnwrap(store.latestCanonicalKey))
+
+        session.updateAuthenticationState()
+
+        XCTAssertEqual(session.accountSessionSnapshot, snapshot)
+        XCTAssertEqual(session.userID, 7)
+        XCTAssertEqual(AccountSessionAccess(session: session).authorization?.authToken, "current-token")
+        XCTAssertFalse(makeSession(using: store).isAuthenticated,
+                       "A fresh session must not guess which canonical account is current")
+        store.unavailableReadKeys.removeAll()
+        XCTAssertEqual(makeSession(using: store).userID, 7)
+    }
+
+    @MainActor
+    func testUnavailableCanonicalReadsCannotOverwriteDurableLogin() {
+        let store = InMemoryCredentialStore()
+        let session = makeSession(using: store)
+        session.authenticated(authToken: "first-token", userID: 42)
+        session.authenticated(authToken: "current-token", userID: 7)
+        let records = store.dataValues
+        store.unavailableReadKeys.formUnion(CredentialKeys.canonicalSlots)
+
+        session.authenticated(authToken: "requested-token", userID: 99)
+
+        XCTAssertEqual(store.dataValues, records)
+        XCTAssertEqual(session.userID, 7)
+        XCTAssertEqual(AccountSessionAccess(session: session).authorization?.authToken, "current-token")
+        store.unavailableReadKeys.removeAll()
+        XCTAssertEqual(makeSession(using: store).userID, 7)
+    }
+
+    @MainActor
+    func testUnavailableLegacyReadDoesNotDestroyCompleteCredentialPair() {
+        let store = InMemoryCredentialStore()
+        store.stringValues[CredentialKeys.legacyAuthToken] = "legacy-token"
+        store.stringValues[CredentialKeys.legacyUserID] = "42"
+        store.unavailableReadKeys.insert(CredentialKeys.legacyAuthToken)
+        let values = store.stringValues
+        let session = makeSession(using: store)
+
+        XCTAssertFalse(session.isAuthenticated)
+        XCTAssertEqual(store.stringValues, values)
+        store.unavailableReadKeys.removeAll()
+        session.updateAuthenticationState()
+        XCTAssertEqual(session.userID, 42)
+        XCTAssertEqual(AccountSessionAccess(session: session).authorization?.authToken, "legacy-token")
+    }
+
+    @MainActor
+    func testUnreadableLegacyMirrorIsDeletedWithoutPresencePrecheck() {
+        let store = InMemoryCredentialStore()
+        let session = makeSession(using: store)
+        session.authenticated(authToken: "current-token", userID: 7)
+        store.unavailableReadKeys.insert(CredentialKeys.legacyAuthToken)
+
+        XCTAssertTrue(session.logout())
+        XCTAssertTrue(store.stringValues.isEmpty)
+        store.unavailableReadKeys.removeAll()
+        XCTAssertFalse(makeSession(using: store).isAuthenticated)
+    }
+
+    @MainActor
     func testAccountAuthorizationBindsTokenToCurrentSessionGeneration() {
         let store = InMemoryCredentialStore()
         let session = makeSession(using: store)
         session.authenticated(authToken: "first-token", userID: 42)
         let access = AccountSessionAccess(session: session)
         let firstSnapshot = session.accountSessionSnapshot
+        let firstCredentialRecordID = access.authorization?.credentialRecordID
 
         XCTAssertEqual(access.authorization?.accountSession, firstSnapshot)
         XCTAssertEqual(access.authorization?.authToken, "first-token")
@@ -192,6 +406,10 @@ final class SessionCredentialPersistenceTests: XCTestCase {
         let secondSnapshot = session.accountSessionSnapshot
 
         XCTAssertNotEqual(firstSnapshot.generation, secondSnapshot.generation)
+        XCTAssertNotEqual(
+            access.authorization(ifCurrent: secondSnapshot)?.credentialRecordID,
+            firstCredentialRecordID
+        )
         XCTAssertEqual(access.authorization?.accountSession, secondSnapshot)
         XCTAssertEqual(access.authorization?.authToken, "second-token")
         XCTAssertNil(access.authorization(ifCurrent: firstSnapshot))
@@ -229,6 +447,32 @@ final class SessionCredentialPersistenceTests: XCTestCase {
         XCTAssertEqual(session.accountSessionSnapshot, replacementSnapshot)
     }
 
+    func testKeychainReadStatusDistinguishesUnavailableFromMissing() throws {
+        let keychain = CredentialStatusKeychain()
+        let store = SessionCredentialStore(keychain: keychain)
+        keychain.readStatus = errSecInteractionNotAllowed
+        XCTAssertThrowsError(try store.data("fixture").resolved())
+        XCTAssertThrowsError(try store.string("fixture").resolved())
+        keychain.readStatus = errSecItemNotFound
+        XCTAssertNil(try store.data("fixture").resolved())
+        XCTAssertNil(try store.string("fixture").resolved())
+        keychain.readStatus = errSecSuccess
+        keychain.readValue = Data("token".utf8)
+        XCTAssertEqual(try store.data("fixture").resolved(), Data("token".utf8))
+        XCTAssertEqual(try store.string("fixture").resolved(), "token")
+    }
+
+    func testKeychainDeletionRequiresSuccessOrConfirmedAbsence() {
+        let keychain = CredentialStatusKeychain()
+        let store = SessionCredentialStore(keychain: keychain)
+        keychain.deleteStatus = errSecInteractionNotAllowed
+        XCTAssertFalse(store.delete("fixture"))
+        keychain.deleteStatus = errSecItemNotFound
+        XCTAssertTrue(store.delete("fixture"))
+        keychain.deleteStatus = errSecSuccess
+        XCTAssertTrue(store.delete("fixture"))
+    }
+
     @MainActor
     private func makeSession(using store: InMemoryCredentialStore) -> Session {
         Session(
@@ -247,6 +491,7 @@ enum CredentialKeys {
 }
 
 struct StoredCredentialFixture: Codable, Equatable {
+    let recordID: String?
     let authToken: String
     let userID: Int
     let revision: UInt64
@@ -257,14 +502,15 @@ final class InMemoryCredentialStore {
     var stringValues = [String: String]()
     var failNextDataWrite = false
     var failingDeleteKeys = Set<String>()
+    var unavailableReadKeys = Set<String>()
 
     var credentialStore: SessionCredentialStore {
         SessionCredentialStore(
             data: { [self] key in
-                dataValues[key]
+                unavailableReadKeys.contains(key) ? .unavailable : dataValues[key].map(SessionCredentialRead.value) ?? .missing
             },
             string: { [self] key in
-                stringValues[key]
+                unavailableReadKeys.contains(key) ? .unavailable : stringValues[key].map(SessionCredentialRead.value) ?? .missing
             },
             setData: { [self] data, key in
                 if failNextDataWrite {
@@ -309,5 +555,21 @@ final class InMemoryCredentialStore {
     var latestCanonicalRecord: StoredCredentialFixture? {
         guard let key = latestCanonicalKey else { return nil }
         return canonicalRecords[key]
+    }
+}
+
+private final class CredentialStatusKeychain: KeychainSwift {
+    var readStatus: OSStatus = errSecItemNotFound
+    var deleteStatus: OSStatus = errSecItemNotFound
+    var readValue: Data?
+
+    override func getData(_ key: String, asReference: Bool = false) -> Data? {
+        lastResultCode = readStatus
+        return readStatus == errSecSuccess ? readValue : nil
+    }
+
+    override func delete(_ key: String) -> Bool {
+        lastResultCode = deleteStatus
+        return deleteStatus == errSecSuccess
     }
 }

@@ -1,3 +1,5 @@
+// Dormant UI retained for local development; excluded from shipping builds.
+#if DEBUG
 import SwiftUI
 
 // See: https://stackoverflow.com/questions/63745084/how-can-i-make-a-background-color-with-opacity-on-a-sheet-view
@@ -70,3 +72,4 @@ public extension View {
         modifier(BlurBackgroundModifier())
     }
 }
+#endif

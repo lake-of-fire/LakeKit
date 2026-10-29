@@ -1,3 +1,5 @@
+// Dormant UI retained for local development; excluded from shipping builds.
+#if DEBUG
 import SwiftUI
 import SplitView
 
@@ -209,3 +211,4 @@ struct SplitViewSplitter: SplitDivider {
         self.styling = styling
     }
 }
+#endif

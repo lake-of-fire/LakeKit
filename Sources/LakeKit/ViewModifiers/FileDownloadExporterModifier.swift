@@ -1,3 +1,5 @@
+// Dormant UI retained for local development; excluded from shipping builds.
+#if DEBUG
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -228,3 +230,4 @@ private struct TemporaryDownloadedFileDocument: FileDocument {
         return TemporaryDownloadedFileDocument(fileURL: destinationURL, cleanupDirectoryURL: workingDirectory)
     }
 }
+#endif

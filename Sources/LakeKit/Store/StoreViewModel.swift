@@ -36,6 +36,7 @@ public class StoreViewModel: NSObject, ObservableObject {
     
     @Published public var headline: String
     @Published public var subheadline: String
+    public let purchaseEnvironmentNotice: String?
     @Published public var productGroupHeading: String
     @Published public var productGroupSubtitle: String?
     @Published public var freeTierExplanation: String?
@@ -64,6 +65,7 @@ public class StoreViewModel: NSObject, ObservableObject {
         highlightedProductID: String,
         headline: String,
         subheadline: String,
+        purchaseEnvironmentNotice: String? = nil,
         productGroupHeading: String,
         productGroupSubtitle: String?,
         freeTierExplanation: String? = nil,
@@ -85,6 +87,7 @@ public class StoreViewModel: NSObject, ObservableObject {
         self.highlightedProductID = highlightedProductID
         self.headline = headline
         self.subheadline = subheadline
+        self.purchaseEnvironmentNotice = purchaseEnvironmentNotice
         self.productGroupHeading = productGroupHeading
         self.productGroupSubtitle = productGroupSubtitle
         self.freeTierExplanation = freeTierExplanation

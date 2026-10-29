@@ -1,3 +1,5 @@
+// Dormant StackList section and dedicated helpers; retained for local development.
+#if DEBUG
 import SwiftUI
 import NavigationBackport
 
@@ -860,3 +862,5 @@ struct StackSection_Previews: PreviewProvider {
     }
 }
 #endif
+
+#endif // DEBUG: dormant StackList section

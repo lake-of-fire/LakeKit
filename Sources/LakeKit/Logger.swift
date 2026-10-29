@@ -131,6 +131,26 @@ public final class Logger: @unchecked Sendable /*: ObservableObject*/ {
         self.puppySink = configured.puppySink
         configureFileLogger()
     }
+
+    /// Low-volume diagnostics queue behind file-logger setup, so early launch
+    /// records are retained without blocking the caller on file I/O.
+    public func recordDiagnostic(_ message: String) {
+        Self.fileIOQueue.async { [self] in
+            logger.info("\(message)")
+        }
+    }
+
+#if DEBUG
+    /// Drain opt-in suspension diagnostics without blocking the main thread.
+    public func flushDiagnosticsForDebugging() async {
+        await withCheckedContinuation { continuation in
+            Self.fileIOQueue.async { [self] in
+                if let fileLogger { fileLogger.flush(fileLogger.fileURL) }
+                continuation.resume()
+            }
+        }
+    }
+#endif
     
     /// Deletes all log files from the log directory.
     public func clearLogFiles() {
@@ -150,12 +170,9 @@ public final class Logger: @unchecked Sendable /*: ObservableObject*/ {
         if DispatchQueue.getSpecific(key: fileIOQueueKey) != nil {
             return try work()
         }
-        if Thread.isMainThread {
-            return try fileIOQueue.sync {
-                try work()
-            }
+        return try fileIOQueue.sync {
+            try work()
         }
-        return try work()
     }
 
     // This method throws in theory, but not in practice.
@@ -229,6 +246,13 @@ public final class Logger: @unchecked Sendable /*: ObservableObject*/ {
     func getCurrentLogs() -> [URL] {
         do {
             return try Self.performFileIO {
+                // Include queued startup diagnostics and the logger's pending
+                // writes in the same snapshot that the user shares/exports.
+                // Drain the file sink itself. Puppy's aggregate flush has a
+                // timeout and also waits for unrelated console sinks.
+                if let fileLogger {
+                    fileLogger.flush(fileLogger.fileURL)
+                }
                 let url = Self.rawLogDirectoryURL()
                 let items = try FileManager.default.contentsOfDirectory(atPath: url.path)
                 return items.compactMap { url.appendingPathComponent($0) } .sorted(by: { $0.lastPathComponent > $1.lastPathComponent })
@@ -418,16 +442,23 @@ public class LoggingViewModel: ObservableObject {
     }
 }
 
-private func recentLogsText(from newestFirstLogContents: [String], byteLimit: Int) -> String {
-    let recentLogData = newestFirstLogContents.reduce(into: Data()) { result, logText in
-        guard result.count < byteLimit else { return }
-        let remainingByteCount = byteLimit - result.count
-        let logData = Data(logText.utf8)
-        result.append(logData.suffix(remainingByteCount))
+func recentLogsText(from oldestFirstLogContents: [String], byteLimit: Int) -> String {
+    guard byteLimit > 0 else { return "" }
+    // The rotating archive precedes default.log in the full export. Reserve
+    // the byte budget for the current launch first, then restore chronological
+    // order. Only the beginning of the combined suffix may split a UTF-8 scalar.
+    var remainingByteCount = byteLimit
+    var chunks = [Data]()
+    for logText in oldestFirstLogContents.reversed() {
+        guard remainingByteCount > 0 else { break }
+        let chunk = Data(logText.utf8.suffix(remainingByteCount))
+        chunks.append(chunk)
+        remainingByteCount -= chunk.count
     }
-    guard !recentLogData.isEmpty else { return "" }
-    
-    var suffixData = recentLogData
+    var suffixData = Data()
+    for chunk in chunks.reversed() {
+        suffixData.append(chunk)
+    }
     while !suffixData.isEmpty {
         if let text = String(data: suffixData, encoding: .utf8) {
             return "Logs truncated to the most recent 1 MiB for email.\n\n\(text)"

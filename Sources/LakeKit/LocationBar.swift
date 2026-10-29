@@ -13,6 +13,8 @@ public class LocationController: ObservableObject {
     public init() { }
 }
 
+// Dormant UI retained for local development; excluded from shipping builds.
+#if DEBUG
 fileprivate struct LocationBarIntrospection: ViewModifier {
     @EnvironmentObject private var locationController: LocationController
     
@@ -148,6 +150,7 @@ public struct LocationBar: View {
         self.onSubmit = onSubmit
     }
 }
+#endif
 
 public struct LocationBarProgressBar: View {
     public let progress: Double?

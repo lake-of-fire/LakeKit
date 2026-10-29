@@ -1,3 +1,5 @@
+// Dormant UI retained for local development; excluded from shipping builds.
+#if DEBUG
 //import SwiftBackports
 
 #if os(macOS) || os(iOS)
@@ -148,4 +150,5 @@ import LinkPresentation
 //    override func activityViewController(_ activityViewController: UIActivityViewController, subjectForActivityType activityType: UIActivity.ActivityType?) -> String { subject ?? "" }
 //
 //}
+#endif
 #endif

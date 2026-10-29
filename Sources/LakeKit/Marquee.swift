@@ -1,3 +1,5 @@
+// Dormant UI retained for local development; excluded from shipping builds.
+#if DEBUG
 //
 //  MarqueeView.swift
 //  MarqueeSwiftUI
@@ -144,3 +146,4 @@ extension View {
         }
     }
 }
+#endif

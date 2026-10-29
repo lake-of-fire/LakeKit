@@ -1,3 +1,5 @@
+// Dormant UI retained for local development; excluded from shipping builds.
+#if DEBUG
 #if os(macOS)
 import SwiftUI
 
@@ -50,4 +52,5 @@ struct FrameReaderModifier: ViewModifier {
 //    }
 //}
 
+#endif
 #endif

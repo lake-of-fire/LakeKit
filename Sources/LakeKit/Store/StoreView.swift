@@ -517,6 +517,14 @@ public struct StoreView: View {
                 .foregroundColor(.primary)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
+            if let notice = storeViewModel.purchaseEnvironmentNotice {
+                Text(notice)
+                    .foregroundColor(.red)
+                    .font(.callout)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, secondaryHorizontalPadding)
+            }
             Text(storeViewModel.subheadline)
                 .foregroundColor(.secondary)
                 .font(.subheadline)

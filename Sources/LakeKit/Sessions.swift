@@ -30,10 +30,18 @@ public struct AccountSessionSnapshot: Hashable, Sendable {
 public struct AccountAuthorizationContext: Hashable, Sendable {
     public let accountSession: AccountSessionSnapshot
     public let authToken: String
+    /// Nonsecret identity of the persisted credential record. Stable across app
+    /// restarts, replaced on a fresh login, and never derived from the user ID.
+    public let credentialRecordID: String?
 
-    public init(accountSession: AccountSessionSnapshot, authToken: String) {
+    public init(
+        accountSession: AccountSessionSnapshot,
+        authToken: String,
+        credentialRecordID: String? = nil
+    ) {
         self.accountSession = accountSession
         self.authToken = authToken
+        self.credentialRecordID = credentialRecordID
     }
 }
 
@@ -112,7 +120,8 @@ public struct AccountSessionAccess: @unchecked Sendable {
     init(
         boundaryID: AccountSessionBoundaryID = AccountSessionBoundaryID(),
         testSnapshotProvider snapshotProvider: @escaping () -> AccountSessionSnapshot,
-        authTokenProvider: @escaping () -> String? = { "test-auth-token" }
+        authTokenProvider: @escaping () -> String? = { "test-auth-token" },
+        credentialRecordIDProvider: @escaping () -> String? = { nil }
     ) {
         self.boundaryID = boundaryID
         self.snapshotProvider = snapshotProvider
@@ -124,7 +133,8 @@ public struct AccountSessionAccess: @unchecked Sendable {
                   !authToken.isEmpty else { return nil }
             return AccountAuthorizationContext(
                 accountSession: snapshot,
-                authToken: authToken
+                authToken: authToken,
+                credentialRecordID: credentialRecordIDProvider()
             )
         }
         publicationFence = { expected, publish in
@@ -182,6 +192,7 @@ public class Session: ObservableObject {
     private static let defaultAuthenticationPresentationDelayNanoseconds: UInt64 = 500_000_000
 
     private let credentialRepository: SessionCredentialRepository
+    private var settledCredentials: SessionCredentials?
     private let authenticationPresentationDelayNanoseconds: UInt64
     fileprivate nonisolated let accountSessionBoundaryID = AccountSessionBoundaryID()
     /// Lock-backed account ID for non-main-actor callers. Transitional and signed-out
@@ -209,6 +220,7 @@ public class Session: ObservableObject {
     private nonisolated let accountSessionStateLock = NSLock()
     private nonisolated(unsafe) var accountSessionState = AccountSessionState()
     private nonisolated(unsafe) var accountAuthorizationToken: String?
+    private nonisolated(unsafe) var accountCredentialRecordID: String?
 
     /// A causal, thread-safe authentication snapshot for background work. Unlike
     /// separately reading `userID` and `isAuthenticated`, this distinguishes two
@@ -228,7 +240,8 @@ public class Session: ObservableObject {
                   !authToken.isEmpty else { return nil }
             return AccountAuthorizationContext(
                 accountSession: snapshot,
-                authToken: authToken
+                authToken: authToken,
+                credentialRecordID: accountCredentialRecordID
             )
         }
     }
@@ -261,14 +274,14 @@ public class Session: ObservableObject {
         let storage = EphemeralSessionCredentialStore()
         return Session(
             credentialStore: SessionCredentialStore(
-                data: { storage.data[$0] },
-                string: { storage.strings[$0] },
+                data: { storage.data[$0].map(SessionCredentialRead.value) ?? .missing },
+                string: { storage.strings[$0].map(SessionCredentialRead.value) ?? .missing },
                 setData: { storage.data[$1] = $0; return true },
                 setString: { storage.strings[$1] = $0; return true },
                 delete: {
-                    let removedData = storage.data.removeValue(forKey: $0)
-                    let removedString = storage.strings.removeValue(forKey: $0)
-                    return removedData != nil || removedString != nil
+                    storage.data.removeValue(forKey: $0)
+                    storage.strings.removeValue(forKey: $0)
+                    return true
                 }
             ),
             authenticationPresentationDelayNanoseconds:
@@ -305,11 +318,17 @@ public class Session: ObservableObject {
     }
 
     private func settleAuthenticationState() {
-        let credentials = credentialRepository.load()
-        publishSettledAuthentication(credentials)
+        do {
+            publishSettledAuthentication(try credentialRepository.load())
+        } catch {
+            // Temporary Keychain unavailability cannot revoke or replace the
+            // last settled account. A fresh session stays signed out until readable.
+            publishSettledAuthentication(settledCredentials)
+        }
     }
 
     private func publishSettledAuthentication(_ credentials: SessionCredentials?) {
+        settledCredentials = credentials
         let previousUserID = userID
         let newUserID = credentials?.userID ?? -1
         let newIsAuthenticated = credentials != nil
@@ -319,7 +338,8 @@ public class Session: ObservableObject {
         // observing a mixed pair then fails its generation/identity validation.
         let sessionSnapshot = settleAccountSession(
             identity: credentials.map { .authenticated(userID: $0.userID) } ?? .signedOut,
-            authToken: credentials?.authToken
+            authToken: credentials?.authToken,
+            credentialRecordID: credentials?.recordID
         )
         publishAccountSessionSnapshot(sessionSnapshot)
         if userID != newUserID {
@@ -424,6 +444,7 @@ public class Session: ObservableObject {
     private func beginAccountSessionTransition() {
         let snapshot = withLockedAccountSessionState {
             accountAuthorizationToken = nil
+            accountCredentialRecordID = nil
             return $0.beginTransition()
         }
         publishAccountSessionSnapshot(snapshot)
@@ -432,11 +453,15 @@ public class Session: ObservableObject {
     @MainActor
     private func settleAccountSession(
         identity: AccountSessionIdentity,
-        authToken: String?
+        authToken: String?,
+        credentialRecordID: String?
     ) -> AccountSessionSnapshot {
         return withLockedAccountSessionState {
+            let durableIdentity = credentialRecordID.flatMap { $0.isEmpty ? nil : $0 }
             let authorizationChanged = accountAuthorizationToken != authToken
+                || accountCredentialRecordID != durableIdentity
             accountAuthorizationToken = authToken
+            accountCredentialRecordID = durableIdentity
             return $0.settle(
                 identity: identity,
                 authorizationChanged: authorizationChanged

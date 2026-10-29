@@ -1,3 +1,5 @@
+// Dormant UI retained for local development; excluded from shipping builds.
+#if DEBUG
 import SwiftUI
 
 public struct DoneButton: View {
@@ -28,3 +30,4 @@ public struct DoneButton: View {
         }
     }
 }
+#endif
