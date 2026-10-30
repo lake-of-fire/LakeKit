@@ -3,13 +3,9 @@ import OrderedCollections
 import StoreKit
 import StoreHelper
 
-private let lakeKitPretendSubscriptionEnabled: Bool = {
 #if DEBUG
-    ProcessInfo.processInfo.arguments.contains("pretend-subscribed")
-#else
-    false
+private let lakeKitPretendSubscriptionEnabled = ProcessInfo.processInfo.arguments.contains("pretend-subscribed")
 #endif
-}()
 
 @MainActor
 public class AdsViewModel: NSObject, ObservableObject {
@@ -36,6 +32,7 @@ public class StoreViewModel: NSObject, ObservableObject {
     
     @Published public var headline: String
     @Published public var subheadline: String
+    public let purchaseEnvironmentNotice: String?
     @Published public var productGroupHeading: String
     @Published public var productGroupSubtitle: String?
     @Published public var freeTierExplanation: String?
@@ -64,6 +61,7 @@ public class StoreViewModel: NSObject, ObservableObject {
         highlightedProductID: String,
         headline: String,
         subheadline: String,
+        purchaseEnvironmentNotice: String? = nil,
         productGroupHeading: String,
         productGroupSubtitle: String?,
         freeTierExplanation: String? = nil,
@@ -85,6 +83,7 @@ public class StoreViewModel: NSObject, ObservableObject {
         self.highlightedProductID = highlightedProductID
         self.headline = headline
         self.subheadline = subheadline
+        self.purchaseEnvironmentNotice = purchaseEnvironmentNotice
         self.productGroupHeading = productGroupHeading
         self.productGroupSubtitle = productGroupSubtitle
         self.freeTierExplanation = freeTierExplanation
@@ -142,24 +141,30 @@ public class StoreViewModel: NSObject, ObservableObject {
         }
     }
     
+    private func refreshExternalSubscription() async {
+        if let isSubscribedFromElsewhereCallback {
+            let isSubscribedFromElsewhere = await isSubscribedFromElsewhereCallback(self)
+            if isSubscribedFromElsewhere != self.isSubscribedFromElsewhere {
+                self.isSubscribedFromElsewhere = isSubscribedFromElsewhere
+            }
+        }
+    }
+
     @MainActor
     public func refreshIsSubscribed(storeHelper: StoreHelper) {
         subscriptionRefreshTask?.cancel()
         subscriptionRefreshTask = Task { @MainActor in
             do {
                 try Task.checkCancellation()
-                //#if DEBUG
-                //                isSubscribedFromElsewhere = true
-                //#else
+                #if DEBUG
                 if lakeKitPretendSubscriptionEnabled, !isSubscribedFromElsewhere {
                     isSubscribedFromElsewhere = true
-                } else if let isSubscribedFromElsewhereCallback = isSubscribedFromElsewhereCallback {
-                    let isSubscribedFromElsewhere = await isSubscribedFromElsewhereCallback(self)
-                    if isSubscribedFromElsewhere != self.isSubscribedFromElsewhere {
-                        self.isSubscribedFromElsewhere = isSubscribedFromElsewhere
-                    }
+                } else {
+                    await refreshExternalSubscription()
                 }
-                //#endif
+                #else
+                await refreshExternalSubscription()
+                #endif
                 
                 if isSubscribedFromElsewhere {
                     try Task.checkCancellation()
