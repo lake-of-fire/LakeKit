@@ -1,5 +1,5 @@
 {
-  "originHash" : "c049f32e996668f508eaf4b67d654eef253fde98626b11ace7c28cec424b7e77",
+  "originHash" : "d82aa6826ae85716dbd471ac6db3838569f686b5e4017d846bb56ea33969ec5f",
   "pins" : [
     {
       "identity" : "bettersafariview2",
@@ -113,7 +113,6 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/lake-of-fire/PersistedLRUCache.git",
       "state" : {
-        "branch" : "main",
         "revision" : "fc486ae9e566106de8c4a319b012117055791525"
       }
     },
@@ -140,8 +139,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/realm/realm-core.git",
       "state" : {
-        "revision" : "4cc46f8607516226e5465062fdacd088fbd94552",
-        "version" : "20.1.4"
+        "revision" : "b4192c46305570577c4d08df790fddec5ab3aa04",
+        "version" : "20.1.5"
       }
     },
     {
@@ -149,8 +148,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/realm/realm-swift.git",
       "state" : {
-        "revision" : "600e187711e5fa4e8e2c0429cacee27e8e44f112",
-        "version" : "20.0.4"
+        "revision" : "ca03df491ec5e4bb8af0bca1e9957d08c10ec2da",
+        "version" : "20.0.5"
       }
     },
     {
