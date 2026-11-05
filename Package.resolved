@@ -1,5 +1,5 @@
 {
-  "originHash" : "d82aa6826ae85716dbd471ac6db3838569f686b5e4017d846bb56ea33969ec5f",
+  "originHash" : "e8a0dfe56545974e17f68db507fb9f0287743eafda4d46e2cbb83d4c583bddee",
   "pins" : [
     {
       "identity" : "bettersafariview2",
@@ -225,30 +225,12 @@
       }
     },
     {
-      "identity" : "swiftbackports",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/shaps80/SwiftBackports",
-      "state" : {
-        "revision" : "19ce89c82df9c042f4153d204c03fc904cab9c98",
-        "version" : "26.0.1"
-      }
-    },
-    {
       "identity" : "swiftui-introspect",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/siteline/SwiftUI-Introspect.git",
       "state" : {
         "revision" : "26986a57e31c813f98262ddb62d4b07d40008535",
         "version" : "26.0.1"
-      }
-    },
-    {
-      "identity" : "swiftuibackports",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/shaps80/SwiftUIBackports.git",
-      "state" : {
-        "branch" : "main",
-        "revision" : "2beebc6960375b3af3655447586e768a5271a5c2"
       }
     },
     {
