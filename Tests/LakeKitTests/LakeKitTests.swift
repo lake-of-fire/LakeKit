@@ -3,13 +3,15 @@ import Combine
 import KeychainSwift
 import RealmSwift
 import RealmSwiftGaps
+import BigSyncKit
 @testable import LakeKit
 
 final class ReferralCodeUsageMutationTrackingTests: XCTestCase {
     @RealmBackgroundActor
     func testCreateMarksUsageAsExplicitlyModifiedAfterAddingIt() async throws {
         var configuration = Realm.Configuration(inMemoryIdentifier: UUID().uuidString)
-        configuration.objectTypes = [ReferralCodeUsage.self]
+        configuration.objectTypes = [ReferralCodeUsage.self, BigSyncPendingMutation.self]
+        BigSyncMutationPolicy(excludedClassNames: []).install(configurations: [configuration])
 
         let usage = try await ReferralCodeUsage.create(
             referralCode: "referral",
@@ -18,6 +20,13 @@ final class ReferralCodeUsageMutationTrackingTests: XCTestCase {
         )
 
         XCTAssertNotNil(usage.explicitlyModifiedAt)
+        let realm = try XCTUnwrap(usage.realm)
+        let mutations = realm.objects(BigSyncPendingMutation.self)
+        XCTAssertEqual(mutations.count, 1)
+        let mutation = try XCTUnwrap(mutations.first)
+        XCTAssertEqual(mutation.entityType, ReferralCodeUsage.className())
+        XCTAssertEqual(mutation.objectIdentifier, usage.id.uuidString)
+        XCTAssertEqual(mutation.changedAt, usage.explicitlyModifiedAt)
     }
 }
 
