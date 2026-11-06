@@ -1,10 +1,68 @@
 import XCTest
 import Combine
+import StoreHelper
 import KeychainSwift
 import RealmSwift
 import RealmSwiftGaps
 import BigSyncKit
 @testable import LakeKit
+
+final class ZIPArchiveTransferFileTests: XCTestCase {
+    func testSameTitleTransfersRetainIndependentSnapshots() throws {
+        let root = try makeTransferRoot()
+        let first = ZIPArchive(title: "Manabi User Data Backup", content: Data("first archive".utf8))
+        let second = ZIPArchive(title: first.title, content: Data("second archive".utf8))
+
+        let firstURL = try first.writeTransferFile(in: root)
+        let secondURL = try second.writeTransferFile(in: root)
+
+        XCTAssertNotEqual(firstURL, secondURL)
+        XCTAssertEqual(firstURL.lastPathComponent, first.fileName)
+        XCTAssertEqual(secondURL.lastPathComponent, second.fileName)
+        XCTAssertEqual(try Data(contentsOf: firstURL), first.content)
+        XCTAssertEqual(try Data(contentsOf: secondURL), second.content)
+    }
+
+    func testSanitizedFilenameCollisionsDoNotReplaceAnotherTransfer() throws {
+        let root = try makeTransferRoot()
+        let first = ZIPArchive(title: "Archive/Part", content: Data([1, 2, 3]))
+        let second = ZIPArchive(title: "Archive\\Part", content: Data([4, 5, 6]))
+        XCTAssertEqual(first.fileName, second.fileName)
+
+        let firstURL = try first.writeTransferFile(in: root)
+        let secondURL = try second.writeTransferFile(in: root)
+
+        XCTAssertNotEqual(firstURL.deletingLastPathComponent(), secondURL.deletingLastPathComponent())
+        XCTAssertEqual(firstURL.lastPathComponent, first.fileName)
+        XCTAssertEqual(secondURL.lastPathComponent, second.fileName)
+        XCTAssertEqual(try Data(contentsOf: firstURL), first.content)
+        XCTAssertEqual(try Data(contentsOf: secondURL), second.content)
+    }
+
+    func testRepeatedTransferRecreatesSnapshotWithoutChangingEarlierReceiverFile() throws {
+        let root = try makeTransferRoot()
+        let archive = ZIPArchive(title: "Snapshot", content: Data("original archive".utf8))
+        let firstURL = try archive.writeTransferFile(in: root)
+        let receiverChanges = Data("receiver changes".utf8)
+        try receiverChanges.write(to: firstURL, options: .atomic)
+
+        let secondURL = try archive.writeTransferFile(in: root)
+
+        XCTAssertNotEqual(firstURL, secondURL)
+        XCTAssertEqual(try Data(contentsOf: firstURL), receiverChanges)
+        XCTAssertEqual(try Data(contentsOf: secondURL), archive.content)
+    }
+
+    private func makeTransferRoot() throws -> URL {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ZIPArchiveTransferFileTests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        addTeardownBlock {
+            try? FileManager.default.removeItem(at: root)
+        }
+        return root
+    }
+}
 
 final class ReferralCodeUsageMutationTrackingTests: XCTestCase {
     @RealmBackgroundActor
@@ -503,5 +561,108 @@ final class EnhancedSearchablePlatformPolicyTests: XCTestCase {
             EnhancedSearchablePlatformPolicy.canHide(hasPresentationBinding: true)
         )
 #endif
+    }
+}
+
+@MainActor
+private final class SubscriptionStatusGate {
+    private var continuation: CheckedContinuation<Bool, Never>?
+    private var result: Bool?
+
+    var isWaiting: Bool { continuation != nil }
+
+    func wait() async -> Bool {
+        if let result { return result }
+        return await withCheckedContinuation { continuation = $0 }
+    }
+
+    func resolve(_ result: Bool) {
+        self.result = result
+        let pending = continuation
+        continuation = nil
+        pending?.resume(returning: result)
+    }
+}
+
+@MainActor
+final class StoreSubscriptionRefreshTests: XCTestCase {
+    func testRetiredExternalStatusCannotOverwriteNewerSubscriptionRefresh() async throws {
+        let defaults = UserDefaults.standard
+        let previousSubscription = defaults.object(forKey: "LakeKit.isSubscribed")
+        let previousExternalSubscription = defaults.object(forKey: "LakeKit.isSubscribedFromElsewhere")
+        let previousAds = AdsViewModel.shared
+        AdsViewModel.shared = AdsViewModel()
+        defer {
+            defaults.set(previousSubscription, forKey: "LakeKit.isSubscribed")
+            defaults.set(previousExternalSubscription, forKey: "LakeKit.isSubscribedFromElsewhere")
+            AdsViewModel.shared = previousAds
+        }
+
+        let entered = expectation(description: "Older external status request entered")
+        let gate = SubscriptionStatusGate()
+        var callbackCount = 0
+        let model = makeStoreViewModel { _ in
+            callbackCount += 1
+            if callbackCount == 1 {
+                entered.fulfill()
+                // Deliberately completes after cancellation, as a caught
+                // network error or non-cooperative provider can do.
+                return await gate.wait()
+            }
+            return true
+        }
+        model.isSubscribed = false
+        // Also keep the Debug pretend-subscribed fixture on the real callback path.
+        model.isSubscribedFromElsewhere = true
+        let storeHelper = StoreHelper()
+        model.refreshIsSubscribed(storeHelper: storeHelper)
+        let olderTask = try XCTUnwrap(model.subscriptionRefreshTask)
+        defer {
+            olderTask.cancel()
+            model.subscriptionRefreshTask?.cancel()
+            gate.resolve(false)
+        }
+
+        await fulfillment(of: [entered], timeout: 2)
+        guard gate.isWaiting else {
+            olderTask.cancel()
+            gate.resolve(false)
+            await olderTask.value
+            return XCTFail("Older refresh did not suspend at the external status provider")
+        }
+
+        model.refreshIsSubscribed(storeHelper: storeHelper)
+        let newerTask = try XCTUnwrap(model.subscriptionRefreshTask)
+        await newerTask.value
+        XCTAssertEqual(callbackCount, 2)
+        XCTAssertTrue(model.isSubscribedFromElsewhere)
+        XCTAssertTrue(model.isSubscribed)
+        XCTAssertTrue(model.isInitialized)
+        XCTAssertTrue(AdsViewModel.shared.isInitialized)
+        XCTAssertFalse(AdsViewModel.shared.showAds)
+
+        gate.resolve(false)
+        await olderTask.value
+
+        XCTAssertTrue(model.isSubscribedFromElsewhere)
+        XCTAssertTrue(defaults.bool(forKey: "LakeKit.isSubscribedFromElsewhere"))
+        XCTAssertTrue(model.isSubscribed)
+        XCTAssertTrue(model.isInitialized)
+        XCTAssertTrue(AdsViewModel.shared.isInitialized)
+        XCTAssertFalse(AdsViewModel.shared.showAds)
+    }
+
+    private func makeStoreViewModel(
+        externalStatus: @escaping (StoreViewModel) async -> Bool
+    ) -> StoreViewModel {
+        let url = URL(string: "https://example.invalid")!
+        return StoreViewModel(
+            products: [], studentProducts: [], highlightedProductID: "unused",
+            headline: "", subheadline: "", productGroupHeading: "",
+            productGroupSubtitle: nil, freeTierExplanation: nil,
+            awardTitle: nil, awardImage: nil, awardTestimonial: "", awardLink: nil,
+            benefits: [], termsOfService: url, privacyPolicy: url,
+            faq: [:], isSubscribedFromElsewhereCallback: externalStatus
+        )
     }
 }
