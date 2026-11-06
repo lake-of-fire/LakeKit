@@ -52,7 +52,7 @@ public class StoreViewModel: NSObject, ObservableObject {
     @PublishedAppStorage("LakeKit.isSubscribed") public var isSubscribed = false
     @PublishedAppStorage("LakeKit.isSubscribedFromElsewhere") public var isSubscribedFromElsewhere = false
     @MainActor var isSubscribedFromElsewhereCallback: ((StoreViewModel) async -> Bool)? = nil
-    private var subscriptionRefreshTask: Task<Void, Never>? = nil
+    private(set) var subscriptionRefreshTask: Task<Void, Never>? = nil
     
     public init(
         satisfyingPrerequisite: @escaping () async -> Bool = { true },
@@ -141,9 +141,10 @@ public class StoreViewModel: NSObject, ObservableObject {
         }
     }
     
-    private func refreshExternalSubscription() async {
+    private func refreshExternalSubscription() async throws {
         if let isSubscribedFromElsewhereCallback {
             let isSubscribedFromElsewhere = await isSubscribedFromElsewhereCallback(self)
+            try Task.checkCancellation()
             if isSubscribedFromElsewhere != self.isSubscribedFromElsewhere {
                 self.isSubscribedFromElsewhere = isSubscribedFromElsewhere
             }
@@ -160,10 +161,10 @@ public class StoreViewModel: NSObject, ObservableObject {
                 if lakeKitPretendSubscriptionEnabled, !isSubscribedFromElsewhere {
                     isSubscribedFromElsewhere = true
                 } else {
-                    await refreshExternalSubscription()
+                    try await refreshExternalSubscription()
                 }
                 #else
-                await refreshExternalSubscription()
+                try await refreshExternalSubscription()
                 #endif
                 
                 if isSubscribedFromElsewhere {
@@ -195,8 +196,8 @@ public class StoreViewModel: NSObject, ObservableObject {
                     }
                 }
 
+                try Task.checkCancellation()
                 guard hasPurchasedSubscription else {
-                    try Task.checkCancellation()
                     if isSubscribed {
                         isSubscribed = false
                     }
