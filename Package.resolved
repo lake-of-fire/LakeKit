@@ -1,5 +1,5 @@
 {
-  "originHash" : "810d839ee45b82e90c859f29a513396a89f2f8a31e05e6e93255c83541c3a83d",
+  "originHash" : "b37fed9131b12ea90ad7b0c1527b1cd6d6ddcab97b0a15d5b9482a4b6db35bcf",
   "pins" : [
     {
       "identity" : "bettersafariview2",
@@ -186,8 +186,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-async-algorithms",
       "state" : {
-        "revision" : "9d349bcc328ac3c31ce40e746b5882742a0d1272",
-        "version" : "1.1.3"
+        "revision" : "13713a4ffdee8abd929f92568ee9462a46ae26e0",
+        "version" : "1.1.7"
       }
     },
     {
@@ -218,30 +218,12 @@
       }
     },
     {
-      "identity" : "swiftbackports",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/shaps80/SwiftBackports",
-      "state" : {
-        "revision" : "19ce89c82df9c042f4153d204c03fc904cab9c98",
-        "version" : "26.0.1"
-      }
-    },
-    {
       "identity" : "swiftui-introspect",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/siteline/SwiftUI-Introspect.git",
       "state" : {
         "revision" : "26986a57e31c813f98262ddb62d4b07d40008535",
         "version" : "26.0.1"
-      }
-    },
-    {
-      "identity" : "swiftuibackports",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/shaps80/SwiftUIBackports.git",
-      "state" : {
-        "branch" : "main",
-        "revision" : "173badb970b9645d921554f9aec381c643c4f823"
       }
     },
     {
