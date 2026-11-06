@@ -6,6 +6,63 @@ import RealmSwift
 @testable import RealmSwiftGaps
 @testable import LakeKit
 
+final class ZIPArchiveTransferFileTests: XCTestCase {
+    func testSameTitleTransfersRetainIndependentSnapshots() throws {
+        let root = try makeTransferRoot()
+        let first = ZIPArchive(title: "Manabi User Data Backup", content: Data("first archive".utf8))
+        let second = ZIPArchive(title: first.title, content: Data("second archive".utf8))
+
+        let firstURL = try first.writeTransferFile(in: root)
+        let secondURL = try second.writeTransferFile(in: root)
+
+        XCTAssertNotEqual(firstURL, secondURL)
+        XCTAssertEqual(firstURL.lastPathComponent, first.fileName)
+        XCTAssertEqual(secondURL.lastPathComponent, second.fileName)
+        XCTAssertEqual(try Data(contentsOf: firstURL), first.content)
+        XCTAssertEqual(try Data(contentsOf: secondURL), second.content)
+    }
+
+    func testSanitizedFilenameCollisionsDoNotReplaceAnotherTransfer() throws {
+        let root = try makeTransferRoot()
+        let first = ZIPArchive(title: "Archive/Part", content: Data([1, 2, 3]))
+        let second = ZIPArchive(title: "Archive\\Part", content: Data([4, 5, 6]))
+        XCTAssertEqual(first.fileName, second.fileName)
+
+        let firstURL = try first.writeTransferFile(in: root)
+        let secondURL = try second.writeTransferFile(in: root)
+
+        XCTAssertNotEqual(firstURL.deletingLastPathComponent(), secondURL.deletingLastPathComponent())
+        XCTAssertEqual(firstURL.lastPathComponent, first.fileName)
+        XCTAssertEqual(secondURL.lastPathComponent, second.fileName)
+        XCTAssertEqual(try Data(contentsOf: firstURL), first.content)
+        XCTAssertEqual(try Data(contentsOf: secondURL), second.content)
+    }
+
+    func testRepeatedTransferRecreatesSnapshotWithoutChangingEarlierReceiverFile() throws {
+        let root = try makeTransferRoot()
+        let archive = ZIPArchive(title: "Snapshot", content: Data("original archive".utf8))
+        let firstURL = try archive.writeTransferFile(in: root)
+        let receiverChanges = Data("receiver changes".utf8)
+        try receiverChanges.write(to: firstURL, options: .atomic)
+
+        let secondURL = try archive.writeTransferFile(in: root)
+
+        XCTAssertNotEqual(firstURL, secondURL)
+        XCTAssertEqual(try Data(contentsOf: firstURL), receiverChanges)
+        XCTAssertEqual(try Data(contentsOf: secondURL), archive.content)
+    }
+
+    private func makeTransferRoot() throws -> URL {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ZIPArchiveTransferFileTests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        addTeardownBlock {
+            try? FileManager.default.removeItem(at: root)
+        }
+        return root
+    }
+}
+
 final class ReferralCodeUsageMutationTrackingTests: XCTestCase {
     @RealmBackgroundActor
     private final class Completion {
