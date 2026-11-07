@@ -6,7 +6,7 @@ import CloudKitSyncMonitor
 import SwiftUtilities
 
 public struct PurchaseOptionView: View {
-    public let storeViewModel: StoreViewModel
+    @ObservedObject public var storeViewModel: StoreViewModel
     public let storeProductVersions: StoreProductVersions
     @Binding public var purchaseState: PurchaseState
     public let maxWidth: CGFloat
@@ -47,8 +47,26 @@ public struct PurchaseOptionView: View {
     }
 }
 
+/// Ownership comes from the app's reconciled entitlement, while purchase activity
+/// continues to come from StoreHelper's purchase result.
+enum SubscriptionPurchasePolicy {
+    static func presentationState(
+        entitlementState: SubscriptionEntitlementState,
+        purchaseState: PurchaseState
+    ) -> PurchaseState {
+        if purchaseState == .inProgress { return .inProgress }
+        if entitlementState == .active { return .purchased }
+        if purchaseState == .pending { return .pending }
+        switch entitlementState {
+        case .active: return .purchased
+        case .inactive: return .notPurchased
+        case .checking, .unavailable: return .unknown
+        }
+    }
+}
+
 fileprivate struct PurchaseOptionVersionView: View {
-    public let storeViewModel: StoreViewModel
+    @ObservedObject public var storeViewModel: StoreViewModel
     public let product: Product
     public let storeProduct: StoreProduct
     @Binding public var purchaseState: PurchaseState
@@ -189,6 +207,15 @@ fileprivate struct PurchaseOptionVersionView: View {
     }
     
     var body: some View {
+        let presentationState = product.type == .autoRenewable
+            ? SubscriptionPurchasePolicy.presentationState(
+                entitlementState: storeViewModel.entitlementState,
+                purchaseState: purchaseState
+            )
+            : purchaseState
+        let isPurchaseActive = product.type == .autoRenewable
+            && (presentationState == .inProgress || presentationState == .pending)
+
         Button {
             submitAction()
         } label: {
@@ -281,12 +308,12 @@ fileprivate struct PurchaseOptionVersionView: View {
                     //                            .fixedSize(horizontal: false, vertical: true)
                     //                            .padding(.vertical, 12)
                     
-                    if product.type == .autoRenewable, [PurchaseState.purchased, .pending, .inProgress].contains(purchaseState) {
-                        if purchaseState == .inProgress {
+                    if product.type == .autoRenewable, [PurchaseState.purchased, .pending, .inProgress].contains(presentationState) {
+                        if presentationState == .inProgress {
                             ProgressView()
                             //                                    .padding()
                         } else {
-                            Text(purchaseState.shortDescription())
+                            Text(presentationState.shortDescription())
                                 .bold()
                                 .italic()
                                 .foregroundColor(.primary)
@@ -395,7 +422,7 @@ fileprivate struct PurchaseOptionVersionView: View {
         //        .frame(maxWidth: maxWidth)
         //        .buttonBorderShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         //        .buttonStyle(.borderless)
-        .disabled(!canMakePayments || purchaseState == .purchased || purchaseState == .unknown)
+        .disabled(!canMakePayments || presentationState == .purchased || presentationState == .unknown || isPurchaseActive)
         //        .overlay(
         //            RoundedRectangle(cornerRadius: 12)
         //                .inset(by: 5) // inset value should be same as lineWidth in .stroke
@@ -408,11 +435,11 @@ fileprivate struct PurchaseOptionVersionView: View {
         .task(id: storeProduct.id) { @MainActor in
             canMakePayments = AppStore.canMakePayments
             
-            let isPurchased = (try? await storeHelper.isPurchased(product: product)) ?? false
-            purchaseState = isPurchased ? .purchased : .notPurchased
+            await refreshNonSubscriptionPurchaseState()
             
-            if purchaseState != .purchased {
-                let priceViewModel = PriceViewModel(storeHelper: storeHelper, purchaseState: $purchaseState)
+            if presentationState != .purchased {
+                // Offer metadata must never change the shared purchase activity.
+                let priceViewModel = PriceViewModel(storeHelper: storeHelper, purchaseState: .constant(purchaseState))
                 prePurchaseSubInfo = await priceViewModel.getPrePurchaseSubscriptionInfo(productId: product.id)
                 if let prePurchaseSubInfo {
                     offerSubtitle = createOfferDisplay(
@@ -426,8 +453,7 @@ fileprivate struct PurchaseOptionVersionView: View {
         }
         .onChange(of: storeHelper.purchasedProducts) { _ in
             Task { @MainActor in
-                let isPurchased = (try? await storeHelper.isPurchased(product: product)) ?? false
-                purchaseState = isPurchased ? .purchased : .notPurchased
+                await refreshNonSubscriptionPurchaseState()
             }
         }
         .alert("iCloud Sign-in Required for Pay As You Go", isPresented: $isPresentingICloudIssue, actions: {
@@ -440,6 +466,18 @@ fileprivate struct PurchaseOptionVersionView: View {
                 Text("Please sign into iCloud, or try a Monthly Savings subscription to get tokens without needing iCloud.\n\n(iCloud issue description: \(iCloudSyncStateSummary.description). \(displayICloudMessage))")
             }
         })
+    }
+
+    @MainActor
+    private func refreshNonSubscriptionPurchaseState() async {
+        // StoreHelper 2.x may fall back to a stale StoreKit 1 subscription receipt.
+        // Subscription cards observe the canonical entitlement instead.
+        guard product.type != .autoRenewable else { return }
+        let initialState = purchaseState
+        guard initialState != .inProgress, initialState != .pending else { return }
+        let isPurchased = (try? await storeHelper.isPurchased(product: product)) ?? false
+        guard !Task.isCancelled, purchaseState == initialState else { return }
+        purchaseState = isPurchased ? .purchased : .notPurchased
     }
     
     private func createOfferDisplay(

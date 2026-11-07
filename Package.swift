@@ -32,7 +32,7 @@ let package = Package(
 //        .package(url: "https://github.com/elai950/AlertToast.git", branch: "master"),
 //        .package(url: "https://github.com/exyte/Grid.git", branch: "master"),
 //        .package(url: "https://github.com/JiHoonAHN/XcodeSnippet.git", branch: "main"),
-        .package(url: "https://github.com/lake-of-fire/StoreHelper.git", branch: "main"),
+        .package(url: "https://github.com/russell-archer/StoreHelper.git", exact: "2.7.1"),
         .package(url: "https://github.com/shaps80/SwiftUIBackports.git", branch: "main"),
 //        .package(url: "https://github.com/ryanlintott/FrameUp.git", branch: "main"),
 //        .package(url: "https://github.com/tevelee/SwiftUI-Flow.git", branch: "main"),
