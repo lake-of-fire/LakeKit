@@ -11,6 +11,7 @@
       }
     },
     {
+
       "identity" : "brotli",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/NghiaTranUIT/Brotli.git",
@@ -227,6 +228,7 @@
       }
     },
     {
+
       "identity" : "swiftui-introspect",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/siteline/SwiftUI-Introspect.git",

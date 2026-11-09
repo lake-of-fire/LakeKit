@@ -14,7 +14,6 @@ let package = Package(
             targets: ["LakeKit"]),
     ],
     dependencies: [
-//        .package(url: "https://github.com/lake-of-fire/RealmBinary.git", branch: "main"),
         .package(url: "https://github.com/realm/realm-swift.git", from: "20.0.5"),
         .package(path: "../BigSyncKit"),
         .package(path: "../RealmSwiftGaps"),
@@ -24,6 +23,7 @@ let package = Package(
 //        .package(url: "https://github.com/NuPlay/ExpandableText.git", branch: "main"),
         .package(path: "../swiftui-webview"),
 //        .package(url: "https://github.com/demharusnam/SwiftUIDrag.git", branch: "main"),
+
         .package(url: "https://github.com/apple/swift-collections.git", branch: "main"),
         .package(url: "https://github.com/lake-of-fire/BetterSafariView2.git", branch: "main"),
         .package(url: "https://github.com/lake-of-fire/keychain-swift.git", branch: "master"),
@@ -40,10 +40,11 @@ let package = Package(
 //        .package(url: "https://github.com/danielsaidi/SwiftUIKit.git", branch: "master"),
         .package(url: "https://github.com/lake-of-fire/FilePicker.git", branch: "main"),
         .package(url: "https://github.com/weichsel/ZIPFoundation.git", branch: "development"),
+
 //        .package(url: "https://github.com/kean/Pulse.git", branch: "main"),
         .package(url: "https://github.com/stevengharris/SplitView.git", branch: "main"),
         .package(url: "https://github.com/lake-of-fire/VisionLiveText_SwiftUICompatible.git", branch: "main"),
-        .package(url: "https://github.com/EmergeTools/Pow.git", branch: "main"),
+        .package(url: "https://github.com/EmergeTools/Pow.git", revision: "1b4b1dda28c50b95f0872927ee2226fe8b58950e"),
         .package(url: "https://github.com/apple/swift-log.git", branch: "main"),
         .package(url: "https://github.com/siteline/swiftui-introspect.git", from: "26.0.0"),
         .package(url: "https://github.com/Tunous/DebouncedOnChange.git", branch: "main"),
@@ -60,7 +61,7 @@ let package = Package(
             name: "LakeKit",
             dependencies: [
                 .product(name: "SwiftUIWebView", package: "swiftui-webview"),
-//                .product(name: "RealmSwift", package: "RealmBinary"),
+
                 .product(name: "RealmSwift", package: "realm-swift"),
                 .product(name: "RealmSwiftGaps", package: "RealmSwiftGaps"),
                 .product(name: "OrderedCollections", package: "swift-collections"),
