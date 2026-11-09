@@ -94,6 +94,7 @@ public struct RoundedTextField: View {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                             withAnimation(.easeOut(duration: 0.1)) {
                                 isIconPressed = false
+#if os(iOS)
                                 if let introspectedTextField {
                                     logLookupKeyboardRoundedTextField(
                                         "roundedTextField.becomeFirstResponder",
@@ -109,6 +110,7 @@ public struct RoundedTextField: View {
                                     )
                                     shouldBecomeFirstResponder = true
                                 }
+#endif
                             }
                         }
                     }
