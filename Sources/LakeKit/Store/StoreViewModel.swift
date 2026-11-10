@@ -190,6 +190,9 @@ public class StoreViewModel: NSObject, ObservableObject {
         subscriptionMonitorTask = Task { @MainActor [weak self] in
             for await update in updates {
                 guard !Task.isCancelled else { break }
+#if DEBUG
+                SubscriptionEntitlementDiagnostics.record("monitor dequeue")
+#endif
                 await self?.reconcileEntitlements(waitForExternal: false)
                 guard !Task.isCancelled else { break }
                 await update.finish?()
@@ -250,6 +253,9 @@ public class StoreViewModel: NSObject, ObservableObject {
     private func reconcileEntitlements(waitForExternal: Bool) async {
         subscriptionRefreshGeneration &+= 1
         let generation = subscriptionRefreshGeneration
+#if DEBUG
+        SubscriptionEntitlementDiagnostics.record("reconcile start generation=\(generation)")
+#endif
         externalSubscriptionGeneration &+= 1
         let externalGeneration = externalSubscriptionGeneration
         subscriptionRefreshTask?.cancel()
@@ -325,6 +331,10 @@ public class StoreViewModel: NSObject, ObservableObject {
         } catch {
             state = .unavailable
         }
+#if DEBUG
+        SubscriptionEntitlementDiagnostics.record("snapshot generation=\(generation) state=\(state) "
+            + "applied=\(generation == subscriptionRefreshGeneration && !Task.isCancelled)")
+#endif
         guard generation == subscriptionRefreshGeneration, !Task.isCancelled else { return }
         appleEntitlementState = state
         appleRefreshPending = false
@@ -379,6 +389,9 @@ public class StoreViewModel: NSObject, ObservableObject {
         if state == .active, purchaseState == .pending {
             purchaseState = .purchased
         }
+#if DEBUG
+        SubscriptionEntitlementDiagnostics.record("publish generation=\(subscriptionRefreshGeneration) state=\(state)")
+#endif
         entitlementState = state
         AdsViewModel.shared.showAds = showAds
         AdsViewModel.shared.isInitialized = isInitialized

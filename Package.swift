@@ -14,7 +14,7 @@ let package = Package(
             targets: ["LakeKit"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/realm/realm-swift.git", from: "20.0.5"),
+        .package(url: "https://github.com/aehlke/realm-swift.git", revision: "07279705b5fcc4fe25e1c2444ae8e1dcc614ae99"),
         .package(path: "../BigSyncKit"),
         .package(path: "../RealmSwiftGaps"),
         .package(path: "../SwiftUIDownloads"),

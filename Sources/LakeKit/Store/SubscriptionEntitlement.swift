@@ -54,6 +54,9 @@ struct SubscriptionEntitlementClient {
                     try Task.checkCancellation()
                     switch result {
                     case .verified(let transaction):
+#if DEBUG
+                        SubscriptionEntitlementDiagnostics.transaction("current", transaction)
+#endif
                         entitlements.append(.verified(
                             productID: transaction.productID,
                             revoked: transaction.revocationDate != nil,
@@ -74,6 +77,9 @@ struct SubscriptionEntitlementClient {
                             switch result {
                             case .verified(let transaction):
                                 guard productIDs.contains(transaction.productID) else { continue }
+#if DEBUG
+                                SubscriptionEntitlementDiagnostics.transaction("transaction-event", transaction)
+#endif
                                 continuation.yield(.init(finish: { await transaction.finish() }))
                             case .unverified(let transaction, _):
                                 guard productIDs.contains(transaction.productID) else { continue }
@@ -83,8 +89,14 @@ struct SubscriptionEntitlementClient {
                         }
                     }
                     let statuses = Task {
-                        for await _ in Product.SubscriptionInfo.Status.updates {
+                        for await status in Product.SubscriptionInfo.Status.updates {
                             guard !Task.isCancelled else { break }
+#if DEBUG
+                            if case .verified(let transaction) = status.transaction,
+                               productIDs.contains(transaction.productID) {
+                                SubscriptionEntitlementDiagnostics.transaction("status-event state=\(status.state)", transaction)
+                            }
+#endif
                             // Grace/retry/expiration can change without adding a purchased SKU.
                             continuation.yield(.init())
                         }
@@ -98,3 +110,39 @@ struct SubscriptionEntitlementClient {
         )
     }
 }
+
+#if DEBUG
+/// Opt-in diagnostics for authentic local StoreKit integration runs only.
+@MainActor
+enum SubscriptionEntitlementDiagnostics {
+    private(set) static var lines: [String] = []
+
+    static func beginScenario(_ label: String) {
+        lines.removeAll(keepingCapacity: true)
+        record("scenario=\(label)")
+    }
+
+    static var isEnabled: Bool {
+        ProcessInfo.processInfo.environment["MANABI_STOREKIT_DIAGNOSTICS"] == "1"
+    }
+
+    static func record(_ message: String) {
+        guard isEnabled else { return }
+        guard lines.count < 256 else { return }
+        let line = "[PremiumStoreKit] time=\(Date().timeIntervalSince1970) \(message.prefix(512))"
+        lines.append(line)
+        print(line)
+    }
+
+    static func transaction(_ source: String, _ transaction: StoreKit.Transaction) {
+        guard isEnabled else { return }
+        if #available(iOS 16, macOS 13, tvOS 16, watchOS 9, *) {
+            guard transaction.environment == .xcode else { return }
+            record("source=\(source) localID=\(transaction.id) product=\(transaction.productID) "
+                + "purchase=\(transaction.purchaseDate.timeIntervalSince1970) "
+                + "expiration=\(transaction.expirationDate?.timeIntervalSince1970.description ?? "nil") "
+                + "revoked=\(transaction.revocationDate != nil) upgraded=\(transaction.isUpgraded)")
+        }
+    }
+}
+#endif
