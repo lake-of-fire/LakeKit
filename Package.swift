@@ -15,7 +15,7 @@ let package = Package(
     ],
     dependencies: [
 //        .package(url: "https://github.com/lake-of-fire/RealmBinary.git", branch: "main"),
-        .package(url: "https://github.com/realm/realm-swift.git", from: "20.0.4"),
+        .package(url: "https://github.com/aehlke/realm-swift.git", revision: "c595af8988ec630960d33ce51cd0671c2263086a"),
         .package(path: "../BigSyncKit"),
         .package(url: "https://github.com/lake-of-fire/RealmSwiftGaps.git", branch: "main"),
         .package(url: "https://github.com/lake-of-fire/SwiftUIDownloads.git", branch: "main"),
@@ -24,7 +24,7 @@ let package = Package(
 //        .package(url: "https://github.com/NuPlay/ExpandableText.git", branch: "main"),
         .package(path: "../swiftui-webview"),
 //        .package(url: "https://github.com/demharusnam/SwiftUIDrag.git", branch: "main"),
-        .package(url: "https://github.com/apple/swift-collections.git", branch: "main"),
+        .package(url: "https://github.com/apple/swift-collections.git", exact: "1.6.0"),
         .package(url: "https://github.com/lake-of-fire/BetterSafariView2.git", branch: "main"),
         .package(url: "https://github.com/lake-of-fire/keychain-swift.git", branch: "master"),
         .package(url: "https://github.com/lake-of-fire/DSFSearchField.git", branch: "main"),
