@@ -136,6 +136,7 @@ final class SessionCredentialPersistenceTests: XCTestCase {
         assertOwnedKeysAbsent()
     }
 
+    #if DEBUG
     @MainActor
     func testEphemeralSessionPublishesCredentialsWithoutSharingThem() {
         let session = Session.ephemeralForTesting()
@@ -154,6 +155,7 @@ final class SessionCredentialPersistenceTests: XCTestCase {
             .signedOut
         )
     }
+    #endif
 
     @MainActor
     func testCanonicalCredentialSlotsRoundTripAndSelectHighestRevision() {
