@@ -61,6 +61,7 @@ public class StoreViewModel: NSObject, ObservableObject {
     private var subscriptionMonitorTask: Task<Void, Never>?
     private(set) var externalSubscriptionTask: Task<Void, Never>?
     private var restorePurchasesTask: Task<String?, Never>?
+    private(set) var purchaseTask: Task<Void, Never>?
     private var externalAccountObservation: AnyCancellable?
     private var externalEntitlementState: SubscriptionEntitlementState = .inactive
     private var subscriptionRefreshGeneration: UInt64 = 0
@@ -166,14 +167,32 @@ public class StoreViewModel: NSObject, ObservableObject {
     @MainActor
     public func purchase(storeProduct: StoreProduct, storeKitProduct: Product, priceViewModel: PriceViewModel) {
         guard storeProduct.filterPurchase(storeProduct) else { return }
-        purchaseState = .inProgress
-        Task { @MainActor in
+        performPurchase {
             let appAccountToken = Self.getOrCreateAppAccountToken()
             await priceViewModel.purchase(product: storeKitProduct, options: [
                 .appAccountToken(appAccountToken),
             ])
-            await reconcileEntitlements()
         }
+    }
+
+    /// Admit one purchase operation at a time, including taps whose async
+    /// prerequisite checks complete while an earlier purchase is still active.
+    @discardableResult
+    @MainActor
+    func performPurchase(_ operation: @escaping @MainActor () async -> Void) -> Bool {
+        guard purchaseTask == nil,
+              purchaseState != .inProgress,
+              purchaseState != .pending else {
+            return false
+        }
+        purchaseState = .inProgress
+        purchaseTask = Task { @MainActor [weak self] in
+            await operation()
+            guard let self else { return }
+            await reconcileEntitlements()
+            purchaseTask = nil
+        }
+        return true
     }
     
     deinit {
@@ -181,6 +200,7 @@ public class StoreViewModel: NSObject, ObservableObject {
         externalSubscriptionTask?.cancel()
         subscriptionMonitorTask?.cancel()
         restorePurchasesTask?.cancel()
+        purchaseTask?.cancel()
     }
 
     /// App-owned listeners remain live after unverified, expired, upgraded or revoked events.

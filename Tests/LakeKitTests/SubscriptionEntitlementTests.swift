@@ -6,6 +6,65 @@ final class SubscriptionEntitlementTests: XCTestCase {
     private static let monthly = "premium.monthly"
     private static let annual = "premium.annual"
 
+    @MainActor
+    func testConcurrentPurchaseAttemptsAreRejectedUntilFirstOperationCompletes() async {
+        await withModel { model in
+            let firstStarted = EntitlementTestGate<Void>()
+            let releaseFirst = EntitlementTestGate<Void>()
+            var operations = 0
+            let firstAccepted = model.performPurchase {
+                operations += 1
+                firstStarted.open(())
+                await releaseFirst.wait()
+            }
+            let firstTask = model.purchaseTask
+            await firstStarted.wait()
+
+            let secondAccepted = model.performPurchase { operations += 1 }
+            let stateWhileFirstIsPending = model.purchaseState
+            releaseFirst.open(())
+            await firstTask?.value
+
+            XCTAssertTrue(firstAccepted)
+            XCTAssertFalse(secondAccepted)
+            XCTAssertEqual(stateWhileFirstIsPending, .inProgress)
+            XCTAssertEqual(operations, 1)
+            XCTAssertNil(model.purchaseTask)
+
+            let retryStarted = EntitlementTestGate<Void>()
+            let retryAccepted = model.performPurchase {
+                operations += 1
+                model.purchaseState = .notPurchased
+                retryStarted.open(())
+            }
+            let retryTask = model.purchaseTask
+            await retryStarted.wait()
+            await retryTask?.value
+
+            XCTAssertTrue(retryAccepted)
+            XCTAssertEqual(operations, 2)
+            XCTAssertEqual(model.purchaseState, .notPurchased)
+            XCTAssertNil(model.purchaseTask)
+        }
+    }
+
+    @MainActor
+    func testPendingPurchaseBlocksRetryAfterItsTaskCompletes() async {
+        await withModel { model in
+            let accepted = model.performPurchase {
+                model.purchaseState = .pending
+            }
+            let task = model.purchaseTask
+            await task?.value
+
+            XCTAssertTrue(accepted)
+            XCTAssertNil(model.purchaseTask)
+            XCTAssertEqual(model.purchaseState, .pending)
+            XCTAssertFalse(model.performPurchase {})
+            XCTAssertEqual(model.purchaseState, .pending)
+        }
+    }
+
     func testSubscriptionPurchasePresentationUsesCanonicalOwnership() {
         XCTAssertEqual(SubscriptionPurchasePolicy.presentationState(entitlementState: .inactive, purchaseState: .purchased), .notPurchased)
         XCTAssertEqual(SubscriptionPurchasePolicy.presentationState(entitlementState: .active, purchaseState: .notPurchased), .purchased)
