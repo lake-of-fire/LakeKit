@@ -32,7 +32,7 @@ public class StoreViewModel: NSObject, ObservableObject {
     
     @Published public var headline: String
     @Published public var subheadline: String
-    public let purchaseEnvironmentNotice: String?
+    @Published public var purchaseEnvironmentNotice: String?
     @Published public var productGroupHeading: String
     @Published public var productGroupSubtitle: String?
     @Published public var freeTierExplanation: String?
