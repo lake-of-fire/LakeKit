@@ -16,8 +16,12 @@ final class SubscriptionEntitlementTests: XCTestCase {
                 operations += 1
                 firstStarted.open(())
                 await releaseFirst.wait()
+                model.purchaseState = .cancelled
             }
             let firstTask = model.purchaseTask
+            guard firstAccepted else {
+                return XCTFail("The first purchase should be admitted")
+            }
             await firstStarted.wait()
 
             let secondAccepted = model.performPurchase { operations += 1 }
@@ -30,6 +34,7 @@ final class SubscriptionEntitlementTests: XCTestCase {
             XCTAssertEqual(stateWhileFirstIsPending, .inProgress)
             XCTAssertEqual(operations, 1)
             XCTAssertNil(model.purchaseTask)
+            XCTAssertEqual(model.purchaseState, .cancelled)
 
             let retryStarted = EntitlementTestGate<Void>()
             let retryAccepted = model.performPurchase {
@@ -38,6 +43,9 @@ final class SubscriptionEntitlementTests: XCTestCase {
                 retryStarted.open(())
             }
             let retryTask = model.purchaseTask
+            guard retryAccepted else {
+                return XCTFail("A completed purchase should allow another attempt")
+            }
             await retryStarted.wait()
             await retryTask?.value
 
