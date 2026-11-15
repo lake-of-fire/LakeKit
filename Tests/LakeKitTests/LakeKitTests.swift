@@ -693,65 +693,66 @@ private final class SubscriptionStatusGate {
 @MainActor
 final class StoreSubscriptionRefreshTests: XCTestCase {
     func testRetiredExternalStatusCannotOverwriteNewerSubscriptionRefresh() async throws {
-        let defaults = UserDefaults.standard
-        let previousSubscription = defaults.object(forKey: "LakeKit.isSubscribed")
-        let previousExternalSubscription = defaults.object(forKey: "LakeKit.isSubscribedFromElsewhere")
+        let suiteName = "LakeKit.StoreSubscriptionRefreshTests." + UUID().uuidString
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
         let previousAds = AdsViewModel.shared
         AdsViewModel.shared = AdsViewModel()
         defer {
-            defaults.set(previousSubscription, forKey: "LakeKit.isSubscribed")
-            defaults.set(previousExternalSubscription, forKey: "LakeKit.isSubscribedFromElsewhere")
+            defaults.removePersistentDomain(forName: suiteName)
             AdsViewModel.shared = previousAds
         }
 
         let entered = expectation(description: "Older external status request entered")
         let gate = SubscriptionStatusGate()
         var callbackCount = 0
-        let model = makeStoreViewModel { _ in
+        let model = makeStoreViewModel(defaults: defaults) { _ in
             callbackCount += 1
             if callbackCount == 1 {
                 entered.fulfill()
-                // Deliberately completes after cancellation, as a caught
-                // network error or non-cooperative provider can do.
+                // Deliberately returns after cancellation, as a non-cooperative
+                // provider can do. The retired false must not replace current true.
                 return await gate.wait()
             }
             return true
         }
-        model.isSubscribed = false
-        // Also keep the Debug pretend-subscribed fixture on the real callback path.
-        model.isSubscribedFromElsewhere = true
-        let storeHelper = StoreHelper()
-        model.refreshIsSubscribed(storeHelper: storeHelper)
-        let olderTask = try XCTUnwrap(model.subscriptionRefreshTask)
+        model.entitlementClient = .init(current: { [] }, sync: {}, updates: { _ in
+            AsyncStream { $0.finish() }
+        })
+        let olderRefresh = Task { @MainActor in await model.reconcileEntitlements() }
         defer {
-            olderTask.cancel()
-            model.subscriptionRefreshTask?.cancel()
+            olderRefresh.cancel()
+            model.invalidateExternalSubscription()
             gate.resolve(false)
         }
 
         await fulfillment(of: [entered], timeout: 2)
         guard gate.isWaiting else {
-            olderTask.cancel()
             gate.resolve(false)
-            await olderTask.value
+            await olderRefresh.value
             return XCTFail("Older refresh did not suspend at the external status provider")
         }
+        let obsoleteWorker = try XCTUnwrap(model.externalSubscriptionTask)
 
-        model.refreshIsSubscribed(storeHelper: storeHelper)
-        let newerTask = try XCTUnwrap(model.subscriptionRefreshTask)
-        await newerTask.value
+        await model.reconcileEntitlements()
+        await model.subscriptionRefreshTask?.value
+        await model.externalSubscriptionTask?.value
         XCTAssertEqual(callbackCount, 2)
+        XCTAssertEqual(model.entitlementState, .active)
         XCTAssertTrue(model.isSubscribedFromElsewhere)
         XCTAssertTrue(model.isSubscribed)
         XCTAssertTrue(model.isInitialized)
+        XCTAssertTrue(defaults.bool(forKey: "LakeKit.isSubscribed"))
+        XCTAssertTrue(defaults.bool(forKey: "LakeKit.isSubscribedFromElsewhere"))
         XCTAssertTrue(AdsViewModel.shared.isInitialized)
         XCTAssertFalse(AdsViewModel.shared.showAds)
 
         gate.resolve(false)
-        await olderTask.value
+        await obsoleteWorker.value
+        await olderRefresh.value
 
         XCTAssertTrue(model.isSubscribedFromElsewhere)
         XCTAssertTrue(defaults.bool(forKey: "LakeKit.isSubscribedFromElsewhere"))
+        XCTAssertTrue(defaults.bool(forKey: "LakeKit.isSubscribed"))
         XCTAssertTrue(model.isSubscribed)
         XCTAssertTrue(model.isInitialized)
         XCTAssertTrue(AdsViewModel.shared.isInitialized)
@@ -759,6 +760,7 @@ final class StoreSubscriptionRefreshTests: XCTestCase {
     }
 
     private func makeStoreViewModel(
+        defaults: UserDefaults,
         externalStatus: @escaping (StoreViewModel) async -> Bool
     ) -> StoreViewModel {
         let url = URL(string: "https://example.invalid")!
@@ -768,7 +770,8 @@ final class StoreSubscriptionRefreshTests: XCTestCase {
             productGroupSubtitle: nil, freeTierExplanation: nil,
             awardTitle: nil, awardImage: nil, awardTestimonial: "", awardLink: nil,
             benefits: [], termsOfService: url, privacyPolicy: url,
-            faq: [:], isSubscribedFromElsewhereCallback: externalStatus
+            faq: [:], isSubscribedFromElsewhereCallback: externalStatus,
+            subscriptionDefaults: defaults
         )
     }
 }
