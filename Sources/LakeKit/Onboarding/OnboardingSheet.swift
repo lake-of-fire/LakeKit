@@ -600,7 +600,7 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
     @AppStorage("hasRespondedToOnboarding") private var hasRespondedToOnboarding = false
 
     private var currentCard: OnboardingCard? {
-        guard let scrolledID = scrolledID else { return nil }
+        guard let scrolledID else { return cards.first }
         return cards.first(where: { $0.id == scrolledID })
     }
 
@@ -639,14 +639,6 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
 #endif
     }
 
-    private var shouldCenterIntroDescription: Bool {
-#if os(iOS)
-        horizontalSizeClass == .regular
-#elseif os(macOS)
-        false
-#endif
-    }
-    
     @ViewBuilder private func cardPageView(geometry: GeometryProxy) -> some View {
         if #available(iOS 17, macOS 14, *) {
             cardScrollPageView(geometry: geometry)
@@ -1102,11 +1094,11 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
                    !description.isEmpty,
                    isIntroDescriptionVisible {
                     Text(description)
-                        .frame(maxWidth: 560, alignment: shouldCenterIntroDescription ? .center : .leading)
+                        .frame(maxWidth: 560, alignment: .center)
                         .padding(.horizontal, 8)
                         .font(.body.weight(.semibold))
                         .foregroundStyle(.white)
-                        .multilineTextAlignment(shouldCenterIntroDescription ? .center : .leading)
+                        .multilineTextAlignment(.center)
                         .lineLimit(3)
                         .fixedSize(horizontal: false, vertical: true)
                         .shadow(color: .black.opacity(0.88), radius: 20, y: 5)
@@ -2051,6 +2043,7 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
     let isActive: Bool
     @Binding var isPresentingStoreSheet: Bool
     let cards: [OnboardingCard]
+    let onInitialPresentationResolved: () -> Void
     let onRequiredAction: (OnboardingCard, @escaping () -> Void) -> Void
     let onSkipOptionalAction: (OnboardingCard, @escaping () -> Void) -> Void
     let onPrimaryAction: (OnboardingCard, @escaping () -> Void) -> Void
@@ -2061,6 +2054,7 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
     @AppStorage("hasRespondedToOnboarding") var hasRespondedToOnboarding = false
     @AppStorage("darkModeSetting") private var darkModeSetting = "system"
     @State private var isPresented = false
+    @State private var hasResolvedInitialPresentation = false
     @State private var isFinished = false
     @State private var didSkipOnboardingThisSession = false
     @State private var isPresentingOnboardingStoreSheet = false
@@ -2119,14 +2113,13 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
             .onChange(of: hasRespondedToOnboarding) { hasRespondedToOnboarding in
                 refresh(hasRespondedToOnboarding: hasRespondedToOnboarding)
             }
-            .onChange(of: isPresented) { isPresented in
-                if !isPresented && !hasRespondedToOnboarding {
-                    hasSeenOnboarding = true
+            .onChange(of: isActive) { _ in
+                refresh()
+            }
+            .transaction { transaction in
+                if !hasResolvedInitialPresentation {
+                    transaction.disablesAnimations = true
                 }
-            }
-            .onChange(of: isPresentingOnboardingStoreSheet) { isPresentingOnboardingStoreSheet in
-            }
-            .onChange(of: isPresentingStoreSheet) { isPresentingStoreSheet in
             }
     }
 
@@ -2148,8 +2141,7 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
                 onboardingPresentationContent
                     .interactiveDismissDisabled()
                     .onAppear {
-                    }
-                    .onDisappear {
+                        resolveInitialPresentation()
                     }
             }
 #elseif os(macOS)
@@ -2168,8 +2160,7 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
                 onboardingPresentationContent
                     .frame(idealWidth: 450, idealHeight: 600)
                     .onAppear {
-                    }
-                    .onDisappear {
+                        resolveInitialPresentation()
                     }
             }
 #else
@@ -2180,17 +2171,22 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
     private func refresh(hasRespondedToOnboarding: Bool? = nil, hasSeenOnboarding: Bool? = nil) {
         let hasRespondedToOnboarding = hasRespondedToOnboarding ?? self.hasRespondedToOnboarding
         let hasSeenOnboarding = hasSeenOnboarding ?? self.hasSeenOnboarding
-        Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 250_000_000)
-            guard isActive || isPresentingOnboardingStoreSheet else {
-                didSkipOnboardingThisSession = false
-                if !isPresentingOnboardingStoreSheet {
-                    isPresented = false
-                }
-                return
-            }
-            isPresented = !(hasRespondedToOnboarding || hasSeenOnboarding)
+        guard isActive || isPresentingOnboardingStoreSheet else {
+            didSkipOnboardingThisSession = false
+            isPresented = false
+            return
         }
+        isPresented = !(hasRespondedToOnboarding || hasSeenOnboarding)
+        if !isPresented {
+            resolveInitialPresentation()
+        }
+    }
+
+    private func resolveInitialPresentation() {
+        guard isActive || isPresentingOnboardingStoreSheet,
+              !hasResolvedInitialPresentation else { return }
+        hasResolvedInitialPresentation = true
+        onInitialPresentationResolved()
     }
 
     private func skipOnboarding() {
@@ -2206,6 +2202,7 @@ public extension View {
         isActive: Bool,
         isPresentingStoreSheet: Binding<Bool> = .constant(false),
         cards: [OnboardingCard],
+        onInitialPresentationResolved: @escaping () -> Void = {},
         onRequiredAction: @escaping (OnboardingCard, @escaping () -> Void) -> Void,
         onSkipOptionalAction: @escaping (OnboardingCard, @escaping () -> Void) -> Void = { _, complete in complete() },
         onPrimaryAction: @escaping (OnboardingCard, @escaping () -> Void) -> Void = { _, complete in complete() },
@@ -2217,6 +2214,7 @@ public extension View {
                 isActive: isActive,
                 isPresentingStoreSheet: isPresentingStoreSheet,
                 cards: cards,
+                onInitialPresentationResolved: onInitialPresentationResolved,
                 onRequiredAction: onRequiredAction,
                 onSkipOptionalAction: onSkipOptionalAction,
                 onPrimaryAction: onPrimaryAction,
