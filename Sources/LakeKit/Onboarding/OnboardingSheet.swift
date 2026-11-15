@@ -600,7 +600,7 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
     @AppStorage("hasRespondedToOnboarding") private var hasRespondedToOnboarding = false
 
     private var currentCard: OnboardingCard? {
-        guard let scrolledID = scrolledID else { return nil }
+        guard let scrolledID else { return cards.first }
         return cards.first(where: { $0.id == scrolledID })
     }
 
@@ -639,14 +639,6 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
 #endif
     }
 
-    private var shouldCenterIntroDescription: Bool {
-#if os(iOS)
-        horizontalSizeClass == .regular
-#elseif os(macOS)
-        false
-#endif
-    }
-    
     @ViewBuilder private func cardPageView(geometry: GeometryProxy) -> some View {
         if #available(iOS 17, macOS 14, *) {
             cardScrollPageView(geometry: geometry)
@@ -829,21 +821,17 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
     @ViewBuilder private var pagerContent: some View {
         ZStack {
             if isShowingFullScreenIntro, let currentCard {
-                if shouldGateFullScreenIntro {
-                    cardContent(currentCard, $isFinished, true)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .ignoresSafeArea()
-                        .opacity(0)
-                        .allowsHitTesting(false)
+                cardContent(currentCard, $isFinished, true)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .ignoresSafeArea()
+                    .opacity(shouldGateFullScreenIntro ? 0 : 1)
+                    .allowsHitTesting(false)
 
+                if shouldGateFullScreenIntro {
                     ProgressView()
                         .controlSize(.large)
                         .tint(.white)
                 } else {
-                    cardContent(currentCard, $isFinished, true)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .ignoresSafeArea()
-
                     GeometryReader { geometry in
                         let topBoundary = geometry.safeAreaInsets.top + 50
                         let bottomBoundary = geometry.safeAreaInsets.bottom + 176
@@ -1035,7 +1023,7 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
         Image(imageName)
             .resizable()
             .aspectRatio(contentMode: .fit)
-            .frame(width: 70, height: 70)
+            .frame(width: 91, height: 91)
             .clipShape(Circle())
             .shadow(color: .black.opacity(0.48), radius: 18, x: 0, y: 10)
             .shadow(color: .black.opacity(0.2), radius: 6, x: 0, y: 3)
@@ -1102,11 +1090,11 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
                    !description.isEmpty,
                    isIntroDescriptionVisible {
                     Text(description)
-                        .frame(maxWidth: 560, alignment: shouldCenterIntroDescription ? .center : .leading)
+                        .frame(maxWidth: 560, alignment: .center)
                         .padding(.horizontal, 8)
                         .font(.body.weight(.semibold))
                         .foregroundStyle(.white)
-                        .multilineTextAlignment(shouldCenterIntroDescription ? .center : .leading)
+                        .multilineTextAlignment(.center)
                         .lineLimit(3)
                         .fixedSize(horizontal: false, vertical: true)
                         .shadow(color: .black.opacity(0.88), radius: 20, y: 5)
@@ -1337,11 +1325,11 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
         introTitleShineCount = 0
         guard featureCount > 0 else { return }
         introFeatureAnimationTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 1_050_000_000)
+            try? await Task.sleep(nanoseconds: 700_000_000)
             guard !Task.isCancelled else { return }
             introTitleShineCount += 1
 
-            try? await Task.sleep(nanoseconds: 450_000_000)
+            try? await Task.sleep(nanoseconds: 300_000_000)
             guard !Task.isCancelled else { return }
 
             for count in 1...featureCount {
@@ -2047,10 +2035,69 @@ private struct OnboardingChromeButtonStyleModifier: ViewModifier {
     }
 }
 
+struct OnboardingReplayRequest {
+    private(set) var id: UUID?
+
+    mutating func begin(_ requestID: UUID) -> Bool {
+        guard id != requestID else { return false }
+        id = requestID
+        return true
+    }
+
+    mutating func didDismiss() { id = nil }
+}
+
+@MainActor
+final class OnboardingPresentationLifetime: ObservableObject {
+    private(set) var isActive = false
+    func begin(_ action: () -> Void) {
+        guard !isActive else { return }
+        isActive = true
+        action()
+    }
+    func end(_ action: () -> Void) {
+        guard isActive else { return }
+        isActive = false
+        action()
+    }
+}
+
+#if os(iOS)
+private struct OnboardingPresenterLifetimeAnchor: UIViewRepresentable {
+    let lifetime: OnboardingPresentationLifetime
+    let onEnd: () -> Void
+    final class Coordinator {
+        var end: () -> Void
+        init(end: @escaping () -> Void) { self.end = end }
+    }
+    func makeCoordinator() -> Coordinator { Coordinator { lifetime.end(onEnd) } }
+    func makeUIView(context: Context) -> UIView { UIView(frame: .zero) }
+    func updateUIView(_ view: UIView, context: Context) { context.coordinator.end = { lifetime.end(onEnd) } }
+    static func dismantleUIView(_ view: UIView, coordinator: Coordinator) { coordinator.end() }
+}
+#elseif os(macOS)
+private struct OnboardingPresenterLifetimeAnchor: NSViewRepresentable {
+    let lifetime: OnboardingPresentationLifetime
+    let onEnd: () -> Void
+    final class Coordinator {
+        var end: () -> Void
+        init(end: @escaping () -> Void) { self.end = end }
+    }
+    func makeCoordinator() -> Coordinator { Coordinator { lifetime.end(onEnd) } }
+    func makeNSView(context: Context) -> NSView { NSView(frame: .zero) }
+    func updateNSView(_ view: NSView, context: Context) { context.coordinator.end = { lifetime.end(onEnd) } }
+    static func dismantleNSView(_ view: NSView, coordinator: Coordinator) { coordinator.end() }
+}
+#endif
+
 public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: ViewModifier {
     let isActive: Bool
+    @Binding var replayRequestID: UUID?
     @Binding var isPresentingStoreSheet: Bool
     let cards: [OnboardingCard]
+    let onInitialPresentationResolved: () -> Void
+    let onPresentationWillBegin: () -> Void
+    let onPresentationDidEnd: () -> Void
     let onRequiredAction: (OnboardingCard, @escaping () -> Void) -> Void
     let onSkipOptionalAction: (OnboardingCard, @escaping () -> Void) -> Void
     let onPrimaryAction: (OnboardingCard, @escaping () -> Void) -> Void
@@ -2061,6 +2108,10 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
     @AppStorage("hasRespondedToOnboarding") var hasRespondedToOnboarding = false
     @AppStorage("darkModeSetting") private var darkModeSetting = "system"
     @State private var isPresented = false
+    @State private var replayRequest = OnboardingReplayRequest()
+    @State private var presentationContentID = UUID()
+    @StateObject private var presentationLifetime = OnboardingPresentationLifetime()
+    @State private var hasResolvedInitialPresentation = false
     @State private var isFinished = false
     @State private var didSkipOnboardingThisSession = false
     @State private var isPresentingOnboardingStoreSheet = false
@@ -2078,6 +2129,7 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
             requiredActionContent: requiredActionContent,
             cardContent: cardContent
         )
+        .id(presentationContentID)
         .preferredColorScheme(preferredColorScheme)
         .storeSheet(isPresented: $isPresentingOnboardingStoreSheet)
     }
@@ -2110,8 +2162,16 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
 
     public func body(content: Content) -> some View {
         presentedContent(content)
+            .background {
+                OnboardingPresenterLifetimeAnchor(lifetime: presentationLifetime, onEnd: onPresentationDidEnd)
+                    .frame(width: 0, height: 0)
+            }
             .onAppear {
-                refresh()
+                if let replayRequestID { presentReplay(requestID: replayRequestID) }
+                else { refresh() }
+            }
+            .onChange(of: replayRequestID) { requestID in
+                if let requestID { presentReplay(requestID: requestID) }
             }
             .onChange(of: hasSeenOnboarding) { hasSeenOnboarding in
                 refresh(hasSeenOnboarding: hasSeenOnboarding)
@@ -2119,14 +2179,13 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
             .onChange(of: hasRespondedToOnboarding) { hasRespondedToOnboarding in
                 refresh(hasRespondedToOnboarding: hasRespondedToOnboarding)
             }
-            .onChange(of: isPresented) { isPresented in
-                if !isPresented && !hasRespondedToOnboarding {
-                    hasSeenOnboarding = true
+            .onChange(of: isActive) { _ in
+                refresh()
+            }
+            .transaction { transaction in
+                if !hasResolvedInitialPresentation {
+                    transaction.disablesAnimations = true
                 }
-            }
-            .onChange(of: isPresentingOnboardingStoreSheet) { isPresentingOnboardingStoreSheet in
-            }
-            .onChange(of: isPresentingStoreSheet) { isPresentingStoreSheet in
             }
     }
 
@@ -2144,12 +2203,11 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
                 .accessibilityHidden(shouldBlankUnderlyingContent)
                 .allowsHitTesting(!shouldBlankUnderlyingContent)
         }
-            .fullScreenCover(isPresented: $isPresented) {
+            .fullScreenCover(isPresented: $isPresented, onDismiss: presentationDidEnd) {
                 onboardingPresentationContent
                     .interactiveDismissDisabled()
                     .onAppear {
-                    }
-                    .onDisappear {
+                        resolveInitialPresentation()
                     }
             }
 #elseif os(macOS)
@@ -2164,12 +2222,11 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
                 .accessibilityHidden(shouldBlankUnderlyingContent)
                 .allowsHitTesting(!shouldBlankUnderlyingContent)
         }
-            .sheet(isPresented: $isPresented) {
+            .sheet(isPresented: $isPresented, onDismiss: presentationDidEnd) {
                 onboardingPresentationContent
                     .frame(idealWidth: 450, idealHeight: 600)
                     .onAppear {
-                    }
-                    .onDisappear {
+                        resolveInitialPresentation()
                     }
             }
 #else
@@ -2180,17 +2237,41 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
     private func refresh(hasRespondedToOnboarding: Bool? = nil, hasSeenOnboarding: Bool? = nil) {
         let hasRespondedToOnboarding = hasRespondedToOnboarding ?? self.hasRespondedToOnboarding
         let hasSeenOnboarding = hasSeenOnboarding ?? self.hasSeenOnboarding
-        Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 250_000_000)
-            guard isActive || isPresentingOnboardingStoreSheet else {
-                didSkipOnboardingThisSession = false
-                if !isPresentingOnboardingStoreSheet {
-                    isPresented = false
-                }
-                return
-            }
-            isPresented = !(hasRespondedToOnboarding || hasSeenOnboarding)
+        if replayRequest.id != nil { return }
+        guard isActive || isPresentingOnboardingStoreSheet else {
+            didSkipOnboardingThisSession = false
+            isPresented = false
+            return
         }
+        let shouldPresent = !(hasRespondedToOnboarding || hasSeenOnboarding)
+        if shouldPresent { presentationLifetime.begin(onPresentationWillBegin) }
+        isPresented = shouldPresent
+        if !isPresented {
+            resolveInitialPresentation()
+        }
+    }
+
+    private func presentReplay(requestID: UUID) {
+        guard replayRequest.begin(requestID) else { return }
+        presentationContentID = requestID
+        isFinished = false
+        isPresentingOnboardingStoreSheet = false
+        didSkipOnboardingThisSession = false
+        presentationLifetime.begin(onPresentationWillBegin)
+        isPresented = true
+    }
+
+    private func presentationDidEnd() {
+        replayRequestID = nil
+        replayRequest.didDismiss()
+        presentationLifetime.end(onPresentationDidEnd)
+    }
+
+    private func resolveInitialPresentation() {
+        guard isActive || isPresentingOnboardingStoreSheet,
+              !hasResolvedInitialPresentation else { return }
+        hasResolvedInitialPresentation = true
+        onInitialPresentationResolved()
     }
 
     private func skipOnboarding() {
@@ -2206,6 +2287,10 @@ public extension View {
         isActive: Bool,
         isPresentingStoreSheet: Binding<Bool> = .constant(false),
         cards: [OnboardingCard],
+        onInitialPresentationResolved: @escaping () -> Void = {},
+        replayRequestID: Binding<UUID?> = .constant(nil),
+        onPresentationWillBegin: @escaping () -> Void = {},
+        onPresentationDidEnd: @escaping () -> Void = {},
         onRequiredAction: @escaping (OnboardingCard, @escaping () -> Void) -> Void,
         onSkipOptionalAction: @escaping (OnboardingCard, @escaping () -> Void) -> Void = { _, complete in complete() },
         onPrimaryAction: @escaping (OnboardingCard, @escaping () -> Void) -> Void = { _, complete in complete() },
@@ -2215,8 +2300,12 @@ public extension View {
         self.modifier(
             OnboardingSheet(
                 isActive: isActive,
+                replayRequestID: replayRequestID,
                 isPresentingStoreSheet: isPresentingStoreSheet,
                 cards: cards,
+                onInitialPresentationResolved: onInitialPresentationResolved,
+                onPresentationWillBegin: onPresentationWillBegin,
+                onPresentationDidEnd: onPresentationDidEnd,
                 onRequiredAction: onRequiredAction,
                 onSkipOptionalAction: onSkipOptionalAction,
                 onPrimaryAction: onPrimaryAction,
