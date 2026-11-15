@@ -74,7 +74,6 @@ let package = Package(
 //                .product(name: "ExyteGrid", package: "Grid"),
 //                .product(name: "XcodeSnippet", package: "XcodeSnippet"),
                 .product(name: "StoreHelper", package: "StoreHelper"),
-                .product(name: "SwiftUIBackports", package: "SwiftUIBackports"),
 //                .product(name: "FrameUp", package: "FrameUp"),
 //                .product(name: "Flow", package: "SwiftUI-Flow"),
                 //                .product(name: "SwiftUIKit", package: "SwiftUIKit"),

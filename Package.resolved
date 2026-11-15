@@ -1,5 +1,5 @@
 {
-  "originHash" : "810d839ee45b82e90c859f29a513396a89f2f8a31e05e6e93255c83541c3a83d",
+  "originHash" : "ff18e3e93caa35e8752d4934ef99e013dff2a674be4932c86356ebc69f685d39",
   "pins" : [
     {
       "identity" : "bettersafariview2",
@@ -11,7 +11,6 @@
       }
     },
     {
-
       "identity" : "brotli",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/NghiaTranUIT/Brotli.git",
@@ -124,7 +123,6 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/EmergeTools/Pow.git",
       "state" : {
-        "branch" : "main",
         "revision" : "1b4b1dda28c50b95f0872927ee2226fe8b58950e"
       }
     },
@@ -140,19 +138,17 @@
     {
       "identity" : "realm-core",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/realm/realm-core.git",
+      "location" : "https://github.com/aehlke/realm-core.git",
       "state" : {
-        "revision" : "b4192c46305570577c4d08df790fddec5ab3aa04",
-        "version" : "20.1.5"
+        "revision" : "33d180057a8047da465fea0ab1c122514cbaf599"
       }
     },
     {
       "identity" : "realm-swift",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/realm/realm-swift.git",
+      "location" : "https://github.com/aehlke/realm-swift.git",
       "state" : {
-        "revision" : "ca03df491ec5e4bb8af0bca1e9957d08c10ec2da",
-        "version" : "20.0.5"
+        "revision" : "ea971ea2975f9e3cb2cce5ae9339db51e65f2191"
       }
     },
     {
@@ -228,7 +224,6 @@
       }
     },
     {
-
       "identity" : "swiftui-introspect",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/siteline/SwiftUI-Introspect.git",

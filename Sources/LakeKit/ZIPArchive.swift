@@ -35,6 +35,25 @@ public struct ZIPArchive: Codable {
         self.title = title
         self.content = content
     }
+
+    func writeTransferFile(in directory: URL = FileManager.default.temporaryDirectory) throws -> URL {
+        // Receivers may read the file after the exporting closure returns.
+        // Each materialization therefore retains its own URL and snapshot.
+        let transferDirectory = directory.appendingPathComponent(
+            "LakeKitZIPTransfer-\(UUID().uuidString)", isDirectory: true
+        )
+        try FileManager.default.createDirectory(
+            at: transferDirectory, withIntermediateDirectories: true
+        )
+        let fileURL = transferDirectory.appendingPathComponent(fileName)
+        do {
+            try content.write(to: fileURL, options: .atomic)
+            return fileURL
+        } catch {
+            try? FileManager.default.removeItem(at: transferDirectory)
+            throw error
+        }
+    }
 }
 
 #if os(iOS)
@@ -63,12 +82,7 @@ extension ZIPArchive: Transferable {
     public static var transferRepresentation: some TransferRepresentation {
         FileRepresentation(contentType: .zip,
                            shouldAttemptToOpenInPlace: false) { zip in
-            let resultURL = FileManager.default.temporaryDirectory
-                .appendingPathComponent(zip.fileName)
-            if FileManager.default.fileExists(atPath: resultURL.path) {
-                try FileManager.default.removeItem(at: resultURL)
-            }
-            try zip.content.write(to: resultURL)
+            let resultURL = try zip.writeTransferFile()
             return SentTransferredFile(resultURL, allowAccessingOriginalFile: true)
         } importing: { _ in
             throw TransferError.importFailed

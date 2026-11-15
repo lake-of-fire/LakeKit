@@ -803,7 +803,88 @@ final class SubscriptionEntitlementTests: XCTestCase {
     }
 
     @MainActor
-    private func withModel(_ body: @MainActor (StoreViewModel) async -> Void) async {
+    func testFencedEntitlementPublicationPersistsCompatibilitySnapshots() async {
+        let suite = "LakeKit.SubscriptionSnapshotTests." + UUID().uuidString
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        await withModel(defaults: defaults) { model in
+            model.isSubscribedFromElsewhereCallback = { _ in true }
+            await model.reconcileEntitlements()
+            await model.externalSubscriptionTask?.value
+            XCTAssertTrue(defaults.bool(forKey: "LakeKit.isSubscribed"))
+            XCTAssertTrue(defaults.bool(forKey: "LakeKit.isSubscribedFromElsewhere"))
+
+            model.invalidateExternalSubscription()
+            XCTAssertFalse(defaults.bool(forKey: "LakeKit.isSubscribed"))
+            XCTAssertFalse(defaults.bool(forKey: "LakeKit.isSubscribedFromElsewhere"))
+            model.resumeExternalSubscription()
+            model.isSubscribedFromElsewhereCallback = { _ in false }
+            model.entitlementClient.current = { [.verified(productID: Self.monthly)] }
+            await model.reconcileEntitlements()
+            await model.externalSubscriptionTask?.value
+            XCTAssertTrue(defaults.bool(forKey: "LakeKit.isSubscribed"))
+            XCTAssertFalse(defaults.bool(forKey: "LakeKit.isSubscribedFromElsewhere"))
+        }
+    }
+
+    @MainActor
+    func testPersistedSubscriptionBooleansCannotAuthorizeFreshModel() async {
+        let suite = "LakeKit.SubscriptionSnapshotTests." + UUID().uuidString
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        defaults.set(true, forKey: "LakeKit.isSubscribed")
+        defaults.set(true, forKey: "LakeKit.isSubscribedFromElsewhere")
+        await withModel(defaults: defaults) { model in
+            XCTAssertEqual(model.entitlementState, .checking)
+            XCTAssertFalse(model.isSubscribed)
+            XCTAssertFalse(model.isSubscribedFromElsewhere)
+            XCTAssertTrue(model.showAds)
+            await model.reconcileEntitlements()
+            XCTAssertFalse(defaults.bool(forKey: "LakeKit.isSubscribed"))
+            XCTAssertFalse(defaults.bool(forKey: "LakeKit.isSubscribedFromElsewhere"))
+        }
+    }
+
+    @MainActor
+    func testObsoleteAccountCompletionCannotOverwritePersistedSnapshots() async {
+        let suite = "LakeKit.SubscriptionSnapshotTests." + UUID().uuidString
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        await withModel(defaults: defaults) { model in
+            let started = EntitlementTestGate<Void>()
+            let release = EntitlementTestGate<Bool>()
+            var reads = 0
+            model.isSubscribedFromElsewhereCallback = { _ in
+                reads += 1
+                if reads == 1 {
+                    started.open(())
+                    return await release.wait()
+                }
+                return false
+            }
+            let oldRefresh = Task { @MainActor in await model.reconcileEntitlements() }
+            await started.wait()
+            let obsoleteWorker = model.externalSubscriptionTask
+            model.invalidateExternalSubscription()
+            model.resumeExternalSubscription()
+            await model.reconcileEntitlements()
+            XCTAssertFalse(defaults.bool(forKey: "LakeKit.isSubscribed"))
+            XCTAssertFalse(defaults.bool(forKey: "LakeKit.isSubscribedFromElsewhere"))
+            release.open(true)
+            await obsoleteWorker?.value
+            await oldRefresh.value
+            XCTAssertEqual(reads, 2)
+            XCTAssertEqual(model.entitlementState, .inactive)
+            XCTAssertFalse(defaults.bool(forKey: "LakeKit.isSubscribed"))
+            XCTAssertFalse(defaults.bool(forKey: "LakeKit.isSubscribedFromElsewhere"))
+        }
+    }
+
+    @MainActor
+    private func withModel(defaults: UserDefaults? = nil, _ body: @MainActor (StoreViewModel) async -> Void) async {
+        let suiteName = "LakeKit.SubscriptionEntitlementTests." + UUID().uuidString
+        let isolatedDefaults = defaults ?? UserDefaults(suiteName: suiteName)!
+        defer { if defaults == nil { isolatedDefaults.removePersistentDomain(forName: suiteName) } }
         let ads = AdsViewModel.shared
         let savedShowAds = ads.showAds
         let savedInitialized = ads.isInitialized
@@ -817,7 +898,8 @@ final class SubscriptionEntitlementTests: XCTestCase {
             awardTitle: nil, awardImage: nil, awardTestimonial: "", awardLink: nil, benefits: [],
             termsOfService: URL(string: "https://example.com/terms")!,
             privacyPolicy: URL(string: "https://example.com/privacy")!, faq: [:],
-            additionalSubscriptionProductIDs: [Self.monthly, Self.annual]
+            additionalSubscriptionProductIDs: [Self.monthly, Self.annual],
+            subscriptionDefaults: isolatedDefaults
         )
         model.entitlementClient = .init(current: { [] }, sync: {}, updates: { _ in
             AsyncStream { $0.finish() }

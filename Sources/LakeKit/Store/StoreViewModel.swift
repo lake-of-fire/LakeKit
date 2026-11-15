@@ -72,6 +72,9 @@ public class StoreViewModel: NSObject, ObservableObject {
     private var appleEntitlementState: SubscriptionEntitlementState = .checking
     private var externalSubscriptionEnabled = true
     private let additionalSubscriptionProductIDs: Set<String>
+    // Compatibility snapshots are outputs of fenced reconciliation, never authority
+    // for a fresh model or a replacement account.
+    private let subscriptionDefaults: UserDefaults
     var entitlementClient = SubscriptionEntitlementClient.live
 
     var subscriptionProductIDs: Set<String> {
@@ -109,7 +112,8 @@ public class StoreViewModel: NSObject, ObservableObject {
         faq: OrderedDictionary<String, String>,
         isSubscribedFromElsewhereCallback: ((StoreViewModel) async throws -> Bool)? = nil,
         reserveReferralCodeForPurchase: @escaping (String, UUID) async throws -> Void = { _, _ in },
-        additionalSubscriptionProductIDs: Set<String> = []
+        additionalSubscriptionProductIDs: Set<String> = [],
+        subscriptionDefaults: UserDefaults = .standard
     ) {
         self.satisfyingPrerequisite = satisfyingPrerequisite
         self.products = products
@@ -133,6 +137,7 @@ public class StoreViewModel: NSObject, ObservableObject {
         self.isSubscribedFromElsewhereCallback = isSubscribedFromElsewhereCallback
         self.reserveReferralCodeForPurchase = reserveReferralCodeForPurchase
         self.additionalSubscriptionProductIDs = additionalSubscriptionProductIDs
+        self.subscriptionDefaults = subscriptionDefaults
     }
     
     /// Returns the app account token UUID, reading from UserDefaults or generating and storing a new one if not present.
@@ -412,6 +417,8 @@ public class StoreViewModel: NSObject, ObservableObject {
 #if DEBUG
         SubscriptionEntitlementDiagnostics.record("publish generation=\(subscriptionRefreshGeneration) state=\(state)")
 #endif
+        subscriptionDefaults.set(state == .active, forKey: "LakeKit.isSubscribed")
+        subscriptionDefaults.set(isSubscribedFromElsewhere, forKey: "LakeKit.isSubscribedFromElsewhere")
         entitlementState = state
         AdsViewModel.shared.showAds = showAds
         AdsViewModel.shared.isInitialized = isInitialized
