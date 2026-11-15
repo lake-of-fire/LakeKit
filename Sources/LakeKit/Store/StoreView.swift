@@ -517,6 +517,14 @@ public struct StoreView: View {
                 .foregroundColor(.primary)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
+            if let notice = storeViewModel.purchaseEnvironmentNotice {
+                Text(notice)
+                    .foregroundColor(.red)
+                    .font(.callout)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, secondaryHorizontalPadding)
+            }
             Text(storeViewModel.subheadline)
                 .foregroundColor(.secondary)
                 .font(.subheadline)
@@ -559,8 +567,10 @@ public struct StoreView: View {
                         scrollValue: scrollValue
                     )
                 }
+#if DEBUG
                 AddReferralCodeButton()
                     .padding(.top, 3)
+#endif
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 16)
@@ -714,8 +724,10 @@ public struct StoreView: View {
                                             //                                    .fixedSize(horizontal: true, vertical: false)
                                             .frame(maxWidth: storeOptionsMaxWidth(geometrySize: geometry.size))
                                             
+#if DEBUG
                                             AddReferralCodeButton()
                                                 .padding(.top, 16)
+#endif
                                         }
                                         .padding(.top, 5)
                                     })
@@ -761,11 +773,9 @@ public struct StoreView: View {
                 }
             }
         }
-        .onChange(of: storeViewModel.isSubscribed) { isSubscribed in
-            Task { @MainActor in
-                if isSubscribed {
-                    isPresented = false
-                }
+        .task(id: storeViewModel.isSubscribed) { @MainActor in
+            if storeViewModel.isSubscribed {
+                isPresented = false
             }
         }
     }

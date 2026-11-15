@@ -1576,9 +1576,8 @@ struct OnboardingView<CardContent: View, RequiredActionContent: View>: View {
         guard hasPresentedStoreSheet, isShowingLastCard else { return }
 
         Task { @MainActor in
-            storeViewModel.refreshIsSubscribed(storeHelper: storeHelper)
-            try? await Task.sleep(nanoseconds: 500_000_000)
-            guard hasPresentedStoreSheet, isShowingLastCard else { return }
+            await storeViewModel.reconcileEntitlements()
+            guard hasPresentedStoreSheet, isShowingLastCard, !isPresentingStoreSheet else { return }
             guard storeViewModel.isSubscribed || storeViewModel.isSubscribedFromElsewhere || !AdsViewModel.shared.showAds else { return }
 
             hasSeenOnboarding = true
