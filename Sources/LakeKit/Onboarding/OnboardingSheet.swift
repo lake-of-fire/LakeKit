@@ -2314,6 +2314,7 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
 
     private func presentReplay(requestID: UUID) {
         guard replayRequest.begin(requestID) else { return }
+        hasResolvedInitialPresentation = true
         presentationContentID = requestID
         isFinished = false
         isPresentingOnboardingStoreSheet = false
