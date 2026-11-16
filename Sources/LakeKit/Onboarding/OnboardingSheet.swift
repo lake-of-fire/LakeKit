@@ -581,6 +581,35 @@ public enum OnboardingIntroReadinessNotification {
     }
 }
 
+/// Reconcile one presentation's position when optional cards enter or leave.
+/// Prefer the nearest surviving prior page on a tie so removal cannot skip an
+/// intervening setup step. Reordering alone preserves the selected card.
+struct OnboardingCardSelection {
+    let id: String?
+    let isFinished: Bool
+
+    init(selectedID: String?, previousCardIDs: [String], cardIDs: [String]) {
+        let nextID: String?
+        if let selectedID, cardIDs.contains(selectedID) {
+            nextID = selectedID
+        } else if let selectedID, let previousIndex = previousCardIDs.firstIndex(of: selectedID) {
+            let survivingIDs = Set(cardIDs)
+            let nearest = previousCardIDs.indices
+                .filter { survivingIDs.contains(previousCardIDs[$0]) }
+                .min { lhs, rhs in
+                    let lhsDistance = abs(lhs - previousIndex)
+                    let rhsDistance = abs(rhs - previousIndex)
+                    return lhsDistance == rhsDistance ? lhs < rhs : lhsDistance < rhsDistance
+                }
+            nextID = nearest.map { previousCardIDs[$0] } ?? cardIDs.first
+        } else {
+            nextID = cardIDs.first
+        }
+        id = nextID
+        isFinished = nextID != nil && nextID == cardIDs.last
+    }
+}
+
 struct OnboardingIntroRevealState {
     var visibleFeatureCount = 0
     var isHeaderVisible = false
@@ -905,7 +934,7 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onChange(of: scrolledID) { scrolledID in
-            isFinished = scrolledID == cards.last?.id
+            isFinished = scrolledID != nil && scrolledID == cards.last?.id
         }
     }
 
@@ -1102,7 +1131,7 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
     ) -> some View {
         OnboardingPrimaryButtons(
             currentCard: currentCard,
-            isFinishedOnboarding: scrolledID == cards.last?.id,
+            isFinishedOnboarding: scrolledID != nil && scrolledID == cards.last?.id,
             canAdvanceOnboarding: canAdvanceOnboarding,
             hasCompletedRequiredAction: hasCompletedRequiredAction,
             advanceOnboarding: advanceOnboarding,
@@ -1242,6 +1271,9 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
             ensureInitialScrolledID()
             scheduleIntroFeatureAnimationIfNeeded()
         }
+        .onChange(of: cards.map(\.id)) { [previousCardIDs = cards.map(\.id)] cardIDs in
+            reconcileCardSelection(previousCardIDs: previousCardIDs, cardIDs: cardIDs)
+        }
         .onReceive(NotificationCenter.default.publisher(for: OnboardingIntroReadinessNotification.name)) { notification in
             guard isShowingFullScreenIntro,
                   OnboardingIntroReadinessNotification.belongsToPresentation(notification, id: presentationID) else { return }
@@ -1318,13 +1350,15 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
     }
 
     private func ensureInitialScrolledID() {
-        if let scrolledID, cards.contains(where: { $0.id == scrolledID }) {
-            isFinished = scrolledID == cards.last?.id
-            return
-        }
+        let cardIDs = cards.map(\.id)
+        reconcileCardSelection(previousCardIDs: cardIDs, cardIDs: cardIDs)
+    }
 
-        scrolledID = cards.first?.id
-        isFinished = scrolledID == cards.last?.id
+    private func reconcileCardSelection(previousCardIDs: [String], cardIDs: [String]) {
+        let selection = OnboardingCardSelection(selectedID: scrolledID,
+            previousCardIDs: previousCardIDs, cardIDs: cardIDs)
+        if scrolledID != selection.id { scrolledID = selection.id }
+        isFinished = selection.isFinished
     }
 
     private func scheduleIntroFeatureAnimationIfNeeded() {
@@ -1555,7 +1589,7 @@ struct OnboardingView<CardContent: View, RequiredActionContent: View>: View {
     @AppStorage("hasRespondedToOnboarding") private var hasRespondedToOnboarding = false
 
     private var isShowingLastCard: Bool {
-        isFinished || selectedCardID == cards.last?.id
+        isFinished || (selectedCardID != nil && selectedCardID == cards.last?.id)
     }
 
     @ViewBuilder private var onboardingCardsView: some View {
