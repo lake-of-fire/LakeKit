@@ -531,6 +531,16 @@ public struct StoreView: View {
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, secondaryHorizontalPadding)
+            if let notice = storeViewModel.purchaseEnvironmentNotice, !notice.isEmpty {
+                Text(notice)
+                    .font(.callout)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, secondaryHorizontalPadding)
+                    .padding(.top, 8)
+                    .accessibilityIdentifier("purchase-environment-notice")
+            }
         }
         .padding(.horizontal)
     }
