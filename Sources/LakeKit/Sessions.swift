@@ -134,6 +134,15 @@ public struct AccountSessionAccess: @unchecked Sendable {
         }
     }
 
+#if DEBUG
+    /// Immutable process-local identity for development UI fixtures. It carries
+    /// no authorization token and never reads or writes a credential store.
+    public static func developmentFixture(userID: Int) -> Self {
+        let snapshot = AccountSessionSnapshot(identity: .authenticated(userID: userID), generation: 1)
+        return Self(testSnapshotProvider: { snapshot }, authTokenProvider: { nil })
+    }
+#endif
+
     public var snapshot: AccountSessionSnapshot {
         snapshotProvider()
     }
@@ -267,6 +276,17 @@ public class Session: ObservableObject {
             authenticationPresentationDelayNanoseconds
         settleAuthenticationState()
     }
+
+#if DEBUG
+    /// A signed-out UI observation source with an inert, process-local store.
+    /// Creating it cannot inspect or replace any real Keychain credentials.
+    public static func developmentFixture() -> Session {
+        Session(credentialStore: SessionCredentialStore(
+            data: { _ in nil }, string: { _ in nil },
+            setData: { _, _ in false }, setString: { _, _ in false }, delete: { _ in true }
+        ), authenticationPresentationDelayNanoseconds: 0)
+    }
+#endif
 
     @MainActor
     public func updateAuthenticationState() {
