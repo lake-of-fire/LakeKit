@@ -444,23 +444,26 @@ public class LoggingViewModel: ObservableObject {
     }
 }
 
-private func recentLogsText(from newestFirstLogContents: [String], byteLimit: Int) -> String {
-    let recentLogData = newestFirstLogContents.reduce(into: Data()) { result, logText in
-        guard result.count < byteLimit else { return }
-        let remainingByteCount = byteLimit - result.count
+func recentLogsText(from newestFirstLogContents: [String], byteLimit: Int) -> String {
+    guard byteLimit > 0 else { return "" }
+    var recentLogData = Data()
+    for logText in newestFirstLogContents {
+        guard recentLogData.count < byteLimit else { break }
+        let remainingByteCount = byteLimit - recentLogData.count
         let logData = Data(logText.utf8)
-        result.append(logData.suffix(remainingByteCount))
-    }
-    guard !recentLogData.isEmpty else { return "" }
-    
-    var suffixData = recentLogData
-    while !suffixData.isEmpty {
-        if let text = String(data: suffixData, encoding: .utf8) {
-            return "Logs truncated to the most recent 1 MiB for email.\n\n\(text)"
+        if logData.count <= remainingByteCount {
+            recentLogData.append(logData)
+        } else {
+            // Repair the cut in this file before appending it. Repairing the
+            // combined buffer would discard newer, already valid log data to
+            // reach an invalid UTF-8 sequence in the middle.
+            let suffix = logData.suffix(remainingByteCount).drop(while: { ($0 & 0xC0) == 0x80 })
+            recentLogData.append(contentsOf: suffix)
+            break
         }
-        suffixData.removeFirst()
     }
-    return ""
+    guard !recentLogData.isEmpty, let text = String(data: recentLogData, encoding: .utf8) else { return "" }
+    return "Logs truncated to the most recent 1 MiB for email.\n\n\(text)"
 }
 
 private func makeLogsZIPArchive(title: String, logsText: String) throws -> ZIPArchive {

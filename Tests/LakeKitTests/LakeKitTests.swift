@@ -65,6 +65,41 @@ final class ZIPArchiveTransferFileTests: XCTestCase {
     }
 }
 
+final class RecentLogsTextTests: XCTestCase {
+    private let header = "Logs truncated to the most recent 1 MiB for email.\n\n"
+
+    func testClippedOlderUnicodeCannotDiscardNewerLogsOrBackfillStillOlderData() {
+        XCTAssertEqual(
+            recentLogsText(from: ["recent", "古a", "older"], byteLimit: 9),
+            header + "recenta"
+        )
+        XCTAssertEqual(
+            recentLogsText(from: ["recent", "古", "older"], byteLimit: 8),
+            header + "recent"
+        )
+    }
+
+    func testUTF8SuffixBudgetPreservesWholeScalarsAndExistingOrdering() {
+        for budget in 1...4 {
+            XCTAssertEqual(
+                recentLogsText(from: ["recent", "😀x", "older"], byteLimit: 6 + budget),
+                header + "recentx"
+            )
+        }
+        XCTAssertEqual(
+            recentLogsText(from: ["new", "old"], byteLimit: 6),
+            header + "newold"
+        )
+        XCTAssertEqual(
+            recentLogsText(from: ["before日本"], byteLimit: 6),
+            header + "日本"
+        )
+        XCTAssertEqual(recentLogsText(from: ["古", "older"], byteLimit: 2), "")
+        XCTAssertEqual(recentLogsText(from: ["logs"], byteLimit: 0), "")
+        XCTAssertEqual(recentLogsText(from: [], byteLimit: 10), "")
+    }
+}
+
 @MainActor
 final class LoggingRefreshOwnershipTests: XCTestCase {
     func testRetiredLoadsKeepSuccessorBusyAndCannotPublishLateLogs() async throws {
