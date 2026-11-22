@@ -124,6 +124,7 @@ let package = Package(
             name: "LakeKitTests",
             dependencies: [
                 "LakeKit",
+                .product(name: "ZIPFoundation", package: "ZipFoundation"),
                 .product(name: "KeychainSwift", package: "keychain-swift"),
                 .product(name: "RealmSwiftGaps", package: "RealmSwiftGaps"),
             ]),
