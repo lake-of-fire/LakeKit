@@ -331,13 +331,20 @@ public class LoggingViewModel: ObservableObject {
     @Published public var clippedLogsText: String?
     @Published public var logsZIPArchive: ZIPArchive?
     @Published public var emailLogsZIPArchive: ZIPArchive?
-    @Published private var loadTask: Task<Void, Error>? = nil
+    @Published private var loadTask: (id: UUID, task: Task<Void, Error>)?
     
     private let logger: Logger
+    private let loadLogURLs: @Sendable () async throws -> [URL]
     
     // MARK: Initialization
     public init(logger: Logger = Logger.shared) {
         self.logger = logger
+        self.loadLogURLs = { logger.getCurrentLogs() }
+    }
+
+    init(logger: Logger = Logger.shared, loadLogURLs: @escaping @Sendable () async throws -> [URL]) {
+        self.logger = logger
+        self.loadLogURLs = loadLogURLs
     }
     
     public func clearLogs() async {
@@ -346,23 +353,25 @@ public class LoggingViewModel: ObservableObject {
     }
     
     public var isLoading: Bool {
-        if let task = loadTask {
-            return !task.isCancelled
-        }
-        return false
+        loadTask != nil
     }
     
     public func load() async {
-        loadTask?.cancel()
-        
-        let logger = self.logger
+        guard !Task.isCancelled else { return }
+        let previousTask = loadTask?.task
+        let loadID = UUID()
+        let loadLogURLs = self.loadLogURLs
         let newTask = Task.detached(priority: .utility) {
-            let logs = logger.getCurrentLogs().map { url in
+            try Task.checkCancellation()
+            let urls = try await loadLogURLs()
+            try Task.checkCancellation()
+            let logs = urls.map { url in
                 TransferableLog(url: url, name: url.lastPathComponent)
             }
             
             let logsCount = logs.count
-            let fileContents = logs.compactMap { log -> String? in
+            let fileContents = try logs.compactMap { log -> String? in
+                try Task.checkCancellation()
                 guard let content = try? String(contentsOf: log.url) else { return nil }
                 if logsCount == 1 {
                     return content
@@ -386,55 +395,75 @@ public class LoggingViewModel: ObservableObject {
             let clippedLogsText = String(logsText.suffix(Int((0.75 * Double(1_024 * 1_024)).rounded())))
             
             try await { @MainActor [weak self] in
-                guard let self else { return }
+                guard let self, self.loadTask?.id == loadID else { throw CancellationError() }
                 try Task.checkCancellation()
+                // Once the displayed text advances, its previous ZIPs no longer
+                // describe it. An already presented export owns its own snapshot.
+                self.logsZIPArchive = nil
+                self.emailLogsZIPArchive = nil
                 self.logs = logs
                 self.logsText = logsText
                 self.clippedLogsText = clippedLogsText
                 //                self.clippedReversedLogsText = clippedReversedLogsText
             }()
             
-            do {
+            try Task.checkCancellation()
+            let archive = try makeLogsZIPArchive(title: "ManabiReaderLogs", logsText: logsText)
+            let emailArchive = try makeLogsZIPArchive(
+                title: "ManabiReaderLogs-Recent",
+                logsText: recentLogsText(from: fileContents, byteLimit: 1_024 * 1_024)
+            )
+            try await { @MainActor [weak self] in
+                guard let self, self.loadTask?.id == loadID else { throw CancellationError() }
                 try Task.checkCancellation()
-                let archive = try makeLogsZIPArchive(title: "ManabiReaderLogs", logsText: logsText)
-                let emailArchive = try makeLogsZIPArchive(
-                    title: "ManabiReaderLogs-Recent",
-                    logsText: recentLogsText(from: fileContents, byteLimit: 1_024 * 1_024)
-                )
-                try await { @MainActor [weak self] in
-                    guard let self else { return }
-                    try Task.checkCancellation()
-                    self.logsZIPArchive = archive
-                    self.emailLogsZIPArchive = emailArchive
-                }()
-            } catch {
+                self.logsZIPArchive = archive
+                self.emailLogsZIPArchive = emailArchive
+            }()
+        }
+
+        loadTask = (loadID, newTask)
+        previousTask?.cancel()
+        defer {
+            if loadTask?.id == loadID {
+                loadTask = nil
+            }
+        }
+        do {
+            try await withTaskCancellationHandler {
+                try await newTask.value
+            } onCancel: {
+                newTask.cancel()
+            }
+        } catch is CancellationError {
+            return
+        } catch {
+            if loadTask?.id == loadID, !newTask.isCancelled {
                 Logger.shared.logger.error("LoggingViewModel error: \(error)")
             }
         }
-        
-        loadTask = newTask
-        try? await newTask.value
-        loadTask = nil
     }
 }
 
-private func recentLogsText(from newestFirstLogContents: [String], byteLimit: Int) -> String {
-    let recentLogData = newestFirstLogContents.reduce(into: Data()) { result, logText in
-        guard result.count < byteLimit else { return }
-        let remainingByteCount = byteLimit - result.count
+func recentLogsText(from newestFirstLogContents: [String], byteLimit: Int) -> String {
+    guard byteLimit > 0 else { return "" }
+    var recentLogData = Data()
+    for logText in newestFirstLogContents {
+        guard recentLogData.count < byteLimit else { break }
+        let remainingByteCount = byteLimit - recentLogData.count
         let logData = Data(logText.utf8)
-        result.append(logData.suffix(remainingByteCount))
-    }
-    guard !recentLogData.isEmpty else { return "" }
-    
-    var suffixData = recentLogData
-    while !suffixData.isEmpty {
-        if let text = String(data: suffixData, encoding: .utf8) {
-            return "Logs truncated to the most recent 1 MiB for email.\n\n\(text)"
+        if logData.count <= remainingByteCount {
+            recentLogData.append(logData)
+        } else {
+            // Repair the cut in this file before appending it. Repairing the
+            // combined buffer would discard newer, already valid log data to
+            // reach an invalid UTF-8 sequence in the middle.
+            let suffix = logData.suffix(remainingByteCount).drop(while: { ($0 & 0xC0) == 0x80 })
+            recentLogData.append(contentsOf: suffix)
+            break
         }
-        suffixData.removeFirst()
     }
-    return ""
+    guard !recentLogData.isEmpty, let text = String(data: recentLogData, encoding: .utf8) else { return "" }
+    return "Logs truncated to the most recent 1 MiB for email.\n\n\(text)"
 }
 
 private func makeLogsZIPArchive(title: String, logsText: String) throws -> ZIPArchive {

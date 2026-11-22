@@ -4,6 +4,7 @@ import Dispatch
 import StoreHelper
 import BigSyncKit
 import RealmSwift
+import ZIPFoundation
 @testable import RealmSwiftGaps
 @testable import LakeKit
 
@@ -61,6 +62,283 @@ final class ZIPArchiveTransferFileTests: XCTestCase {
             try? FileManager.default.removeItem(at: root)
         }
         return root
+    }
+}
+
+final class RecentLogsTextTests: XCTestCase {
+    private let header = "Logs truncated to the most recent 1 MiB for email.\n\n"
+
+    func testClippedOlderUnicodeCannotDiscardNewerLogsOrBackfillStillOlderData() {
+        XCTAssertEqual(
+            recentLogsText(from: ["recent", "古a", "older"], byteLimit: 9),
+            header + "recenta"
+        )
+        XCTAssertEqual(
+            recentLogsText(from: ["recent", "古", "older"], byteLimit: 8),
+            header + "recent"
+        )
+    }
+
+    func testUTF8SuffixBudgetPreservesWholeScalarsAndExistingOrdering() {
+        for budget in 1...4 {
+            XCTAssertEqual(
+                recentLogsText(from: ["recent", "😀x", "older"], byteLimit: 6 + budget),
+                header + "recentx"
+            )
+        }
+        XCTAssertEqual(
+            recentLogsText(from: ["new", "old"], byteLimit: 6),
+            header + "newold"
+        )
+        XCTAssertEqual(
+            recentLogsText(from: ["before日本"], byteLimit: 6),
+            header + "日本"
+        )
+        XCTAssertEqual(recentLogsText(from: ["古", "older"], byteLimit: 2), "")
+        XCTAssertEqual(recentLogsText(from: ["logs"], byteLimit: 0), "")
+        XCTAssertEqual(recentLogsText(from: [], byteLimit: 10), "")
+    }
+}
+
+@MainActor
+final class LoggingRefreshOwnershipTests: XCTestCase {
+    func testRetiredLoadsKeepSuccessorBusyAndCannotPublishLateLogs() async throws {
+        let fixture = try makeFixture(contents: ["old A", "retired B", "current C"])
+        let a = fixture.gates[0]
+        let b = fixture.gates[1]
+        let c = fixture.gates[2]
+        var publishedText = [String]()
+        let publication = fixture.model.$logsText.compactMap { $0 }.sink { publishedText.append($0) }
+        defer { publication.cancel() }
+
+        let first = fixture.start()
+        try await waitForStart(a)
+        let second = fixture.start()
+        try await waitForStart(b)
+        await fulfillment(of: [a.cancelled], timeout: 2)
+        await a.release()
+        await first.value
+
+        XCTAssertTrue(fixture.model.isLoading, "A's completion must leave B's slot intact")
+        XCTAssertNil(fixture.model.logsText)
+        XCTAssertNil(fixture.model.logsZIPArchive)
+
+        let third = fixture.start()
+        try await waitForStart(c)
+        await fulfillment(of: [b.cancelled], timeout: 2)
+        await c.release()
+        await third.value
+        XCTAssertFalse(fixture.model.isLoading)
+        XCTAssertEqual(fixture.model.logsText, "current C")
+
+        await b.release()
+        await second.value
+        XCTAssertFalse(fixture.model.isLoading)
+        XCTAssertEqual(publishedText, ["current C"])
+        XCTAssertEqual(fixture.model.logsText, "current C")
+        XCTAssertEqual(fixture.model.clippedLogsText, "current C")
+        XCTAssertEqual(fixture.model.logs?.map(\.url), [c.url])
+        XCTAssertEqual(try logText(in: fixture.model.logsZIPArchive), "current C")
+        XCTAssertTrue(try logText(in: fixture.model.emailLogsZIPArchive).hasSuffix("current C"))
+    }
+
+    func testCancellingCallerCancelsWorkerAndWaitsUntilItReleases() async throws {
+        let fixture = try makeFixture(contents: ["cancelled work"])
+        let gate = fixture.gates[0]
+        let returnedBeforeRelease = XCTestExpectation(description: "Cancelled caller returned while its worker was held")
+        returnedBeforeRelease.isInverted = true
+        var didRelease = false
+        let load = fixture.start {
+            if !didRelease { returnedBeforeRelease.fulfill() }
+        }
+
+        try await waitForStart(gate)
+        load.cancel()
+        await fulfillment(of: [gate.cancelled], timeout: 2)
+        await fulfillment(of: [returnedBeforeRelease], timeout: 0.1)
+        XCTAssertTrue(fixture.model.isLoading, "Cancelled work still owns its slot until it returns")
+
+        didRelease = true
+        await gate.release()
+        await load.value
+        XCTAssertFalse(fixture.model.isLoading)
+        XCTAssertNil(fixture.model.logs)
+        XCTAssertNil(fixture.model.logsText)
+        XCTAssertNil(fixture.model.logsZIPArchive)
+        XCTAssertNil(fixture.model.emailLogsZIPArchive)
+    }
+
+    func testAlreadyCancelledCallerDoesNotReplaceIncumbentLoad() async throws {
+        let fixture = try makeFixture(contents: ["incumbent logs"])
+        let gate = fixture.gates[0]
+        let incumbent = fixture.start()
+        try await waitForStart(gate)
+
+        // These calls share the main actor. Cancellation precedes entry into
+        // load(), even though the incumbent already owns a suspended worker.
+        let cancelled = fixture.start()
+        cancelled.cancel()
+        await cancelled.value
+        let invocationCount = await fixture.provider.invocationCount
+        XCTAssertEqual(invocationCount, 1)
+        XCTAssertTrue(fixture.model.isLoading)
+
+        await gate.release()
+        await incumbent.value
+        XCTAssertFalse(fixture.model.isLoading)
+        XCTAssertEqual(fixture.model.logsText, "incumbent logs")
+        XCTAssertEqual(try logText(in: fixture.model.logsZIPArchive), "incumbent logs")
+    }
+
+    func testFreshTextWithdrawsPreviousArchivesBeforePublishingNewBytes() async throws {
+        let fixture = try makeFixture(contents: ["previous logs", "fresh logs"])
+        let original = fixture.start()
+        try await waitForStart(fixture.gates[0])
+        await fixture.gates[0].release()
+        await original.value
+        let retained = try XCTUnwrap(fixture.model.logsZIPArchive)
+        XCTAssertEqual(try logText(in: retained), "previous logs")
+        XCTAssertTrue(try logText(in: fixture.model.emailLogsZIPArchive).hasSuffix("previous logs"))
+
+        var publishedFreshText = false
+        let publication = fixture.model.$logsText.sink { text in
+            guard text == "fresh logs" else { return }
+            publishedFreshText = true
+            XCTAssertNil(fixture.model.logsZIPArchive)
+            XCTAssertNil(fixture.model.emailLogsZIPArchive)
+        }
+        defer { publication.cancel() }
+
+        let replacement = fixture.start()
+        try await waitForStart(fixture.gates[1])
+        await fixture.gates[1].release()
+        await replacement.value
+
+        XCTAssertTrue(publishedFreshText)
+        XCTAssertEqual(fixture.model.logsText, "fresh logs")
+        XCTAssertEqual(try logText(in: fixture.model.logsZIPArchive), "fresh logs")
+        XCTAssertTrue(try logText(in: fixture.model.emailLogsZIPArchive).hasSuffix("fresh logs"))
+        XCTAssertEqual(try logText(in: retained), "previous logs")
+    }
+
+    private func waitForStart(_ gate: LogURLGate) async throws {
+        await fulfillment(of: [gate.started], timeout: 2)
+        guard await gate.didStart else { throw TestFailure.providerDidNotStart }
+    }
+
+    private func makeFixture(contents: [String]) throws -> LogRefreshFixture {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("LoggingRefreshOwnershipTests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        do {
+            let gates = try contents.enumerated().map { index, text in
+                let url = root.appendingPathComponent("fixture-\(index).log")
+                try Data(text.utf8).write(to: url)
+                return LogURLGate(url: url)
+            }
+            let fixture = LogRefreshFixture(gates: gates)
+            addTeardownBlock {
+                await fixture.joinTasks()
+                try FileManager.default.removeItem(at: root)
+            }
+            return fixture
+        } catch {
+            try? FileManager.default.removeItem(at: root)
+            throw error
+        }
+    }
+
+    private func logText(in snapshot: ZIPArchive?) throws -> String {
+        let snapshot = try XCTUnwrap(snapshot)
+        let archive = try XCTUnwrap(Archive(data: snapshot.content, accessMode: .read))
+        let entry = try XCTUnwrap(archive["ManabiReaderLogs.txt"])
+        var decoded = Data()
+        _ = try archive.extract(entry) { decoded.append($0) }
+        return try XCTUnwrap(String(data: decoded, encoding: .utf8))
+    }
+
+    private enum TestFailure: Error { case providerDidNotStart }
+}
+
+@MainActor
+private final class LogRefreshFixture {
+    let gates: [LogURLGate]
+    let provider: LogURLProvider
+    let model: LoggingViewModel
+    private var tasks = [Task<Void, Never>]()
+
+    init(gates: [LogURLGate]) {
+        let provider = LogURLProvider(gates: gates)
+        self.gates = gates
+        self.provider = provider
+        model = LoggingViewModel(loadLogURLs: { try await provider.load() })
+    }
+
+    func start(onReturn: @escaping @MainActor () -> Void = {}) -> Task<Void, Never> {
+        let task = Task { @MainActor in
+            await model.load()
+            onReturn()
+        }
+        tasks.append(task)
+        return task
+    }
+
+    func joinTasks() async {
+        tasks.forEach { $0.cancel() }
+        for gate in gates { await gate.release() }
+        for task in tasks { await task.value }
+    }
+}
+
+private actor LogURLProvider {
+    private let gates: [LogURLGate]
+    private(set) var invocationCount = 0
+
+    init(gates: [LogURLGate]) { self.gates = gates }
+
+    func load() async throws -> [URL] {
+        let index = invocationCount
+        invocationCount += 1
+        guard gates.indices.contains(index) else { throw UnexpectedLoad() }
+        return await gates[index].load()
+    }
+
+    private struct UnexpectedLoad: Error {}
+}
+
+private actor LogURLGate {
+    nonisolated let url: URL
+    nonisolated let started = XCTestExpectation(description: "Log URL provider started")
+    nonisolated let cancelled = XCTestExpectation(description: "Log URL provider observed cancellation")
+    private(set) var didStart = false
+    private var isReleased = false
+    private var continuation: CheckedContinuation<[URL], Never>?
+
+    init(url: URL) { self.url = url }
+
+    func load() async -> [URL] {
+        // Deliberately noncooperative. Cancellation is observable but the
+        // worker cannot settle until the test releases its original URL.
+        await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                if isReleased {
+                    continuation.resume(returning: [url])
+                } else {
+                    self.continuation = continuation
+                }
+                didStart = true
+                started.fulfill()
+            }
+        } onCancel: {
+            self.cancelled.fulfill()
+        }
+    }
+
+    func release() {
+        isReleased = true
+        let continuation = self.continuation
+        self.continuation = nil
+        continuation?.resume(returning: [url])
     }
 }
 
