@@ -83,6 +83,31 @@ final class ShareSheetPresentationStateTests: XCTestCase {
         XCTAssertTrue(state.didDismiss(old))
         _ = try presentation(&state, next)
     }
+    func testNativeCompletionKeepsSuccessorQueuedUntilDismissal() throws {
+        var state = ShareSheetPresentationState()
+        let first = try presentation(&state, UUID())
+        let successor = UUID()
+
+        XCTAssertFalse(state.beginCompletion(first, requestID: successor))
+        XCTAssertFalse(state.beginCompletion(first, requestID: first.requestID))
+        XCTAssertEqual(state.update(requestID: successor, hostIsReady: true), .none)
+        XCTAssertTrue(state.didDismiss(first))
+
+        let next = try presentation(&state, successor)
+        XCTAssertFalse(state.didDismiss(first))
+        XCTAssertTrue(state.owns(next, requestID: successor))
+    }
+
+    func testMatchingNativeCompletionCanClearBindingWhileWaitingForDismissal() throws {
+        var state = ShareSheetPresentationState()
+        let current = try presentation(&state, UUID())
+
+        XCTAssertTrue(state.beginCompletion(current, requestID: current.requestID))
+        XCTAssertEqual(state.update(requestID: nil, hostIsReady: true), .none)
+        XCTAssertTrue(state.didDismiss(current))
+        XCTAssertNil(state.current)
+    }
+
     func testQueuedPresentationIsInvalidOnceBindingChanges() throws {
         var state = ShareSheetPresentationState()
         let token = try presentation(&state, UUID())

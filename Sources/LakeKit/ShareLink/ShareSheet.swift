@@ -242,20 +242,38 @@ where Data: RandomAccessCollection, Data.Element: Shareable {
             }
         }
 
-        private func completeActivity(_ activity: UIActivityViewController, token: ShareSheetPresentationState.Token) {
+        private func completeActivity(
+            _ activity: UIActivityViewController,
+            token: ShareSheetPresentationState.Token,
+            alreadyDismissed: Bool = false
+        ) {
             guard !isTornDown, controller === activity, state.current == token else { return }
             _ = removeActivity()
             isPresenting = false
-            if state.completed(token, requestID: item.wrappedValue?.presentationID) {
+            if state.beginCompletion(token, requestID: item.wrappedValue?.presentationID) {
                 item.wrappedValue = nil
             }
-            updateItem()
+
+            let finish = { [weak self] in
+                guard let self, !self.isTornDown, self.state.didDismiss(token) else { return }
+                self.updateItem()
+            }
+            if alreadyDismissed {
+                finish()
+            } else if activity.isBeingDismissed, let transition = activity.transitionCoordinator,
+                      transition.animate(alongsideTransition: nil, completion: { _ in finish() }) {
+                // The activity is already dismissing itself.
+            } else if activity.presentingViewController != nil {
+                activity.dismiss(animated: true, completion: finish)
+            } else {
+                finish()
+            }
         }
 
         func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
             guard let activity = controller, presentationController.presentedViewController === activity,
                   let token = state.current else { return }
-            completeActivity(activity, token: token)
+            completeActivity(activity, token: token, alreadyDismissed: true)
         }
 
         private func removeActivity() -> UIActivityViewController? {

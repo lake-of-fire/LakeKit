@@ -42,6 +42,13 @@ struct ShareSheetPresentationState {
         return requestID == token.requestID
     }
 
+    /// UIKit may report activity completion before its controller has dismissed.
+    mutating func beginCompletion(_ token: Token, requestID: UUID?) -> Bool {
+        guard current == token, !isDismissing else { return false }
+        isDismissing = true
+        return requestID == token.requestID
+    }
+
     @discardableResult
     mutating func didDismiss(_ token: Token) -> Bool {
         guard current == token, isDismissing else { return false }
