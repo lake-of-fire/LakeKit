@@ -1,5 +1,5 @@
 {
-  "originHash" : "b37fed9131b12ea90ad7b0c1527b1cd6d6ddcab97b0a15d5b9482a4b6db35bcf",
+  "originHash" : "aaad177bb0a16fc0698a3a8fb15de9d78f117260d15da103c80868a3b3cf7a92",
   "pins" : [
     {
       "identity" : "bettersafariview2",
@@ -147,7 +147,7 @@
     {
       "identity" : "realm-swift",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/realm/realm-swift.git",
+      "location" : "https://github.com/aehlke/realm-swift.git",
       "state" : {
         "revision" : "31e0a0a3064f10497a9a504bcb357873c4c66b4d"
       }
