@@ -2,7 +2,6 @@ import SwiftUI
 #if os(macOS)
 import DSFSearchField
 #endif
-import DebouncedOnChange
 
 struct IsEnhancedlySearchingKey: EnvironmentKey {
     static let defaultValue = false
@@ -38,6 +37,12 @@ enum EnhancedSearchablePlatformPolicy {
     }
 }
 
+private struct EnhancedSearchIntent: Equatable {
+    let text: String
+    let autosaveName: String?
+    let usesContentTop: Bool
+}
+
 public struct EnhancedSearchableModifier: ViewModifier {
     @Binding var isPresented: Bool
     @Binding var isEnhancedlySearching: Bool
@@ -58,10 +63,21 @@ public struct EnhancedSearchableModifier: ViewModifier {
         return Text(prompt)
     }
     
-    @State private var searchTask: Task<Void, Never>?
+    @State private var searchCoordinator: EnhancedSearchRequestCoordinator?
+    @State private var isSearchHostVisible = false
+    @State private var needsSearchOnAppearance = false
+    @State private var searchInputRevision = 0
     @State private var shouldClear = false
-    @State private var searchChangeID = 0
     @FocusState private var focusedField: String?
+
+    private var searchIntent: EnhancedSearchIntent {
+        let usesContentTop: Bool
+        switch placement {
+        case .contentTop: usesContentTop = true
+        case .native: usesContentTop = false
+        }
+        return EnhancedSearchIntent(text: searchText, autosaveName: autosaveName, usesContentTop: usesContentTop)
+    }
 
     private var showsContentTopSearchField: Bool {
         guard case .contentTop = placement else { return false }
@@ -87,7 +103,9 @@ public struct EnhancedSearchableModifier: ViewModifier {
                     Group {
 #if os(macOS)
                         DSFSearchField.SwiftUI(text: $searchText, shouldClear: $shouldClear, placeholderText: prompt, autosaveName: autosaveName, onSearchTermChange: { searchText in
+                            let revision = searchInputRevision
                             Task { @MainActor in
+                                guard isSearchHostVisible, revision == searchInputRevision else { return }
                                 if self.searchText != searchText {
                                     self.searchText = searchText
                                 }
@@ -139,7 +157,7 @@ public struct EnhancedSearchableModifier: ViewModifier {
             
             content
                 .onChange(of: isPresented) { [oldValue = isPresented] newValue in
-                    guard oldValue != newValue else { return }
+                    guard oldValue != newValue, isPresented == newValue else { return }
                     if newValue {
                         if case .contentTop = placement {
                             Task { @MainActor in
@@ -155,6 +173,9 @@ public struct EnhancedSearchableModifier: ViewModifier {
                         }
                     } else {
                         // Closing: end the search session
+                        searchInputRevision &+= 1
+                        let hadQuery = !searchText.isEmpty
+                        let hadRequest = searchCoordinator?.cancel() == true
                         searchText.removeAll()
                         if searchText.isEmpty {
                             isEnhancedlySearching = false
@@ -164,7 +185,9 @@ public struct EnhancedSearchableModifier: ViewModifier {
                                 focusedField = nil
                             }
                         }
-                        searchTask?.cancel()
+                        // Native search can publish the text clear before the
+                        // presentation change. Preserve its pending reset.
+                        if hadQuery || hadRequest { scheduleSearch(for: searchIntent) }
                     }
                 }
         }
@@ -179,17 +202,25 @@ public struct EnhancedSearchableModifier: ViewModifier {
             placement: placement,
             isEnhancedlySearching: $isEnhancedlySearching
         )
+        .onAppear {
+            isSearchHostVisible = true
+            if needsSearchOnAppearance { scheduleSearch(for: searchIntent) }
+        }
         .onDisappear {
+            isSearchHostVisible = false
+            searchInputRevision &+= 1
+            if searchCoordinator?.cancel() == true {
+                needsSearchOnAppearance = true
+            }
             Task { @MainActor in
                 focusedField = nil
             }
         }
-        .onChange(of: searchText) { searchText in
-            searchChangeID &+= 1
-            updateSearchingStatus(forSearchText: searchText)
-        }
-        .onChange(of: searchText, debounceTime: 0.18) { searchText in
-            onSearchTextChange(searchText: searchText, changeID: searchChangeID)
+        .onChange(of: searchIntent) { [previous = searchIntent] intent in
+            guard intent == searchIntent else { return }
+            searchInputRevision &+= 1
+            if previous.text != intent.text { updateSearchingStatus(forSearchText: intent.text) }
+            scheduleSearch(for: intent)
         }
 #if os(iOS)
         .onChange(of: focusedField) { focusedField in
@@ -229,18 +260,18 @@ public struct EnhancedSearchableModifier: ViewModifier {
 #endif
     }
     
-    private func onSearchTextChange(searchText: String, changeID: Int) {
-        guard changeID == searchChangeID, searchText == self.searchText else {
+    @MainActor
+    private func scheduleSearch(for intent: EnhancedSearchIntent) {
+        guard isSearchHostVisible else {
+            needsSearchOnAppearance = true
             return
         }
-        searchTask?.cancel()
-        let searchAction = self.searchAction
-        searchTask = Task {
-            do {
-                try Task.checkCancellation()
-                try await searchAction(searchText)
-            } catch { }
-        }
+        needsSearchOnAppearance = false
+        let coordinator = searchCoordinator ?? EnhancedSearchRequestCoordinator()
+        if searchCoordinator == nil { searchCoordinator = coordinator }
+        coordinator.schedule(searchText: intent.text, admitsRequest: {
+            isSearchHostVisible && intent == searchIntent
+        }, searchAction: searchAction)
     }
 }
 
