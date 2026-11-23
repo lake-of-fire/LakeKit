@@ -610,6 +610,54 @@ struct OnboardingIntroReadinessGate {
     }
 }
 
+struct OnboardingIntroRevealState: Equatable {
+    var visibleFeatureCount = 0
+    var isHeaderVisible = false
+    var isDescriptionVisible = false
+    var isPrimaryButtonVisible = false
+    var isPrimaryButtonGlowing = false
+    var titleShineCount = 0
+    var hasPlayedAnimation = false
+    private(set) var animationID: UUID?
+
+    mutating func revealImmediatelyIfNeeded(isReady: Bool, reduceMotion: Bool, featureCount: Int) -> Bool {
+        guard isReady, reduceMotion || featureCount == 0 else { return false }
+        animationID = nil
+        hasPlayedAnimation = true
+        visibleFeatureCount = featureCount
+        isHeaderVisible = true
+        isDescriptionVisible = true
+        isPrimaryButtonVisible = true
+        isPrimaryButtonGlowing = false
+        titleShineCount = 0
+        return true
+    }
+
+    mutating func beginAnimation() -> UUID {
+        let id = UUID()
+        animationID = id
+        hasPlayedAnimation = true
+        return id
+    }
+
+    mutating func retireAnimation() {
+        animationID = nil
+    }
+}
+
+private struct OnboardingIntroShineModifier: ViewModifier {
+    let reduceMotion: Bool
+    let count: Int
+
+    func body(content: Content) -> some View {
+        if reduceMotion {
+            content
+        } else {
+            content.changeEffect(.shine, value: count)
+        }
+    }
+}
+
 struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View {
     let cards: [OnboardingCard]
     @Binding var isPresentingSheet: Bool
@@ -632,13 +680,8 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
     @State private var isPresentingWidgetSkipAlert = false
     @State private var introFeatureRowWidth: CGFloat = 0
     @State private var introReadiness = OnboardingIntroReadinessGate()
-    @State private var visibleIntroFeatureCount = 0
-    @State private var isIntroHeroHeaderVisible = false
-    @State private var isIntroDescriptionVisible = false
-    @State private var isIntroPrimaryButtonVisible = false
-    @State private var isIntroPrimaryButtonGlowing = false
-    @State private var introTitleShineCount = 0
-    @State private var hasPlayedFullScreenIntroAnimation = false
+    @State private var introReveal = OnboardingIntroRevealState()
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var introFeatureAnimationTask: Task<Void, Never>?
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
     @AppStorage("hasRespondedToOnboarding") private var hasRespondedToOnboarding = false
@@ -979,10 +1022,10 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
             .buttonStyle(.borderless)
             .tint(.white)
             .background(.black.opacity(0.34), in: Circle())
-            .opacity(isIntroDescriptionVisible ? 1 : 0)
-            .animation(.easeInOut(duration: 1.4), value: isIntroDescriptionVisible)
-            .accessibilityHidden(!isIntroDescriptionVisible)
-            .allowsHitTesting(isIntroDescriptionVisible)
+            .opacity(introReveal.isDescriptionVisible ? 1 : 0)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 1.4), value: introReveal.isDescriptionVisible)
+            .accessibilityHidden(!introReveal.isDescriptionVisible)
+            .allowsHitTesting(introReveal.isDescriptionVisible)
             .padding(.leading, 16)
         }
         .frame(maxWidth: .infinity, minHeight: 34, alignment: .leading)
@@ -995,8 +1038,8 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
             VStack(alignment: .leading, spacing: 10) {
                 if let imageName = currentCard?.introHeroImageName {
                     introHeroIcon(imageName: imageName)
-                        .opacity(isIntroHeroHeaderVisible ? 1 : 0)
-                        .animation(.easeInOut(duration: 1.0), value: isIntroHeroHeaderVisible)
+                        .opacity(introReveal.isHeaderVisible ? 1 : 0)
+                        .animation(reduceMotion ? nil : .easeInOut(duration: 1.0), value: introReveal.isHeaderVisible)
                 }
 
                 Text(currentCard?.title ?? "")
@@ -1006,7 +1049,7 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
                     .lineSpacing(-8)
                     .shadow(color: .black.opacity(1), radius: 26, y: 6)
                     .shadow(color: .black.opacity(0.72), radius: 6, y: 3)
-                    .changeEffect(.shine, value: introTitleShineCount)
+                    .modifier(OnboardingIntroShineModifier(reduceMotion: reduceMotion, count: introReveal.titleShineCount))
                     .background {
                         GeometryReader { geometry in
                             Color.clear.preference(
@@ -1016,8 +1059,8 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .opacity(isIntroHeroHeaderVisible ? 1 : 0)
-                    .animation(.easeInOut(duration: 1.0), value: isIntroHeroHeaderVisible)
+                    .opacity(introReveal.isHeaderVisible ? 1 : 0)
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 1.0), value: introReveal.isHeaderVisible)
             }
 
             if !(currentCard?.introFeatures ?? []).isEmpty {
@@ -1032,7 +1075,7 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
     private var introFeatureList: some View {
         VStack(alignment: .leading, spacing: 14) {
             ForEach(Array(currentIntroFeatures.enumerated()), id: \.element.id) { index, feature in
-                if index < visibleIntroFeatureCount {
+                if index < introReveal.visibleFeatureCount {
                     HStack(alignment: .center, spacing: 12) {
                         introFeatureIcon(systemImage: feature.systemImage)
 
@@ -1061,16 +1104,16 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
                             row.background(.regularMaterial, in: Capsule())
                         }
                     }
-                    .transition(.movingParts.glare)
+                    .transition(reduceMotion ? .identity : .movingParts.glare)
                 }
             }
         }
         .environment(\.colorScheme, .dark)
-        .animation(.movingParts.easeInExponential(duration: 0.64), value: visibleIntroFeatureCount)
+        .animation(reduceMotion ? nil : .movingParts.easeInExponential(duration: 0.64), value: introReveal.visibleFeatureCount)
         .onPreferenceChange(IntroFeatureRowWidthPreferenceKey.self) { width in
             introFeatureRowWidth = min(width.rounded(.up), 560)
         }
-        .animation(.movingParts.easeInExponential(duration: 0.64), value: visibleIntroFeatureCount)
+        .animation(reduceMotion ? nil : .movingParts.easeInExponential(duration: 0.64), value: introReveal.visibleFeatureCount)
         .frame(maxWidth: 560, alignment: .leading)
     }
 
@@ -1114,7 +1157,7 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
     }
 
     private var shouldGlowPrimaryAction: Bool {
-        (isShowingFullScreenIntro && isIntroPrimaryButtonGlowing)
+        (isShowingFullScreenIntro && !reduceMotion && introReveal.isPrimaryButtonGlowing)
         || currentCard?.id == "premium"
     }
 
@@ -1154,7 +1197,7 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
                 if isShowingFullScreenIntro,
                    let description = currentCard?.description,
                    !description.isEmpty,
-                   isIntroDescriptionVisible {
+                   introReveal.isDescriptionVisible {
                     Text(description)
                         .frame(maxWidth: 560, alignment: shouldCenterIntroDescription ? .center : .leading)
                         .padding(.horizontal, 8)
@@ -1165,16 +1208,16 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
                         .fixedSize(horizontal: false, vertical: true)
                         .shadow(color: .black.opacity(0.88), radius: 20, y: 5)
                         .shadow(color: .black.opacity(0.5), radius: 5, y: 2)
-                        .transition(introRevealTransition)
+                        .transition(reduceMotion ? .identity : introRevealTransition)
                 }
 
                 if isShowingFullScreenIntro {
                     primaryButtonsView(primaryActionTransition: .identity)
                         .compositingGroup()
-                        .opacity(isIntroPrimaryButtonVisible ? 1 : 0)
-                        .offset(y: isIntroPrimaryButtonVisible ? 0 : 15)
-                        .allowsHitTesting(isIntroPrimaryButtonVisible)
-                        .accessibilityHidden(!isIntroPrimaryButtonVisible)
+                        .opacity(introReveal.isPrimaryButtonVisible ? 1 : 0)
+                        .offset(y: introReveal.isPrimaryButtonVisible ? 0 : 15)
+                        .allowsHitTesting(introReveal.isPrimaryButtonVisible)
+                        .accessibilityHidden(!introReveal.isPrimaryButtonVisible)
                 } else {
                     primaryButtonsView(primaryActionTransition: .move(edge: .bottom).combined(with: .opacity))
                 }
@@ -1183,7 +1226,7 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
             .padding(.vertical, 10)
             .frame(maxWidth: .infinity)
             .background(alignment: .bottom) {
-                if isShowingFullScreenIntro && isIntroDescriptionVisible {
+                if isShowingFullScreenIntro && introReveal.isDescriptionVisible {
                     LinearGradient(
                         colors: [
                             .clear,
@@ -1199,11 +1242,11 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
                     .padding(.bottom, -80)
                     .ignoresSafeArea(.container, edges: .bottom)
                     .allowsHitTesting(false)
-                    .transition(.opacity)
+                    .transition(reduceMotion ? .identity : .opacity)
                 }
             }
-            .animation(.easeInOut(duration: 1.4), value: isIntroDescriptionVisible)
-            .animation(.easeInOut(duration: 1.4), value: isIntroPrimaryButtonVisible)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 1.4), value: introReveal.isDescriptionVisible)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 1.4), value: introReveal.isPrimaryButtonVisible)
         }
     }
     var body: some View {
@@ -1271,27 +1314,26 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
                 presentationID: presentationID,
                 introCardID: currentFullScreenIntroID
             ) else { return }
-            withAnimation(.easeInOut(duration: 1.0)) {
-                isIntroHeroHeaderVisible = true
-            }
+            scheduleIntroFeatureAnimationIfNeeded()
+        }
+        .onChange(of: reduceMotion) { _ in
+            guard isShowingFullScreenIntro else { return }
             scheduleIntroFeatureAnimationIfNeeded()
         }
         .onChange(of: currentCard?.id) { _ in
-            introFeatureAnimationTask?.cancel()
-            introFeatureAnimationTask = nil
-            hasPlayedFullScreenIntroAnimation = false
+            retireIntroFeatureAnimation()
+            introReveal.hasPlayedAnimation = false
             introReadiness.retainReadiness(presentationID: presentationID, introCardID: currentFullScreenIntroID)
-            isIntroHeroHeaderVisible = !isShowingFullScreenIntro || isFullScreenIntroVideoReady
-            isIntroDescriptionVisible = false
-            isIntroPrimaryButtonVisible = false
-            isIntroPrimaryButtonGlowing = false
-            introTitleShineCount = 0
-            visibleIntroFeatureCount = isShowingFullScreenIntro ? 0 : currentIntroFeatures.count
+            introReveal.isHeaderVisible = !isShowingFullScreenIntro || isFullScreenIntroVideoReady
+            introReveal.isDescriptionVisible = false
+            introReveal.isPrimaryButtonVisible = false
+            introReveal.isPrimaryButtonGlowing = false
+            introReveal.titleShineCount = 0
+            introReveal.visibleFeatureCount = isShowingFullScreenIntro ? 0 : currentIntroFeatures.count
             scheduleIntroFeatureAnimationIfNeeded()
         }
         .onDisappear {
-            introFeatureAnimationTask?.cancel()
-            introFeatureAnimationTask = nil
+            retireIntroFeatureAnimation()
         }
         .sheet(item: $presentedRequiredActionCard, onDismiss: completePresentedRequiredAction) { card in
             requiredActionContent(card)
@@ -1344,29 +1386,43 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
         isFinished = scrolledID == cards.last?.id
     }
 
+    private func retireIntroFeatureAnimation() {
+        introReveal.retireAnimation()
+        introFeatureAnimationTask?.cancel()
+        introFeatureAnimationTask = nil
+    }
+
     private func scheduleIntroFeatureAnimationIfNeeded() {
         let featureCount = currentIntroFeatures.count
         guard isShowingFullScreenIntro else {
-            introFeatureAnimationTask?.cancel()
-            introFeatureAnimationTask = nil
-            visibleIntroFeatureCount = featureCount
-            isIntroHeroHeaderVisible = true
-            isIntroDescriptionVisible = false
-            isIntroPrimaryButtonVisible = true
-            isIntroPrimaryButtonGlowing = false
-            introTitleShineCount = 0
+            retireIntroFeatureAnimation()
+            introReveal.visibleFeatureCount = featureCount
+            introReveal.isHeaderVisible = true
+            introReveal.isDescriptionVisible = false
+            introReveal.isPrimaryButtonVisible = true
+            introReveal.isPrimaryButtonGlowing = false
+            introReveal.titleShineCount = 0
             return
         }
 
-        guard isFullScreenIntroVideoReady else {
-            introFeatureAnimationTask?.cancel()
-            introFeatureAnimationTask = nil
-            visibleIntroFeatureCount = 0
-            isIntroHeroHeaderVisible = false
-            isIntroDescriptionVisible = false
-            isIntroPrimaryButtonVisible = false
-            isIntroPrimaryButtonGlowing = false
-            introTitleShineCount = 0
+        let isReady = isFullScreenIntroVideoReady
+        if introReveal.revealImmediatelyIfNeeded(
+            isReady: isReady,
+            reduceMotion: reduceMotion,
+            featureCount: featureCount
+        ) {
+            retireIntroFeatureAnimation()
+            return
+        }
+
+        guard isReady else {
+            retireIntroFeatureAnimation()
+            introReveal.visibleFeatureCount = 0
+            introReveal.isHeaderVisible = false
+            introReveal.isDescriptionVisible = false
+            introReveal.isPrimaryButtonVisible = false
+            introReveal.isPrimaryButtonGlowing = false
+            introReveal.titleShineCount = 0
             return
         }
 
@@ -1374,55 +1430,59 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
             return
         }
 
-        guard !hasPlayedFullScreenIntroAnimation else {
-            visibleIntroFeatureCount = currentIntroFeatures.count
-            isIntroHeroHeaderVisible = true
-            isIntroDescriptionVisible = true
-            isIntroPrimaryButtonVisible = true
+        guard !introReveal.hasPlayedAnimation else {
+            introReveal.visibleFeatureCount = currentIntroFeatures.count
+            introReveal.isHeaderVisible = true
+            introReveal.isDescriptionVisible = true
+            introReveal.isPrimaryButtonVisible = true
             return
         }
 
-        hasPlayedFullScreenIntroAnimation = true
-        visibleIntroFeatureCount = 0
-        if !isIntroHeroHeaderVisible {
+        let animationID = introReveal.beginAnimation()
+        let cardID = currentFullScreenIntroID
+        let isCurrentReveal: @MainActor () -> Bool = {
+            !Task.isCancelled && introReveal.animationID == animationID
+                && currentFullScreenIntroID == cardID && isFullScreenIntroVideoReady
+        }
+        introReveal.visibleFeatureCount = 0
+        if !introReveal.isHeaderVisible {
             withAnimation(.easeInOut(duration: 1.0)) {
-                isIntroHeroHeaderVisible = true
+                introReveal.isHeaderVisible = true
             }
         }
-        isIntroDescriptionVisible = false
-        isIntroPrimaryButtonVisible = false
-        isIntroPrimaryButtonGlowing = false
-        introTitleShineCount = 0
-        guard featureCount > 0 else { return }
+        introReveal.isDescriptionVisible = false
+        introReveal.isPrimaryButtonVisible = false
+        introReveal.isPrimaryButtonGlowing = false
+        introReveal.titleShineCount = 0
         introFeatureAnimationTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: 1_050_000_000)
-            guard !Task.isCancelled else { return }
-            introTitleShineCount += 1
+            guard isCurrentReveal() else { return }
+            introReveal.titleShineCount += 1
 
             try? await Task.sleep(nanoseconds: 450_000_000)
-            guard !Task.isCancelled else { return }
+            guard isCurrentReveal() else { return }
 
             for count in 1...featureCount {
                 withAnimation(.movingParts.easeInExponential(duration: 0.64)) {
-                    visibleIntroFeatureCount = count
+                    introReveal.visibleFeatureCount = count
                 }
 
                 if count < featureCount {
                     try? await Task.sleep(nanoseconds: 200_000_000)
-                    guard !Task.isCancelled else { return }
+                    guard isCurrentReveal() else { return }
                 }
             }
 
             try? await Task.sleep(nanoseconds: 800_000_000)
-            guard !Task.isCancelled else { return }
+            guard isCurrentReveal() else { return }
             withAnimation(.easeInOut(duration: 1.4)) {
-                isIntroDescriptionVisible = true
-                isIntroPrimaryButtonVisible = true
+                introReveal.isDescriptionVisible = true
+                introReveal.isPrimaryButtonVisible = true
             }
 
             try? await Task.sleep(nanoseconds: 2_400_000_000)
-            guard !Task.isCancelled else { return }
-            isIntroPrimaryButtonGlowing = true
+            guard isCurrentReveal() else { return }
+            introReveal.isPrimaryButtonGlowing = true
         }
     }
 
