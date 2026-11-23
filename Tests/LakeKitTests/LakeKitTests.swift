@@ -2,6 +2,7 @@ import XCTest
 import Combine
 import Dispatch
 import StoreHelper
+import StoreKit
 import BigSyncKit
 import RealmSwift
 @testable import RealmSwiftGaps
@@ -692,6 +693,78 @@ private final class SubscriptionStatusGate {
 
 @MainActor
 final class StoreSubscriptionRefreshTests: XCTestCase {
+    private enum RestoreFixtureError: LocalizedError {
+        case offline
+
+        var errorDescription: String? { "Restore fixture is offline." }
+    }
+
+    func testRestoreOwnsOneSynchronizationAndAllowsRetryAfterSuccess() async throws {
+        let model = makeStoreViewModel { _ in false }
+        let entered = expectation(description: "The first restore entered StoreKit synchronization")
+        let gate = SubscriptionStatusGate()
+        let first = try XCTUnwrap(model.beginRestorePurchases {
+            entered.fulfill()
+            _ = await gate.wait()
+        })
+        defer { gate.resolve(true) }
+
+        XCTAssertTrue(model.isRestoringPurchases)
+        XCTAssertNil(model.beginRestorePurchases { XCTFail("A queued tap started another restore") })
+        await fulfillment(of: [entered], timeout: 2)
+        XCTAssertTrue(model.isRestoringPurchases)
+        XCTAssertNil(model.beginRestorePurchases { XCTFail("A pending restore admitted another sync") })
+
+        gate.resolve(true)
+        let error = await first.value
+        XCTAssertNil(error)
+        XCTAssertFalse(model.isRestoringPurchases)
+
+        var retryRan = false
+        let retry = try XCTUnwrap(model.beginRestorePurchases { retryRan = true })
+        let retryError = await retry.value
+        XCTAssertNil(retryError)
+        XCTAssertTrue(retryRan)
+    }
+
+    func testRestoreReturnsFailureAndAllowsRetry() async throws {
+        let model = makeStoreViewModel { _ in false }
+        let first = try XCTUnwrap(model.beginRestorePurchases { throw RestoreFixtureError.offline })
+
+        let error = await first.value
+        XCTAssertEqual(error, "Restore fixture is offline.")
+        XCTAssertFalse(model.isRestoringPurchases)
+
+        var retryRan = false
+        let retry = try XCTUnwrap(model.beginRestorePurchases { retryRan = true })
+        let retryError = await retry.value
+        XCTAssertNil(retryError)
+        XCTAssertTrue(retryRan)
+    }
+
+    func testCanceledRestoreSettlesSilentlyAndAllowsRetry() async throws {
+        let model = makeStoreViewModel { _ in false }
+        let first = try XCTUnwrap(model.beginRestorePurchases {
+            XCTFail("A canceled queued restore started StoreKit synchronization")
+        })
+        first.cancel()
+
+        let error = await first.value
+        XCTAssertNil(error)
+        XCTAssertFalse(model.isRestoringPurchases)
+
+        let userCanceled = try XCTUnwrap(model.beginRestorePurchases { throw StoreKitError.userCancelled })
+        let userCanceledError = await userCanceled.value
+        XCTAssertNil(userCanceledError)
+        XCTAssertFalse(model.isRestoringPurchases)
+
+        var retryRan = false
+        let retry = try XCTUnwrap(model.beginRestorePurchases { retryRan = true })
+        let retryError = await retry.value
+        XCTAssertNil(retryError)
+        XCTAssertTrue(retryRan)
+    }
+
     func testRetiredExternalStatusCannotOverwriteNewerSubscriptionRefresh() async throws {
         let defaults = UserDefaults.standard
         let previousSubscription = defaults.object(forKey: "LakeKit.isSubscribed")
