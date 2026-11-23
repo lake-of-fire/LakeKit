@@ -30,6 +30,173 @@ private final class EnhancedSearchOutputProbe {
 }
 
 final class EnhancedSearchableRequestTests: XCTestCase {
+#if os(macOS)
+    @MainActor
+    func testNativeSearchEditsCoalesceThenContinueFromAcknowledgedText() async throws {
+        let writeback = EnhancedSearchFieldWriteback()
+        var input = EnhancedSearchFieldWriteback.Input(text: "", ownerRevision: 1)
+        var committed: [String] = []
+        let commit: @MainActor (String) -> Void = { value in
+            committed.append(value)
+            input = .init(text: value, ownerRevision: input.ownerRevision)
+        }
+
+        let first = try XCTUnwrap(writeback.receive("a", currentInput: { input }, commit: commit))
+        _ = writeback.receive("ab", currentInput: { input }, commit: commit)
+        XCTAssertTrue(writeback.hasPendingEdit(from: input))
+        await first.value
+        XCTAssertEqual(committed, ["ab"])
+        XCTAssertFalse(writeback.hasPendingEdit(from: input))
+
+        // Model acknowledgement leaves the native owner unchanged. The next
+        // keystroke starts from the text that was actually committed.
+        let next = try XCTUnwrap(writeback.receive("abc", currentInput: { input }, commit: commit))
+        await next.value
+        XCTAssertEqual(committed, ["ab", "abc"])
+    }
+
+    @MainActor
+    func testNativeSearchEditCannotOverwriteAnExternalClear() async throws {
+        let writeback = EnhancedSearchFieldWriteback()
+        var input = EnhancedSearchFieldWriteback.Input(text: "current", ownerRevision: 1)
+        var committed: [String] = []
+        let edit = try XCTUnwrap(writeback.receive("current edit", currentInput: { input }) {
+            committed.append($0)
+        })
+
+        input = .init(text: "", ownerRevision: 1)
+        XCTAssertFalse(writeback.hasPendingEdit(from: input))
+        await edit.value
+        XCTAssertEqual(input.text, "")
+        XCTAssertTrue(committed.isEmpty)
+    }
+
+    @MainActor
+    func testNativeSearchEditCannotCrossAnExplicitClearOrReappearance() async throws {
+        let writeback = EnhancedSearchFieldWriteback()
+        var input: EnhancedSearchFieldWriteback.Input? = .init(text: "", ownerRevision: 1)
+        var committed: [String] = []
+        let initialEdit = try XCTUnwrap(writeback.receive("old", currentInput: { input }) {
+            committed.append($0)
+        })
+
+        // Escape rejects pending native input even if the bound text was
+        // already empty. The field is also inadmissible while it is hidden.
+        input = nil
+        XCTAssertNil(writeback.receive("hidden edit", currentInput: { input }) { committed.append($0) })
+        input = .init(text: "", ownerRevision: 2)
+        await initialEdit.value
+        XCTAssertTrue(committed.isEmpty)
+
+        let newEdit = try XCTUnwrap(writeback.receive("new", currentInput: { input }) {
+            committed.append($0)
+        })
+        await newEdit.value
+        XCTAssertEqual(committed, ["new"])
+    }
+
+    @MainActor
+    func testNativeSearchEditCannotCrossSameTextAutosaveOwnerReplacement() async throws {
+        let writeback = EnhancedSearchFieldWriteback()
+        var input = EnhancedSearchFieldWriteback.Input(text: "", ownerRevision: 1, autosaveName: "sentences")
+        var committed: [String] = []
+        let old = try XCTUnwrap(writeback.receive("old", currentInput: { input }) { committed.append($0) })
+
+        // A native update can refresh its parent before SwiftUI delivers the
+        // modifier's onChange. Both owners still have the same text and epoch.
+        input = .init(text: "", ownerRevision: 1, autosaveName: "flashcards")
+        XCTAssertFalse(writeback.hasPendingEdit(from: input))
+        await old.value
+        XCTAssertTrue(committed.isEmpty)
+
+        let current = try XCTUnwrap(writeback.receive("new", currentInput: { input }) { committed.append($0) })
+        await current.value
+        XCTAssertEqual(committed, ["new"])
+    }
+
+    @MainActor
+    func testNativeSearchEditCannotCrossUnobservedPresentationChange() async throws {
+        let writeback = EnhancedSearchFieldWriteback()
+        var input = EnhancedSearchFieldWriteback.Input(text: "", ownerRevision: 1, isPresented: true)
+        var committed: [String] = []
+        let old = try XCTUnwrap(writeback.receive("old", currentInput: { input }) { committed.append($0) })
+
+        input = .init(text: "", ownerRevision: 1, isPresented: false)
+        await old.value
+        XCTAssertTrue(committed.isEmpty)
+
+        let current = try XCTUnwrap(writeback.receive("new", currentInput: { input }) { committed.append($0) })
+        await current.value
+        XCTAssertEqual(committed, ["new"], "A mounted Mac field may accept input when isPresented is false")
+    }
+
+    @MainActor
+    func testReentrantInputReadCannotReplaceNewerNativeEdit() async throws {
+        let writeback = EnhancedSearchFieldWriteback()
+        let input = EnhancedSearchFieldWriteback.Input(text: "", ownerRevision: 1)
+        var committed: [String] = []
+        var replacement: Task<Void, Never>?
+        let retired = writeback.receive("old", currentInput: {
+            replacement = writeback.receive("new", currentInput: { input }) { committed.append($0) }
+            return input
+        }) { committed.append($0) }
+
+        XCTAssertNil(retired)
+        let current = try XCTUnwrap(replacement)
+        await current.value
+        XCTAssertEqual(committed, ["new"])
+    }
+
+    @MainActor
+    func testReentrantInputReadCanCancelOrReplaceNativeDelivery() async throws {
+        for replacesEdit in [false, true] {
+            let writeback = EnhancedSearchFieldWriteback()
+            let input = EnhancedSearchFieldWriteback.Input(text: "", ownerRevision: 1)
+            var committed: [String] = []
+            var shouldReenter = false
+            var replacement: Task<Void, Never>?
+            let retired = try XCTUnwrap(writeback.receive("old", currentInput: {
+                if shouldReenter {
+                    if replacesEdit {
+                        replacement = writeback.receive("new", currentInput: { input }) { committed.append($0) }
+                    } else {
+                        writeback.cancel()
+                    }
+                }
+                return input
+            }) { committed.append($0) })
+            shouldReenter = true
+
+            await retired.value
+            if replacesEdit {
+                let current = try XCTUnwrap(replacement)
+                await current.value
+                XCTAssertEqual(committed, ["new"])
+            } else {
+                XCTAssertTrue(committed.isEmpty)
+            }
+        }
+    }
+
+    @MainActor
+    func testDismantledNativeSearchCannotConsumeReplacementEdit() async throws {
+        let writeback = EnhancedSearchFieldWriteback()
+        let input = EnhancedSearchFieldWriteback.Input(text: "", ownerRevision: 1)
+        var committed: [String] = []
+        let retired = try XCTUnwrap(writeback.receive("retired", currentInput: { input }) {
+            committed.append($0)
+        })
+        writeback.cancel()
+        let replacement = try XCTUnwrap(writeback.receive("replacement", currentInput: { input }) {
+            committed.append($0)
+        })
+        await retired.value
+        await replacement.value
+
+        XCTAssertEqual(committed, ["replacement"])
+    }
+#endif
+
     @MainActor
     func testReplacementRejectsOldDebounceEvenWhenTheQueryIsRepeated() async {
         let coordinator = EnhancedSearchRequestCoordinator()

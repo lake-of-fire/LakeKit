@@ -1,7 +1,4 @@
 import SwiftUI
-#if os(macOS)
-import DSFSearchField
-#endif
 
 struct IsEnhancedlySearchingKey: EnvironmentKey {
     static let defaultValue = false
@@ -66,8 +63,10 @@ public struct EnhancedSearchableModifier: ViewModifier {
     @State private var searchCoordinator: EnhancedSearchRequestCoordinator?
     @State private var isSearchHostVisible = false
     @State private var needsSearchOnAppearance = false
-    @State private var searchInputRevision = 0
-    @State private var shouldClear = false
+#if os(macOS)
+    @State private var searchFieldOwnerRevision = 0
+    @State private var searchClearRequest: UUID?
+#endif
     @FocusState private var focusedField: String?
 
     private var searchIntent: EnhancedSearchIntent {
@@ -102,21 +101,17 @@ public struct EnhancedSearchableModifier: ViewModifier {
                 HStack {
                     Group {
 #if os(macOS)
-                        DSFSearchField.SwiftUI(text: $searchText, shouldClear: $shouldClear, placeholderText: prompt, autosaveName: autosaveName, onSearchTermChange: { searchText in
-                            let revision = searchInputRevision
-                            Task { @MainActor in
-                                guard isSearchHostVisible, revision == searchInputRevision else { return }
-                                if self.searchText != searchText {
-                                    self.searchText = searchText
-                                }
-                            }
-                        })
+                        EnhancedMacSearchField(
+                            text: $searchText,
+                            placeholder: prompt,
+                            autosaveName: autosaveName,
+                            isHostVisible: { isSearchHostVisible },
+                            isPresented: { isPresented },
+                            ownerRevision: { searchFieldOwnerRevision },
+                            clearRequest: { searchClearRequest }
+                        )
                         .frame(maxWidth: .infinity)
-                        .onExitCommand {
-                            shouldClear = true
-                            isPresented = false
-                            isEnhancedlySearching = false
-                        }
+                        .onExitCommand(perform: clearMacSearch)
 #else
                         RoundedTextField(
                             text: $searchText,
@@ -129,11 +124,7 @@ public struct EnhancedSearchableModifier: ViewModifier {
                     .focused($focusedField, equals: "search")
                     if showsDismissButton {
 #if os(macOS)
-                        Button("Done") {
-                            shouldClear = true
-                            isPresented = false
-                            isEnhancedlySearching = false
-                        }
+                        Button("Done", action: clearMacSearch)
                         .buttonStyle(.borderless)
 #else
                         Button {
@@ -173,7 +164,9 @@ public struct EnhancedSearchableModifier: ViewModifier {
                         }
                     } else {
                         // Closing: end the search session
-                        searchInputRevision &+= 1
+#if os(macOS)
+                        searchFieldOwnerRevision &+= 1
+#endif
                         let hadQuery = !searchText.isEmpty
                         let hadRequest = searchCoordinator?.cancel() == true
                         searchText.removeAll()
@@ -208,7 +201,9 @@ public struct EnhancedSearchableModifier: ViewModifier {
         }
         .onDisappear {
             isSearchHostVisible = false
-            searchInputRevision &+= 1
+#if os(macOS)
+            searchFieldOwnerRevision &+= 1
+#endif
             if searchCoordinator?.cancel() == true {
                 needsSearchOnAppearance = true
             }
@@ -218,7 +213,11 @@ public struct EnhancedSearchableModifier: ViewModifier {
         }
         .onChange(of: searchIntent) { [previous = searchIntent] intent in
             guard intent == searchIntent else { return }
-            searchInputRevision &+= 1
+#if os(macOS)
+            if previous.autosaveName != intent.autosaveName || previous.usesContentTop != intent.usesContentTop {
+                searchFieldOwnerRevision &+= 1
+            }
+#endif
             if previous.text != intent.text { updateSearchingStatus(forSearchText: intent.text) }
             scheduleSearch(for: intent)
         }
@@ -246,6 +245,20 @@ public struct EnhancedSearchableModifier: ViewModifier {
         .environment(\.isEnhancedlySearching, isEnhancedlySearching)
     }
     
+#if os(macOS)
+    @MainActor
+    private func clearMacSearch() {
+        searchFieldOwnerRevision &+= 1
+        let hadQuery = !searchText.isEmpty
+        let hadRequest = searchCoordinator?.cancel() == true
+        searchClearRequest = UUID()
+        searchText.removeAll()
+        isPresented = false
+        isEnhancedlySearching = false
+        if hadQuery || hadRequest { scheduleSearch(for: searchIntent) }
+    }
+#endif
+
     private func updateSearchingStatus(forSearchText searchText: String) {
         let isTextEmpty = searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
 #if os(iOS)
