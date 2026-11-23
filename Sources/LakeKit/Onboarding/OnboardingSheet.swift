@@ -562,8 +562,52 @@ private struct IntroFeatureRowWidthPreferenceKey: PreferenceKey {
     }
 }
 
-private extension Notification.Name {
-    static let onboardingFullScreenIntroVideoReady = Notification.Name("ManabiReaderOnboardingIntroVideoReady")
+private struct OnboardingPresentationIDKey: EnvironmentKey {
+    static let defaultValue: UUID? = nil
+}
+
+public extension EnvironmentValues {
+    var onboardingPresentationID: UUID? {
+        get { self[OnboardingPresentationIDKey.self] }
+        set { self[OnboardingPresentationIDKey.self] = newValue }
+    }
+}
+
+public enum OnboardingIntroReadinessNotification {
+    public static let name = Notification.Name("ManabiReaderOnboardingIntroVideoReady")
+
+    public static func belongsToPresentation(_ notification: Notification, id: UUID?) -> Bool {
+        guard notification.name == name, let id, let sender = notification.object as? UUID else { return false }
+        return sender == id
+    }
+}
+
+struct OnboardingIntroReadinessGate {
+    private struct ReleasedIntro: Equatable {
+        let presentationID: UUID
+        let cardID: String
+    }
+
+    private var releasedIntro: ReleasedIntro?
+
+    func isReleased(presentationID: UUID?, introCardID: String?) -> Bool {
+        guard let presentationID, let introCardID else { return false }
+        return releasedIntro == ReleasedIntro(presentationID: presentationID, cardID: introCardID)
+    }
+
+    mutating func receive(_ notification: Notification, presentationID: UUID?, introCardID: String?) -> Bool {
+        guard let presentationID, let introCardID,
+              OnboardingIntroReadinessNotification.belongsToPresentation(notification, id: presentationID),
+              !isReleased(presentationID: presentationID, introCardID: introCardID) else { return false }
+        releasedIntro = ReleasedIntro(presentationID: presentationID, cardID: introCardID)
+        return true
+    }
+
+    mutating func retainReadiness(presentationID: UUID?, introCardID: String?) {
+        if !isReleased(presentationID: presentationID, introCardID: introCardID) {
+            releasedIntro = nil
+        }
+    }
 }
 
 struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View {
@@ -587,7 +631,7 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
     @State private var isConfirmingSkipPersonalization = false
     @State private var isPresentingWidgetSkipAlert = false
     @State private var introFeatureRowWidth: CGFloat = 0
-    @State private var isFullScreenIntroVideoReady = false
+    @State private var introReadiness = OnboardingIntroReadinessGate()
     @State private var visibleIntroFeatureCount = 0
     @State private var isIntroHeroHeaderVisible = false
     @State private var isIntroDescriptionVisible = false
@@ -598,6 +642,7 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
     @State private var introFeatureAnimationTask: Task<Void, Never>?
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
     @AppStorage("hasRespondedToOnboarding") private var hasRespondedToOnboarding = false
+    @Environment(\.onboardingPresentationID) private var presentationID
 
     private var currentCard: OnboardingCard? {
         guard let scrolledID = scrolledID else { return nil }
@@ -609,7 +654,16 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
     }
 
     private var isShowingFullScreenIntro: Bool {
-        currentCard?.isFullScreenIntro == true
+        currentFullScreenIntroID != nil
+    }
+
+    private var currentFullScreenIntroID: String? {
+        guard let currentCard, currentCard.isFullScreenIntro else { return nil }
+        return currentCard.id
+    }
+
+    private var isFullScreenIntroVideoReady: Bool {
+        introReadiness.isReleased(presentationID: presentationID, introCardID: currentFullScreenIntroID)
     }
 
     private var shouldGateFullScreenIntro: Bool {
@@ -1211,8 +1265,12 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
             ensureInitialScrolledID()
             scheduleIntroFeatureAnimationIfNeeded()
         }
-        .onReceive(NotificationCenter.default.publisher(for: .onboardingFullScreenIntroVideoReady)) { _ in
-            isFullScreenIntroVideoReady = true
+        .onReceive(NotificationCenter.default.publisher(for: OnboardingIntroReadinessNotification.name)) { notification in
+            guard introReadiness.receive(
+                notification,
+                presentationID: presentationID,
+                introCardID: currentFullScreenIntroID
+            ) else { return }
             withAnimation(.easeInOut(duration: 1.0)) {
                 isIntroHeroHeaderVisible = true
             }
@@ -1222,13 +1280,13 @@ struct OnboardingCardsView<CardContent: View, RequiredActionContent: View>: View
             introFeatureAnimationTask?.cancel()
             introFeatureAnimationTask = nil
             hasPlayedFullScreenIntroAnimation = false
-            isIntroHeroHeaderVisible = !isShowingFullScreenIntro
+            introReadiness.retainReadiness(presentationID: presentationID, introCardID: currentFullScreenIntroID)
+            isIntroHeroHeaderVisible = !isShowingFullScreenIntro || isFullScreenIntroVideoReady
             isIntroDescriptionVisible = false
             isIntroPrimaryButtonVisible = false
             isIntroPrimaryButtonGlowing = false
             introTitleShineCount = 0
             visibleIntroFeatureCount = isShowingFullScreenIntro ? 0 : currentIntroFeatures.count
-            isFullScreenIntroVideoReady = !isShowingFullScreenIntro
             scheduleIntroFeatureAnimationIfNeeded()
         }
         .onDisappear {
@@ -2062,6 +2120,8 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
     @AppStorage("hasRespondedToOnboarding") var hasRespondedToOnboarding = false
     @AppStorage("darkModeSetting") private var darkModeSetting = "system"
     @State private var isPresented = false
+    @State private var presentationContentID = UUID()
+    @State private var refreshTask: Task<Void, Never>?
     @State private var isFinished = false
     @State private var didSkipOnboardingThisSession = false
     @State private var isPresentingOnboardingStoreSheet = false
@@ -2079,6 +2139,8 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
             requiredActionContent: requiredActionContent,
             cardContent: cardContent
         )
+        .id(presentationContentID)
+        .environment(\.onboardingPresentationID, presentationContentID)
         .preferredColorScheme(preferredColorScheme)
         .storeSheet(isPresented: $isPresentingOnboardingStoreSheet)
     }
@@ -2114,11 +2176,17 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
             .onAppear {
                 refresh()
             }
-            .onChange(of: hasSeenOnboarding) { hasSeenOnboarding in
-                refresh(hasSeenOnboarding: hasSeenOnboarding)
+            .onChange(of: isActive) { _ in
+                cancelRefresh()
             }
-            .onChange(of: hasRespondedToOnboarding) { hasRespondedToOnboarding in
-                refresh(hasRespondedToOnboarding: hasRespondedToOnboarding)
+            .onChange(of: hasSeenOnboarding) { _ in
+                refresh()
+            }
+            .onChange(of: hasRespondedToOnboarding) { _ in
+                refresh()
+            }
+            .onDisappear {
+                cancelRefresh()
             }
             .onChange(of: isPresented) { isPresented in
                 if !isPresented && !hasRespondedToOnboarding {
@@ -2178,11 +2246,15 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
 #endif
         }
     
-    private func refresh(hasRespondedToOnboarding: Bool? = nil, hasSeenOnboarding: Bool? = nil) {
-        let hasRespondedToOnboarding = hasRespondedToOnboarding ?? self.hasRespondedToOnboarding
-        let hasSeenOnboarding = hasSeenOnboarding ?? self.hasSeenOnboarding
-        Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 250_000_000)
+    private func refresh() {
+        refreshTask?.cancel()
+        refreshTask = Task { @MainActor in
+            do {
+                try await Task.sleep(nanoseconds: 250_000_000)
+            } catch {
+                return
+            }
+            guard !Task.isCancelled else { return }
             guard isActive || isPresentingOnboardingStoreSheet else {
                 didSkipOnboardingThisSession = false
                 if !isPresentingOnboardingStoreSheet {
@@ -2190,11 +2262,22 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
                 }
                 return
             }
-            isPresented = !(hasRespondedToOnboarding || hasSeenOnboarding)
+            let shouldPresent = !(hasRespondedToOnboarding || hasSeenOnboarding)
+            if shouldPresent && !isPresented {
+                presentationContentID = UUID()
+                isFinished = false
+            }
+            isPresented = shouldPresent
         }
     }
 
+    private func cancelRefresh() {
+        refreshTask?.cancel()
+        refreshTask = nil
+    }
+
     private func skipOnboarding() {
+        cancelRefresh()
         didSkipOnboardingThisSession = true
         hasSeenOnboarding = true
         hasRespondedToOnboarding = true
