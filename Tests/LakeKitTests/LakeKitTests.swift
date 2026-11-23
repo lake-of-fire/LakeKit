@@ -772,3 +772,70 @@ final class StoreSubscriptionRefreshTests: XCTestCase {
         )
     }
 }
+
+final class OnboardingReplayRequestsTests: XCTestCase {
+    func testReappearanceCannotReadmitReplayBeforeDismissal() {
+        let request = UUID()
+        var presentation = OnboardingPresentationLifetime()
+
+        XCTAssertTrue(presentation.begin(replayRequestID: request))
+        XCTAssertTrue(presentation.isReplay)
+        XCTAssertEqual(presentation.contentID, request)
+        XCTAssertFalse(presentation.begin(replayRequestID: request))
+        XCTAssertFalse(presentation.begin())
+        XCTAssertFalse(presentation.allowsAutomaticRefresh(replayRequestID: nil))
+
+        XCTAssertTrue(presentation.didDismiss(replayRequestID: request))
+        XCTAssertFalse(presentation.isReplay)
+        XCTAssertFalse(presentation.begin(replayRequestID: request), "The binding may still expose the settled request")
+        XCTAssertTrue(presentation.allowsAutomaticRefresh(replayRequestID: request))
+        XCTAssertTrue(presentation.allowsAutomaticRefresh(replayRequestID: nil))
+    }
+
+    func testDismissalDoesNotConsumeReplacementAndNextReplayHasNewIdentity() {
+        let request = UUID()
+        let replacement = UUID()
+        var presentation = OnboardingPresentationLifetime()
+
+        XCTAssertTrue(presentation.begin(replayRequestID: request))
+        XCTAssertFalse(presentation.begin(replayRequestID: replacement))
+        XCTAssertEqual(presentation.contentID, request)
+
+        XCTAssertFalse(presentation.didDismiss(replayRequestID: replacement))
+        XCTAssertFalse(presentation.owns(request))
+        XCTAssertFalse(presentation.allowsAutomaticRefresh(replayRequestID: replacement))
+        XCTAssertTrue(presentation.begin(replayRequestID: replacement))
+        XCTAssertEqual(presentation.contentID, replacement)
+        XCTAssertTrue(presentation.owns(replacement))
+        XCTAssertFalse(presentation.owns(request))
+        XCTAssertTrue(presentation.didDismiss(replayRequestID: replacement))
+    }
+
+    func testAutomaticDismissalLeavesQueuedReplayAndOrdinaryRefreshKeepsIdentity() {
+        let request = UUID()
+        var presentation = OnboardingPresentationLifetime()
+
+        XCTAssertTrue(presentation.begin())
+        XCTAssertTrue(presentation.isAutomatic)
+        XCTAssertTrue(presentation.allowsAutomaticRefresh(replayRequestID: nil))
+        let automaticID = presentation.contentID
+        XCTAssertFalse(presentation.begin())
+        XCTAssertEqual(presentation.contentID, automaticID)
+        XCTAssertFalse(presentation.begin(replayRequestID: request))
+        XCTAssertFalse(presentation.allowsAutomaticRefresh(replayRequestID: request))
+
+        XCTAssertFalse(presentation.didDismiss(replayRequestID: request))
+        XCTAssertTrue(presentation.begin(replayRequestID: request))
+        XCTAssertEqual(presentation.contentID, request)
+    }
+
+    func testWithdrawingRequestKeepsOwnerUntilDismissal() {
+        var presentation = OnboardingPresentationLifetime()
+        XCTAssertTrue(presentation.begin(replayRequestID: UUID()))
+
+        XCTAssertFalse(presentation.allowsAutomaticRefresh(replayRequestID: nil))
+        XCTAssertFalse(presentation.didDismiss(replayRequestID: nil))
+        XCTAssertFalse(presentation.isReplay)
+        XCTAssertTrue(presentation.allowsAutomaticRefresh(replayRequestID: nil))
+    }
+}
