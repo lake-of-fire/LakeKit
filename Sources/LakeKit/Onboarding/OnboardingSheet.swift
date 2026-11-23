@@ -1631,12 +1631,12 @@ struct OnboardingView<CardContent: View, RequiredActionContent: View>: View {
     }
 
     private func closeOnboardingIfSubscribedAfterStoreDismissal() {
-        guard hasPresentedStoreSheet, isShowingLastCard else { return }
+        guard isPresentingSheet, hasPresentedStoreSheet, isShowingLastCard else { return }
 
         Task { @MainActor in
             storeViewModel.refreshIsSubscribed(storeHelper: storeHelper)
             try? await Task.sleep(nanoseconds: 500_000_000)
-            guard hasPresentedStoreSheet, isShowingLastCard else { return }
+            guard isPresentingSheet, hasPresentedStoreSheet, isShowingLastCard else { return }
             guard storeViewModel.isSubscribed || storeViewModel.isSubscribedFromElsewhere || !AdsViewModel.shared.showAds else { return }
 
             hasSeenOnboarding = true
@@ -2106,10 +2106,52 @@ private struct OnboardingChromeButtonStyleModifier: ViewModifier {
     }
 }
 
+struct OnboardingPresentationLifetime {
+    private enum Kind: Equatable {
+        case automatic
+        case replay
+    }
+
+    private var kind: Kind?
+    private var lastDismissedReplayID: UUID?
+    private(set) var contentID = UUID()
+
+    var isAutomatic: Bool { kind == .automatic }
+    var isReplay: Bool { kind == .replay }
+
+    func owns(_ contentID: UUID) -> Bool {
+        kind != nil && self.contentID == contentID
+    }
+
+    func hasPendingReplay(_ requestID: UUID?) -> Bool {
+        requestID != nil && requestID != lastDismissedReplayID
+    }
+
+    func allowsAutomaticRefresh(replayRequestID: UUID?) -> Bool {
+        !isReplay && !hasPendingReplay(replayRequestID)
+    }
+
+    mutating func begin(replayRequestID: UUID? = nil) -> Bool {
+        guard kind == nil, replayRequestID == nil || hasPendingReplay(replayRequestID) else { return false }
+        kind = replayRequestID == nil ? .automatic : .replay
+        contentID = replayRequestID ?? UUID()
+        return true
+    }
+
+    /// The request binding can already hold a newer request when this sheet ends.
+    mutating func didDismiss(replayRequestID: UUID?) -> Bool {
+        let consumesRequest = isReplay && replayRequestID == contentID
+        if isReplay { lastDismissedReplayID = contentID }
+        kind = nil
+        return consumesRequest
+    }
+}
+
 public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: ViewModifier {
     let isActive: Bool
     @Binding var isPresentingStoreSheet: Bool
     let cards: [OnboardingCard]
+    @Binding var replayRequestID: UUID?
     let onRequiredAction: (OnboardingCard, @escaping () -> Void) -> Void
     let onSkipOptionalAction: (OnboardingCard, @escaping () -> Void) -> Void
     let onPrimaryAction: (OnboardingCard, @escaping () -> Void) -> Void
@@ -2120,29 +2162,44 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
     @AppStorage("hasRespondedToOnboarding") var hasRespondedToOnboarding = false
     @AppStorage("darkModeSetting") private var darkModeSetting = "system"
     @State private var isPresented = false
-    @State private var presentationContentID = UUID()
+    @State private var presentation = OnboardingPresentationLifetime()
     @State private var refreshTask: Task<Void, Never>?
     @State private var isFinished = false
     @State private var didSkipOnboardingThisSession = false
     @State private var isPresentingOnboardingStoreSheet = false
     @ViewBuilder
     private var onboardingPresentationContent: some View {
+        let contentID = presentation.contentID
+        let storeSheet = presentationBinding($isPresentingOnboardingStoreSheet, contentID: contentID)
         OnboardingView(
             cards: cards,
-            isPresentingSheet: $isPresented,
-            isFinished: $isFinished,
-            isPresentingStoreSheet: $isPresentingOnboardingStoreSheet,
-            onSkipOnboarding: skipOnboarding,
+            isPresentingSheet: presentationBinding($isPresented, contentID: contentID),
+            isFinished: presentationBinding($isFinished, contentID: contentID),
+            isPresentingStoreSheet: storeSheet,
+            onSkipOnboarding: {
+                guard isPresented, presentation.owns(contentID) else { return }
+                skipOnboarding()
+            },
             onRequiredAction: onRequiredAction,
             onSkipOptionalAction: onSkipOptionalAction,
             onPrimaryAction: onPrimaryAction,
             requiredActionContent: requiredActionContent,
             cardContent: cardContent
         )
-        .id(presentationContentID)
-        .environment(\.onboardingPresentationID, presentationContentID)
+        .id(contentID)
+        .environment(\.onboardingPresentationID, contentID)
         .preferredColorScheme(preferredColorScheme)
-        .storeSheet(isPresented: $isPresentingOnboardingStoreSheet)
+        .storeSheet(isPresented: storeSheet)
+    }
+
+    private func presentationBinding(_ binding: Binding<Bool>, contentID: UUID) -> Binding<Bool> {
+        Binding(
+            get: { isPresented && presentation.owns(contentID) && binding.wrappedValue },
+            set: { value, transaction in
+                guard isPresented, presentation.owns(contentID) else { return }
+                binding.transaction(transaction).wrappedValue = value
+            }
+        )
     }
 
     private var preferredColorScheme: ColorScheme? {
@@ -2174,7 +2231,18 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
     public func body(content: Content) -> some View {
         presentedContent(content)
             .onAppear {
-                refresh()
+                if presentation.hasPendingReplay(replayRequestID) {
+                    presentReplayIfPossible()
+                } else {
+                    refresh()
+                }
+            }
+            .onChange(of: replayRequestID) { _ in
+                if replayRequestID == nil {
+                    if presentation.isReplay { isPresented = false }
+                } else {
+                    presentReplayIfPossible()
+                }
             }
             .onChange(of: isActive) { _ in
                 cancelRefresh()
@@ -2187,11 +2255,6 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
             }
             .onDisappear {
                 cancelRefresh()
-            }
-            .onChange(of: isPresented) { isPresented in
-                if !isPresented && !hasRespondedToOnboarding {
-                    hasSeenOnboarding = true
-                }
             }
             .onChange(of: isPresentingOnboardingStoreSheet) { isPresentingOnboardingStoreSheet in
             }
@@ -2213,7 +2276,7 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
                 .accessibilityHidden(shouldBlankUnderlyingContent)
                 .allowsHitTesting(!shouldBlankUnderlyingContent)
         }
-            .fullScreenCover(isPresented: $isPresented) {
+            .fullScreenCover(isPresented: $isPresented, onDismiss: presentationDidDismiss) {
                 onboardingPresentationContent
                     .interactiveDismissDisabled()
                     .onAppear {
@@ -2233,7 +2296,7 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
                 .accessibilityHidden(shouldBlankUnderlyingContent)
                 .allowsHitTesting(!shouldBlankUnderlyingContent)
         }
-            .sheet(isPresented: $isPresented) {
+            .sheet(isPresented: $isPresented, onDismiss: presentationDidDismiss) {
                 onboardingPresentationContent
                     .frame(idealWidth: 450, idealHeight: 600)
                     .onAppear {
@@ -2247,14 +2310,16 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
         }
     
     private func refresh() {
-        refreshTask?.cancel()
+        cancelRefresh()
+        guard presentation.allowsAutomaticRefresh(replayRequestID: replayRequestID) else { return }
         refreshTask = Task { @MainActor in
             do {
                 try await Task.sleep(nanoseconds: 250_000_000)
             } catch {
                 return
             }
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled,
+                  presentation.allowsAutomaticRefresh(replayRequestID: replayRequestID) else { return }
             guard isActive || isPresentingOnboardingStoreSheet else {
                 didSkipOnboardingThisSession = false
                 if !isPresentingOnboardingStoreSheet {
@@ -2264,7 +2329,7 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
             }
             let shouldPresent = !(hasRespondedToOnboarding || hasSeenOnboarding)
             if shouldPresent && !isPresented {
-                presentationContentID = UUID()
+                guard presentation.begin() else { return }
                 isFinished = false
             }
             isPresented = shouldPresent
@@ -2274,6 +2339,31 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
     private func cancelRefresh() {
         refreshTask?.cancel()
         refreshTask = nil
+    }
+
+    private func presentReplayIfPossible() {
+        guard let replayRequestID, presentation.hasPendingReplay(replayRequestID) else { return }
+        cancelRefresh()
+        guard presentation.begin(replayRequestID: replayRequestID) else { return }
+        isFinished = false
+        isPresentingOnboardingStoreSheet = false
+        isPresented = true
+    }
+
+    private func presentationDidDismiss() {
+        guard !isPresented else { return }
+        let wasReplay = presentation.isReplay
+        if presentation.isAutomatic && !hasRespondedToOnboarding {
+            hasSeenOnboarding = true
+        }
+        if presentation.didDismiss(replayRequestID: replayRequestID) {
+            replayRequestID = nil
+        }
+        if presentation.hasPendingReplay(replayRequestID) {
+            presentReplayIfPossible()
+        } else if wasReplay && isActive {
+            refresh()
+        }
     }
 
     private func skipOnboarding() {
@@ -2286,10 +2376,13 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
 }
 
 public extension View {
+    /// Set `replayRequestID` to a fresh UUID to present onboarding explicitly.
+    /// The sheet consumes the matching request on dismissal. `isActive` controls automatic onboarding.
     func onboardingSheet(
         isActive: Bool,
         isPresentingStoreSheet: Binding<Bool> = .constant(false),
         cards: [OnboardingCard],
+        replayRequestID: Binding<UUID?> = .constant(nil),
         onRequiredAction: @escaping (OnboardingCard, @escaping () -> Void) -> Void,
         onSkipOptionalAction: @escaping (OnboardingCard, @escaping () -> Void) -> Void = { _, complete in complete() },
         onPrimaryAction: @escaping (OnboardingCard, @escaping () -> Void) -> Void = { _, complete in complete() },
@@ -2301,6 +2394,7 @@ public extension View {
                 isActive: isActive,
                 isPresentingStoreSheet: isPresentingStoreSheet,
                 cards: cards,
+                replayRequestID: replayRequestID,
                 onRequiredAction: onRequiredAction,
                 onSkipOptionalAction: onSkipOptionalAction,
                 onPrimaryAction: onPrimaryAction,
@@ -2314,12 +2408,14 @@ public extension View {
         isActive: Bool,
         isPresentingStoreSheet: Binding<Bool> = .constant(false),
         cards: [OnboardingCard],
+        replayRequestID: Binding<UUID?> = .constant(nil),
         cardContent: @escaping (OnboardingCard, Binding<Bool>, Bool) -> some View
     ) -> some View {
         onboardingSheet(
             isActive: isActive,
             isPresentingStoreSheet: isPresentingStoreSheet,
             cards: cards,
+            replayRequestID: replayRequestID,
             onRequiredAction: { _, complete in complete() },
             onSkipOptionalAction: { _, complete in complete() },
             onPrimaryAction: { _, complete in complete() },
