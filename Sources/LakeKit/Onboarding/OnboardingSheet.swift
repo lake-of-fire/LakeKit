@@ -2049,6 +2049,10 @@ private struct OnboardingChromeButtonStyleModifier: ViewModifier {
 }
 
 public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: ViewModifier {
+#if os(iOS)
+    @Environment(\.onboardingPresentationSceneObserver) private var presentationSceneObserver
+#endif
+
     let isActive: Bool
     @Binding var isPresentingStoreSheet: Bool
     let cards: [OnboardingCard]
@@ -2148,9 +2152,10 @@ public struct OnboardingSheet<CardContent: View, RequiredActionContent: View>: V
             .fullScreenCover(isPresented: $isPresented) {
                 onboardingPresentationContent
                     .interactiveDismissDisabled()
-                    .onAppear {
-                    }
-                    .onDisappear {
+                    .background {
+                        OnboardingPresentationSceneProbe(observer: presentationSceneObserver)
+                            .allowsHitTesting(false)
+                            .accessibilityHidden(true)
                     }
             }
 #elseif os(macOS)
