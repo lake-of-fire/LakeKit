@@ -15,7 +15,12 @@ let package = Package(
     ],
     dependencies: [
 //        .package(url: "https://github.com/lake-of-fire/RealmBinary.git", branch: "main"),
-        .package(url: "https://github.com/realm/realm-swift.git", from: "20.0.5"),
+        // BigSyncKit uses the application fork for the same Realm identity.
+        // Keep direct and transitive package references on one repository and revision.
+        .package(
+            url: "https://github.com/aehlke/realm-swift.git",
+            revision: "31e0a0a3064f10497a9a504bcb357873c4c66b4d"
+        ),
         .package(path: "../BigSyncKit"),
         .package(path: "../RealmSwiftGaps"),
         .package(path: "../SwiftUIDownloads"),
