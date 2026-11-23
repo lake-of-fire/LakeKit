@@ -53,6 +53,7 @@ public class StoreViewModel: NSObject, ObservableObject {
     @PublishedAppStorage("LakeKit.isSubscribedFromElsewhere") public var isSubscribedFromElsewhere = false
     @MainActor var isSubscribedFromElsewhereCallback: ((StoreViewModel) async -> Bool)? = nil
     private(set) var subscriptionRefreshTask: Task<Void, Never>? = nil
+    private var restorePurchasesTask: Task<String?, Never>?
     
     public init(
         satisfyingPrerequisite: @escaping () async -> Bool = { true },
@@ -149,6 +150,34 @@ public class StoreViewModel: NSObject, ObservableObject {
                 self.isSubscribedFromElsewhere = isSubscribedFromElsewhere
             }
         }
+    }
+
+    /// StoreKit sync belongs to the shared store, even if its originating sheet closes.
+    func beginRestorePurchases(
+        synchronize: @escaping @MainActor () async throws -> Void = { try await AppStore.sync() }
+    ) -> Task<String?, Never>? {
+        guard restorePurchasesTask == nil, !isRestoringPurchases else { return nil }
+        let task = Task<String?, Never> { @MainActor [weak self] in
+            defer {
+                self?.isRestoringPurchases = false
+                self?.restorePurchasesTask = nil
+            }
+            do {
+                try Task.checkCancellation()
+                try await synchronize()
+                return nil
+            } catch is CancellationError {
+                return nil
+            } catch StoreKitError.userCancelled {
+                return nil
+            } catch {
+                return Task.isCancelled ? nil : error.localizedDescription
+            }
+        }
+        // Claim ownership before notifying other views of the busy state.
+        restorePurchasesTask = task
+        isRestoringPurchases = true
+        return task
     }
 
     @MainActor
