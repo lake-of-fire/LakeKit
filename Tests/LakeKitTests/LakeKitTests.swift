@@ -678,9 +678,12 @@ private final class SubscriptionStatusGate {
 
     var isWaiting: Bool { continuation != nil }
 
-    func wait() async -> Bool {
+    func wait(onSuspended: () -> Void = {}) async -> Bool {
         if let result { return result }
-        return await withCheckedContinuation { continuation = $0 }
+        return await withCheckedContinuation {
+            continuation = $0
+            onSuspended()
+        }
     }
 
     func resolve(_ result: Bool) {
@@ -763,6 +766,58 @@ final class StoreSubscriptionRefreshTests: XCTestCase {
         let retryError = await retry.value
         XCTAssertNil(retryError)
         XCTAssertTrue(retryRan)
+    }
+
+    func testCanceledInFlightRestoreRetainsOwnershipThroughLateFailure() async throws {
+        let model = makeStoreViewModel { _ in false }
+        let entered = expectation(description: "Restore entered a synchronization that ignores cancellation")
+        let gate = SubscriptionStatusGate()
+        let first = try XCTUnwrap(model.beginRestorePurchases {
+            _ = await gate.wait { entered.fulfill() }
+            throw RestoreFixtureError.offline
+        })
+        defer {
+            first.cancel()
+            gate.resolve(true)
+        }
+
+        await fulfillment(of: [entered], timeout: 2)
+        XCTAssertTrue(gate.isWaiting)
+        first.cancel()
+        XCTAssertTrue(model.isRestoringPurchases)
+        XCTAssertNil(model.beginRestorePurchases { XCTFail("Canceled synchronization still owns the restore") })
+
+        gate.resolve(true)
+        let error = await first.value
+        XCTAssertNil(error, "Cancellation must suppress the late synchronization failure")
+        XCTAssertFalse(model.isRestoringPurchases)
+
+        var retryRan = false
+        let retry = try XCTUnwrap(model.beginRestorePurchases { retryRan = true })
+        let retryError = await retry.value
+        XCTAssertNil(retryError)
+        XCTAssertTrue(retryRan)
+    }
+
+    func testRestoreRejectsSynchronousReentryDuringBusyPublication() async throws {
+        let model = makeStoreViewModel { _ in false }
+        var transitions: [Bool] = []
+        let observer = model.$isRestoringPurchases.dropFirst().sink { busy in
+            MainActor.assumeIsolated {
+                guard !transitions.contains(busy) else { return }
+                transitions.append(busy)
+                let reentrant = model.beginRestorePurchases { XCTFail("Reentrant synchronization started") }
+                XCTAssertNil(reentrant, "The active restore must own both busy-state publications")
+                reentrant?.cancel()
+            }
+        }
+        defer { observer.cancel() }
+
+        let restore = try XCTUnwrap(model.beginRestorePurchases {})
+        let error = await restore.value
+        XCTAssertNil(error)
+        XCTAssertFalse(model.isRestoringPurchases)
+        XCTAssertEqual(transitions, [true, false])
     }
 
     func testRetiredExternalStatusCannotOverwriteNewerSubscriptionRefresh() async throws {
