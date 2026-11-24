@@ -47,6 +47,7 @@ public class StoreViewModel: NSObject, ObservableObject {
     @Published public var faq = OrderedDictionary<String, String>()
     
     @Published public var purchaseState: PurchaseState = .unknown
+    private var purchaseTask: Task<Void, Never>?
     
     @AppStorage("pendingReferralCode") private var pendingReferralCode: String?
     @PublishedAppStorage("LakeKit.isSubscribed") public var isSubscribed = false
@@ -132,13 +133,25 @@ public class StoreViewModel: NSObject, ObservableObject {
     @MainActor
     public func purchase(storeProduct: StoreProduct, storeKitProduct: Product, priceViewModel: PriceViewModel) {
         guard storeProduct.filterPurchase(storeProduct) else { return }
-        purchaseState = .inProgress
-        Task { @MainActor in
+        beginPurchase {
             let appAccountToken = Self.getOrCreateAppAccountToken()
             await priceViewModel.purchase(product: storeKitProduct, options: [
                 .appAccountToken(appAccountToken),
             ])
         }
+    }
+
+    @discardableResult
+    func beginPurchase(_ operation: @escaping @MainActor () async -> Void) -> Task<Void, Never>? {
+        guard purchaseTask == nil else { return nil }
+        let task = Task { @MainActor in
+            defer { self.purchaseTask = nil }
+            await operation()
+        }
+        // A synchronous observer of purchaseState can submit another purchase.
+        purchaseTask = task
+        purchaseState = .inProgress
+        return task
     }
     
     private func refreshExternalSubscription() async throws {

@@ -758,6 +758,77 @@ final class StoreSubscriptionRefreshTests: XCTestCase {
         XCTAssertFalse(AdsViewModel.shared.showAds)
     }
 
+    func testPurchaseRejectsConcurrentAttemptsEvenIfAvailabilityChangesTheState() async throws {
+        let model = makeStoreViewModel { _ in false }
+        let started = expectation(description: "Purchase entered")
+        let finish = SubscriptionStatusGate()
+        var operations = 0
+        let first = try XCTUnwrap(model.beginPurchase {
+            operations += 1
+            started.fulfill()
+            _ = await finish.wait()
+            model.purchaseState = .pending
+        })
+        defer { finish.resolve(false) }
+
+        await fulfillment(of: [started], timeout: 2)
+        XCTAssertEqual(model.purchaseState, .inProgress)
+        // The paywall's asynchronous availability check can write this state.
+        model.purchaseState = .notPurchased
+        XCTAssertNil(model.beginPurchase { XCTFail("A second purchase started while the first was active") })
+        XCTAssertEqual(model.purchaseState, .notPurchased)
+
+        finish.resolve(true)
+        await first.value
+        XCTAssertEqual(model.purchaseState, .pending)
+
+        let retry = try XCTUnwrap(model.beginPurchase {
+            operations += 1
+            model.purchaseState = .cancelled
+        })
+        await retry.value
+        XCTAssertEqual(operations, 2)
+        XCTAssertEqual(model.purchaseState, .cancelled)
+    }
+
+    func testPurchaseRejectsSynchronousReentryDuringBusyAndTerminalPublication() async throws {
+        let model = makeStoreViewModel { _ in false }
+        var attemptedBusyReentry = false
+        var attemptedTerminalReentry = false
+        let observation = model.$purchaseState.dropFirst().sink { state in
+            if state == .inProgress, !attemptedBusyReentry {
+                attemptedBusyReentry = true
+                XCTAssertNil(model.beginPurchase { XCTFail("A reentrant purchase started during admission") })
+            } else if state == .cancelled, !attemptedTerminalReentry {
+                attemptedTerminalReentry = true
+                XCTAssertNil(model.beginPurchase { XCTFail("A reentrant purchase started before settlement") })
+            }
+        }
+        defer { observation.cancel() }
+
+        let purchase = try XCTUnwrap(model.beginPurchase {
+            model.purchaseState = .cancelled
+        })
+        XCTAssertTrue(attemptedBusyReentry)
+        await purchase.value
+        XCTAssertTrue(attemptedTerminalReentry)
+        XCTAssertEqual(model.purchaseState, .cancelled)
+    }
+
+    func testAdmittedPurchaseStartsAfterThePresenterReleasesItsStoreModel() async throws {
+        var model: StoreViewModel? = makeStoreViewModel { _ in false }
+        weak var owner = model
+        var started = false
+        let purchase = try XCTUnwrap(model?.beginPurchase {
+            started = true
+        })
+        model = nil
+
+        XCTAssertNotNil(owner)
+        await purchase.value
+        XCTAssertTrue(started)
+    }
+
     private func makeStoreViewModel(
         externalStatus: @escaping (StoreViewModel) async -> Bool
     ) -> StoreViewModel {
